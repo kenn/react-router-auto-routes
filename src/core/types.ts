@@ -7,12 +7,11 @@ export type RouteInfo = {
   parentId?: string
   index?: boolean
   caseSensitive?: boolean
-  synthetic?: boolean // Auto-generated parent route without a physical file
 }
 
 export interface RouteConfig {
   id: string
-  file?: string // Optional for synthetic parent routes
+  file: string
   path?: string
   index?: boolean
   caseSensitive?: boolean

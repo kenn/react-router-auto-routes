@@ -34,13 +34,12 @@
   - Index routes nested under non-root parents omit the `path` property (React Router handles them automatically)
   - Direct root-level index routes keep their path (e.g., `dashboard/index.tsx` → `path: "dashboard"`)
 
-- **Automatic synthetic parent routes**: Nested folder routes like `api/users.ts` automatically get parent routes created
-  - Implemented in `autoRoutes()` after route collection, before parent resolution
-  - Synthetic parents have no `file` property in the RouteConfig output
-  - Only created for simple folder nesting (skips dot notation, special syntax, index routes)
-  - Detection logic checks file path segments for dots, parentheses, or other special characters
-  - If explicit parent exists (e.g., `api.tsx` or `api/_layout.tsx`), synthetic parent is not created
-  - Allows API routes and other nested structures to work without requiring layout files
+- **Automatic folder-to-dot normalization**: Nested folder routes without parents are flattened to root level
+  - `api/users.ts` without `api.tsx` behaves like `api.users.ts` (creates route at root with path `/api/users`)
+  - Implemented in `autoRoutes()` after route collection - checks for missing parents and updates route names
+  - Only applies to simple folder nesting (skips dot notation, special syntax like parentheses, index routes)
+  - When explicit parent exists (`api.tsx` or `api/_layout.tsx`), normal nesting occurs
+  - Solves React Router v7's requirement for physical files while maintaining folder organization convenience
 
 ## Contribution Checklist
 

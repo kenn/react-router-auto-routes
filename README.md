@@ -76,42 +76,47 @@ This generates:
 </Route>
 ```
 
-### Automatic Parent Routes
+### Nested Folders - No Parent Required!
 
-Nested folder routes automatically get parent routes created - **no parent file required**:
+Nested folder routes **automatically work without parent files**:
 
 ```
 routes/
 └── api/
-    ├── users.ts       → /api/users
+    ├── users.ts       → /api/users ✅ No parent needed!
+    └── posts.ts       → /api/posts ✅ Works automatically!
+```
+
+The library automatically treats `api/users.ts` like `api.users.ts` when no parent exists.
+
+**When a parent file IS provided:**
+
+```
+routes/
+├── api.tsx            → Custom parent with layout/logic
+└── api/
+    ├── users.ts       → /api/users (nested under api.tsx)
     └── posts.ts       → /api/posts
 ```
 
-This automatically creates a synthetic `/api` parent route that passes through to children.
+The nested routes will use the parent file and nest properly.
 
-**What gets automatic parents:**
-- ✅ Simple folder nesting: `api/users.ts`, `api/posts.ts`
-- ✅ Deep nesting: `api/v1/users.ts` (creates both `api` and `api/v1` parents)
-- ❌ Dot notation: `api.users.tsx` (flat file, no parent needed)
-- ❌ Special syntax: `parent/(child)/route.tsx` (parentheses indicate special routing)
-- ❌ Index routes: `api/v1/index.tsx` (handles own nesting)
+**Add custom parent logic when needed:**
 
-**When to create explicit parent files:**
-- You need custom layout/logic at the parent level
-- You want to add loaders, actions, or meta to the parent route
-- You want more control over the parent's behavior
-
-Example explicit parent:
 ```tsx
-// routes/api.tsx - Custom parent with auth check
+// routes/api.tsx - Optional parent with custom behavior
 import { Outlet } from 'react-router'
+
 export async function loader() {
-  // Add authentication, rate limiting, etc.
+  // Authentication, rate limiting, logging...
 }
+
 export default function Api() {
   return <Outlet />
 }
 ```
+
+**Key insight:** Folders are just a convenience for organization. Without a parent file, `api/users.ts` behaves exactly like `api.users.ts` - both create the same `/api/users` route.
 
 ## Colocation with `+` Prefix
 

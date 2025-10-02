@@ -10,7 +10,6 @@ import {
 import { defaultVisitFiles } from '../utils'
 import { isRouteModuleFile, getRouteRegex } from './route-detection'
 import { getRouteInfo, findParentRouteId } from './route-info'
-import { createRoutePath } from './route-path'
 
 export { autoRoutes }
 export type { RouteConfig, autoRoutesOptions } from './types'
@@ -102,37 +101,22 @@ export default function autoRoutes(
     })
   }
 
-  // Create synthetic parent routes for nested folder routes without explicit parents
-  // This allows api/users.ts and api/posts.ts to work without requiring api.tsx
-  const syntheticParents = new Set<string>()
-
+  // Normalize nested folder routes without parents to use dot notation
+  // This makes oauth/google.ts behave like oauth.google.ts (no parent required)
   for (const routeInfo of routeMap.values()) {
-    // Only create synthetic parents for true folder-based nesting
-    // Skip if:
-    // 1. Route is flat (no segments or only 1 segment)
-    // 2. Route uses dot notation (folder names or filenames contain dots)
-    // 3. Route is an index route (they handle their own nesting)
-
+    // Skip if route is flat, an index route, or uses special syntax
     if (routeInfo.segments.length <= 1 || routeInfo.index) {
       continue
     }
 
-    // Check if this route uses dot notation by examining the original file path
-    // Extract the path without "routes/" prefix and without the file extension
+    // Check if route uses folder nesting (not already using dot notation)
     const fileRelativeToRouteDir = routeInfo.id.replace(/^routes\//, '')
     const pathParts = fileRelativeToRouteDir.split('/')
 
-    // If ANY part of the path (folder or filename) contains special characters,
-    // skip synthetic parent creation as these indicate special routing syntax
+    // Skip if any part uses dot notation or special syntax
     let usesSpecialSyntax = false
-    for (let i = 0; i < pathParts.length; i++) {
-      const part = pathParts[i]
-      // For the last part (filename), remove extension first
-      const nameToCheck = i === pathParts.length - 1
-        ? part.replace(/\.(ts|tsx|js|jsx|md|mdx)$/, '')
-        : part
-
-      // Skip if uses dot notation or parentheses (optional segments)
+    for (const part of pathParts) {
+      const nameToCheck = part.replace(/\.(ts|tsx|js|jsx|md|mdx)$/, '')
       if (nameToCheck.includes('.') || nameToCheck.includes('(') || nameToCheck.includes(')')) {
         usesSpecialSyntax = true
         break
@@ -143,50 +127,20 @@ export default function autoRoutes(
       continue
     }
 
-    // Check each parent level to see if it needs a synthetic parent
-    for (let i = routeInfo.segments.length - 1; i > 0; i--) {
-      const parentSegments = routeInfo.segments.slice(0, i)
-      const parentName = parentSegments.join('/')
+    // Check if parent exists
+    const parentSegments = routeInfo.segments.slice(0, -1)
+    const parentName = parentSegments.join('/')
+    const existingParents = nameMap.get(parentName)
+    const hasNonIndexParent = existingParents?.some(p => !p.index)
 
-      // Skip if we already created this synthetic parent
-      if (syntheticParents.has(parentName)) {
-        continue
-      }
+    // If no parent exists, flatten this route to root level
+    // by treating folder separator as dot notation
+    if (!hasNonIndexParent) {
+      // Update the name to use dot notation (all segments joined with /)
+      routeInfo.name = routeInfo.segments.join('/')
 
-      // Check if a real parent exists
-      const existingParents = nameMap.get(parentName)
-      const hasNonIndexParent = existingParents?.some(p => !p.index)
-
-      if (!hasNonIndexParent) {
-        // Create synthetic parent route
-        const syntheticId = `routes/${parentName}`
-        const syntheticPath = createRoutePath(parentSegments, false, {
-          ...resolvedOptions,
-          visitFiles,
-          routeRegex,
-          colocateChar,
-        })
-
-        const syntheticRoute: RouteInfo = {
-          id: syntheticId,
-          path: syntheticPath!,
-          file: '', // No physical file
-          name: parentName,
-          segments: parentSegments,
-          index: false,
-          synthetic: true,
-        }
-
-        routeMap.set(syntheticId, syntheticRoute)
-
-        if (!nameMap.has(parentName)) {
-          nameMap.set(parentName, [syntheticRoute])
-        } else {
-          nameMap.get(parentName)!.push(syntheticRoute)
-        }
-
-        syntheticParents.add(parentName)
-      }
+      // Keep the segments as-is (they determine the path)
+      // The route will be at root level but with the full path
     }
   }
 
@@ -225,11 +179,7 @@ function buildRouteTree(
   const createRouteConfig = (route: RouteInfo): RouteConfig => {
     const node: RouteConfig = {
       id: route.id,
-    }
-
-    // Only include file property if route is not synthetic
-    if (!route.synthetic) {
-      node.file = route.file
+      file: route.file,
     }
 
     if (route.caseSensitive) {
