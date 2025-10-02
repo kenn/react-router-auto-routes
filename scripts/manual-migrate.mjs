@@ -100,7 +100,6 @@ function runMigrations() {
   const args = [
     toWorkspaceRelative(SOURCE_DIR),
     toWorkspaceRelative(TARGET_DIR),
-    '--force',
   ]
   console.log(`  • output: ${TARGET_DIR}`)
   const result = spawnSync('node', [cli, ...args], { stdio: 'inherit' })

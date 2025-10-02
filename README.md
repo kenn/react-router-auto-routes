@@ -136,20 +136,19 @@ Translate an existing Remix-style routes folder into any supported flat-route co
 
 ```bash
 # when using the published package
-npx migrate-flat-routes app/routes app/new-routes --force
+npx migrate-flat-routes app/routes app/new-routes
 
 # when working from this repo
 npm run build            # ensure dist/cli.cjs exists
-node dist/cli.cjs app/routes app/new-routes --force
+node dist/cli.cjs app/routes app/new-routes
 ```
 
-### Options
+### Usage
 
 ```
-Usage: migrate <sourceDir> <targetDir> [options]
+Usage: migrate <sourceDir> <targetDir>
 
-Options:
-  --force    overwrite the target directory if it already exists
+The CLI overwrites the target directory if it already exists.
 ```
 
 ### Sample Workspace
