@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+
+# AI
+.claude
+
+# Build outputs
+dist
+build
+public/build
+.cache
+tsconfig.tsbuildinfo
+
+# Environment
+.env
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+
+# Sample app (testing)
+tmp/
