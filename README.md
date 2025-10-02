@@ -164,7 +164,7 @@ Inspect the generated `app/new-routes` folder under `tmp/manual-migrate` before 
 
 ## Requirements
 
-- Node.js >= 22
+- Node.js >= 20
 - React Router v7+
 
 ## Acknowledgments

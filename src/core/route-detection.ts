@@ -121,5 +121,6 @@ export function getRouteRegex(
       '\\${colocateChar}',
       `\\${escapedColocateChar}`,
     ),
+    RegexRequiresNestedDirReplacement.flags,
   )
 }

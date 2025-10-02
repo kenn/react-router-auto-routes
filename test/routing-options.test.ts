@@ -62,3 +62,29 @@ describe('optional segments', () => {
     expect(manifest['routes/parent.($child)']!.path!).toBe('parent/:child?')
   })
 })
+
+describe('routeDir validation', () => {
+  it('should reject routeDir with leading dot segments', () => {
+    expect(() => {
+      createRoutesFromFiles(['index.tsx'], { routeDir: './routes' })
+    }).toThrow(
+      "routeDir must be a single directory name without path separators. Got: './routes'",
+    )
+  })
+
+  it('should reject routeDir with trailing separators', () => {
+    expect(() => {
+      createRoutesFromFiles(['index.tsx'], { routeDir: 'routes/' })
+    }).toThrow(
+      "routeDir must be a single directory name without path separators. Got: 'routes/'",
+    )
+  })
+
+  it('should reject routeDir with nested paths', () => {
+    expect(() => {
+      createRoutesFromFiles(['index.tsx'], { routeDir: 'app/routes' })
+    }).toThrow(
+      "routeDir must be a single directory name without path separators. Got: 'app/routes'",
+    )
+  })
+})

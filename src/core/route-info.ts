@@ -1,6 +1,6 @@
 import * as path from 'path'
 import { RouteInfo, autoRoutesOptions } from './types'
-import { createRouteId, normalizeSlashes } from '../utils'
+import { createRouteId, validateRouteDir, normalizeSlashes } from '../utils'
 import { isIndexRoute } from './route-detection'
 import { createRoutePath, getRouteSegments } from './route-path'
 
@@ -9,6 +9,8 @@ export function getRouteInfo(
   file: string,
   options: autoRoutesOptions,
 ): RouteInfo {
+  validateRouteDir(routeDir)
+
   let filePath = normalizeSlashes(path.join(routeDir, file))
   let routeId = createRouteId(filePath)
   let routeIdWithoutRoutes = routeId.slice(routeDir.length + 1)

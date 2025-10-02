@@ -39,6 +39,20 @@ export function normalizeSlashes(file: string) {
   return file.split(path.win32.sep).join('/')
 }
 
+export function validateRouteDir(routeDir: string) {
+  if (!routeDir) {
+    return routeDir
+  }
+
+  if (routeDir.includes('/') || routeDir.includes('\\')) {
+    throw new Error(
+      `routeDir must be a single directory name without path separators. Got: '${routeDir}'`
+    )
+  }
+
+  return routeDir
+}
+
 function stripFileExtension(file: string) {
   return file.replace(/\.[a-z0-9]+$/i, '')
 }
