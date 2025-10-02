@@ -20,6 +20,27 @@ function isRouteModuleFile(filename: string): boolean {
   return routeModuleExts.includes(path.extname(filename))
 }
 
+function isColocatedFile(filename: string): boolean {
+  const normalized = filename.replace(/\\/g, '/')
+  const segments = normalized.split('/')
+  if (segments.length <= 1) return false
+
+  const directorySegments = segments.slice(0, -1)
+  const usesFlatFilesConvention = directorySegments.some((segment) =>
+    segment.endsWith('+'),
+  )
+
+  if (!usesFlatFilesConvention) return false
+
+  return directorySegments.some((segment) => {
+    if (segment === '' || segment === '.') return false
+    if (segment.endsWith('+')) return false
+    if (segment.startsWith('(') && segment.endsWith(')')) return false
+    if (segment.startsWith('__')) return false
+    return true
+  })
+}
+
 export type CreateRoutesFromFoldersOptions = {
   /**
    * The directory where your app lives. Defaults to `app`.
@@ -72,6 +93,10 @@ export function createRoutesFromFolders(
       ignoredFilePatterns.length > 0 &&
       ignoredFilePatterns.some((pattern) => picomatch.isMatch(file, pattern))
     ) {
+      return
+    }
+
+    if (isColocatedFile(file)) {
       return
     }
 

@@ -89,4 +89,33 @@ describe('migrate CLI', () => {
       'marketing+/pricing.tsx',
     ])
   })
+
+  it('ignores colocated assets nested under flat-file routes', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/app+/index.tsx':
+        'export default function AppHome() { return null }\n',
+      'app/routes/app+/reports+/$id+/index.tsx':
+        'export default function Report() { return null }\n',
+      'app/routes/app+/reports+/$id+/assets/template.mustache':
+        'ignored mustache\n',
+      'app/routes/app+/reports+/$id+/assets/support.ts':
+        'export const helper = () => null\n',
+    })
+
+    const sourceAbsolute = fixture.sourceDir
+    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
+
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const files = fixture.listRelativeFiles(targetAbsolute)
+    expect(files.length).toBeGreaterThan(0)
+    expect(files.some((file) => file.includes('assets'))).toBe(false)
+    expect(files.some((file) => file.endsWith('.mustache'))).toBe(false)
+    expect(files.some((file) => file.endsWith('support.ts'))).toBe(false)
+  })
 })
