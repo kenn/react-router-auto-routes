@@ -58,6 +58,61 @@ routes/
 - `(segment)` - Optional segments (e.g., `(en)` → `en?`)
 - `($param)` - Optional dynamic params (e.g., `($lang)` → `:lang?`)
 
+### Index Route Nesting
+
+Index routes automatically nest under layouts with matching path segments:
+
+```
+routes/
+├── admin/
+│   ├── _layout.tsx    → /admin layout
+│   └── index.tsx      → /admin (nested under layout)
+```
+
+This generates:
+```jsx
+<Route path="admin" file="routes/admin/_layout.tsx">
+  <Route index file="routes/admin/index.tsx" />
+</Route>
+```
+
+### Automatic Parent Routes
+
+Nested folder routes automatically get parent routes created - **no parent file required**:
+
+```
+routes/
+└── api/
+    ├── users.ts       → /api/users
+    └── posts.ts       → /api/posts
+```
+
+This automatically creates a synthetic `/api` parent route that passes through to children.
+
+**What gets automatic parents:**
+- ✅ Simple folder nesting: `api/users.ts`, `api/posts.ts`
+- ✅ Deep nesting: `api/v1/users.ts` (creates both `api` and `api/v1` parents)
+- ❌ Dot notation: `api.users.tsx` (flat file, no parent needed)
+- ❌ Special syntax: `parent/(child)/route.tsx` (parentheses indicate special routing)
+- ❌ Index routes: `api/v1/index.tsx` (handles own nesting)
+
+**When to create explicit parent files:**
+- You need custom layout/logic at the parent level
+- You want to add loaders, actions, or meta to the parent route
+- You want more control over the parent's behavior
+
+Example explicit parent:
+```tsx
+// routes/api.tsx - Custom parent with auth check
+import { Outlet } from 'react-router'
+export async function loader() {
+  // Add authentication, rate limiting, etc.
+}
+export default function Api() {
+  return <Outlet />
+}
+```
+
 ## Colocation with `+` Prefix
 
 Keep helpers, components, and utilities alongside routes using the `+` prefix. Anything starting with `+` is ignored by the router.

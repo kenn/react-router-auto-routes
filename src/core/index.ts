@@ -10,6 +10,7 @@ import {
 import { defaultVisitFiles } from '../utils'
 import { isRouteModuleFile, getRouteRegex } from './route-detection'
 import { getRouteInfo, findParentRouteId } from './route-info'
+import { createRoutePath } from './route-path'
 
 export { autoRoutes }
 export type { RouteConfig, autoRoutesOptions } from './types'
@@ -21,7 +22,7 @@ const defaultOptions: autoRoutesOptions = {
   paramChar: '$',
   colocateChar: '+',
   routeRegex:
-    /((\${colocateChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)))\.(ts|tsx|js|jsx|md|mdx)$/,
+    /((\${colocateChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/,
 }
 
 export default function autoRoutes(
@@ -101,6 +102,94 @@ export default function autoRoutes(
     })
   }
 
+  // Create synthetic parent routes for nested folder routes without explicit parents
+  // This allows api/users.ts and api/posts.ts to work without requiring api.tsx
+  const syntheticParents = new Set<string>()
+
+  for (const routeInfo of routeMap.values()) {
+    // Only create synthetic parents for true folder-based nesting
+    // Skip if:
+    // 1. Route is flat (no segments or only 1 segment)
+    // 2. Route uses dot notation (folder names or filenames contain dots)
+    // 3. Route is an index route (they handle their own nesting)
+
+    if (routeInfo.segments.length <= 1 || routeInfo.index) {
+      continue
+    }
+
+    // Check if this route uses dot notation by examining the original file path
+    // Extract the path without "routes/" prefix and without the file extension
+    const fileRelativeToRouteDir = routeInfo.id.replace(/^routes\//, '')
+    const pathParts = fileRelativeToRouteDir.split('/')
+
+    // If ANY part of the path (folder or filename) contains special characters,
+    // skip synthetic parent creation as these indicate special routing syntax
+    let usesSpecialSyntax = false
+    for (let i = 0; i < pathParts.length; i++) {
+      const part = pathParts[i]
+      // For the last part (filename), remove extension first
+      const nameToCheck = i === pathParts.length - 1
+        ? part.replace(/\.(ts|tsx|js|jsx|md|mdx)$/, '')
+        : part
+
+      // Skip if uses dot notation or parentheses (optional segments)
+      if (nameToCheck.includes('.') || nameToCheck.includes('(') || nameToCheck.includes(')')) {
+        usesSpecialSyntax = true
+        break
+      }
+    }
+
+    if (usesSpecialSyntax) {
+      continue
+    }
+
+    // Check each parent level to see if it needs a synthetic parent
+    for (let i = routeInfo.segments.length - 1; i > 0; i--) {
+      const parentSegments = routeInfo.segments.slice(0, i)
+      const parentName = parentSegments.join('/')
+
+      // Skip if we already created this synthetic parent
+      if (syntheticParents.has(parentName)) {
+        continue
+      }
+
+      // Check if a real parent exists
+      const existingParents = nameMap.get(parentName)
+      const hasNonIndexParent = existingParents?.some(p => !p.index)
+
+      if (!hasNonIndexParent) {
+        // Create synthetic parent route
+        const syntheticId = `routes/${parentName}`
+        const syntheticPath = createRoutePath(parentSegments, false, {
+          ...resolvedOptions,
+          visitFiles,
+          routeRegex,
+          colocateChar,
+        })
+
+        const syntheticRoute: RouteInfo = {
+          id: syntheticId,
+          path: syntheticPath!,
+          file: '', // No physical file
+          name: parentName,
+          segments: parentSegments,
+          index: false,
+          synthetic: true,
+        }
+
+        routeMap.set(syntheticId, syntheticRoute)
+
+        if (!nameMap.has(parentName)) {
+          nameMap.set(parentName, [syntheticRoute])
+        } else {
+          nameMap.get(parentName)!.push(syntheticRoute)
+        }
+
+        syntheticParents.add(parentName)
+      }
+    }
+  }
+
   const orderedRouteInfos = Array.from(routeMap.values())
 
   for (const routeInfo of orderedRouteInfos) {
@@ -136,7 +225,11 @@ function buildRouteTree(
   const createRouteConfig = (route: RouteInfo): RouteConfig => {
     const node: RouteConfig = {
       id: route.id,
-      file: route.file,
+    }
+
+    // Only include file property if route is not synthetic
+    if (!route.synthetic) {
+      node.file = route.file
     }
 
     if (route.caseSensitive) {
@@ -191,6 +284,12 @@ function computeRelativePath(
   let relative = route.path.slice(parentPath.length)
   if (relative.startsWith('/')) {
     relative = relative.slice(1)
+  }
+
+  // Index routes nested under a non-root parent should not have a path
+  // when the relative path is empty (meaning they match the parent's path exactly)
+  if (route.index && route.parentId && route.parentId !== 'root' && !relative) {
+    return undefined
   }
 
   return relative || undefined

@@ -103,6 +103,11 @@ describe('flat folder routes', () => {
       'healthcheck/route.tsx',
     ]
     const expectedRoutes: ExpectedRouteSnapshot = {
+      '$lang.$ref/component': {
+        file: 'routes/$lang.$ref/component.tsx',
+        parentId: 'routes/$lang.$ref/_layout',
+        path: 'component',
+      },
       '$lang.$ref._index/route': {
         file: 'routes/$lang.$ref._index/route.tsx',
         index: true,
@@ -141,6 +146,24 @@ describe('flat folder routes', () => {
         path: 'readme',
       },
     }
+    expectFilesToMatchSnapshot(flatFolders, expectedRoutes)
+  })
+
+  it('should treat nested files without special suffixes as routes', () => {
+    const flatFolders = ['oauth.tsx', 'oauth/google.tsx']
+    const expectedRoutes: ExpectedRouteSnapshot = {
+      oauth: {
+        file: 'routes/oauth.tsx',
+        parentId: 'root',
+        path: 'oauth',
+      },
+      'oauth/google': {
+        file: 'routes/oauth/google.tsx',
+        parentId: 'routes/oauth',
+        path: 'google',
+      },
+    }
+
     expectFilesToMatchSnapshot(flatFolders, expectedRoutes)
   })
 })

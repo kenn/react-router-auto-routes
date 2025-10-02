@@ -247,8 +247,7 @@ describe('complex route structures', () => {
       'home/index': {
         file: 'routes/home/index.tsx',
         index: true,
-        parentId: 'root',
-        path: 'home',
+        parentId: 'routes/home/_layout',
       },
       'home/profile/route': {
         file: 'routes/home/profile/route.tsx',

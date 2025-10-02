@@ -38,7 +38,12 @@ export function findParentRouteId(
   routeInfo: RouteInfo,
   nameMap: Map<string, RouteInfo[]>,
 ): string | undefined {
-  let parentName = routeInfo.segments.slice(0, -1).join('/')
+  // Index routes should look for a parent with their full path first,
+  // because they might have a layout with the same segments
+  // e.g., home/index.tsx (segments: ['home']) should be child of home/_layout.tsx (segments: ['home'])
+  let parentName = routeInfo.index
+    ? routeInfo.segments.join('/')
+    : routeInfo.segments.slice(0, -1).join('/')
 
   while (parentName) {
     const candidates = nameMap.get(parentName)

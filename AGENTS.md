@@ -27,6 +27,21 @@
 - When extending detection logic ensure colocation errors remain descriptive (see `isRouteModuleFile`).
 - Maintain TypeScript types in `src/core/types.ts` and keep `autoRoutes` API backwards compatible.
 
+### Route Nesting Behavior
+
+- **Index routes with matching segments**: `home/index.tsx` automatically nests under `home/_layout.tsx` when both have segments `['home']`
+  - Implemented in `findParentRouteId()` - index routes look for parents using full segment path, not `slice(0, -1)`
+  - Index routes nested under non-root parents omit the `path` property (React Router handles them automatically)
+  - Direct root-level index routes keep their path (e.g., `dashboard/index.tsx` → `path: "dashboard"`)
+
+- **Automatic synthetic parent routes**: Nested folder routes like `api/users.ts` automatically get parent routes created
+  - Implemented in `autoRoutes()` after route collection, before parent resolution
+  - Synthetic parents have no `file` property in the RouteConfig output
+  - Only created for simple folder nesting (skips dot notation, special syntax, index routes)
+  - Detection logic checks file path segments for dots, parentheses, or other special characters
+  - If explicit parent exists (e.g., `api.tsx` or `api/_layout.tsx`), synthetic parent is not created
+  - Allows API routes and other nested structures to work without requiring layout files
+
 ## Contribution Checklist
 
 - Favor pure functions; avoid side effects beyond filesystem scanning in utilities.
