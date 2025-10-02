@@ -10,6 +10,7 @@ build
 public/build
 .cache
 tsconfig.tsbuildinfo
+*.tgz
 
 # Environment
 .env

@@ -63,14 +63,18 @@ function selectParentCandidate(
   child: RouteInfo,
   candidates: RouteInfo[],
 ): RouteInfo | undefined {
+  const eligibleParents = candidates.filter(
+    (candidate) => candidate.id !== child.id && !candidate.index,
+  )
+
+  if (eligibleParents.length === 0) {
+    return undefined
+  }
+
   let best: RouteInfo | undefined
   let bestScore = Number.NEGATIVE_INFINITY
 
-  for (const candidate of candidates) {
-    if (candidate.id === child.id) {
-      continue
-    }
-
+  for (const candidate of eligibleParents) {
     const candidateScore = getParentPriority(candidate)
     if (candidateScore > bestScore) {
       best = candidate
@@ -78,18 +82,10 @@ function selectParentCandidate(
     }
   }
 
-  if (best) {
-    return best
-  }
-
-  return candidates.find((candidate) => candidate.id !== child.id)
+  return best
 }
 
 function getParentPriority(route: RouteInfo): number {
-  if (route.index) {
-    return 1
-  }
-
   if (isLayoutRoute(route)) {
     return 2
   }

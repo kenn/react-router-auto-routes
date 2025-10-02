@@ -259,4 +259,39 @@ describe('complex route structures', () => {
 
     expectFilesToMatchSnapshot(routeList, expectedRoutes)
   })
+
+  it('should skip index routes when finding parents', () => {
+    const routeList = [
+      'home/_layout.tsx',
+      'home/kickoffs/_layout.tsx',
+      'home/kickoffs/$id/index.tsx',
+      'home/kickoffs/$id/$key/details.route.tsx',
+    ]
+
+    const expectedRoutes: ExpectedRouteSnapshot = {
+      'home/_layout': {
+        file: 'routes/home/_layout.tsx',
+        parentId: 'root',
+        path: 'home',
+      },
+      'home/kickoffs/_layout': {
+        file: 'routes/home/kickoffs/_layout.tsx',
+        parentId: 'routes/home/_layout',
+        path: 'kickoffs',
+      },
+      'home/kickoffs/$id/index': {
+        file: 'routes/home/kickoffs/$id/index.tsx',
+        index: true,
+        parentId: 'routes/home/kickoffs/_layout',
+        path: ':id',
+      },
+      'home/kickoffs/$id/$key/details.route': {
+        file: 'routes/home/kickoffs/$id/$key/details.route.tsx',
+        parentId: 'routes/home/kickoffs/_layout',
+        path: ':id/:key/details',
+      },
+    }
+
+    expectFilesToMatchSnapshot(routeList, expectedRoutes)
+  })
 })
