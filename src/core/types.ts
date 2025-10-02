@@ -31,6 +31,17 @@ export type autoRoutesOptions = {
   visitFiles?: VisitFilesFunction
   paramChar?: string
   colocateChar?: string
-  ignoredRouteFiles?: string[]
+  ignoredRouteFiles?: readonly string[]
   routeRegex?: RegExp
+}
+
+export type ResolvedOptions = {
+  appDir: string
+  routeDirs: readonly string[]
+  basePath: string
+  visitFiles: VisitFilesFunction
+  paramChar: string
+  colocateChar: string
+  ignoredRouteFiles: readonly string[]
+  routeRegex: RegExp
 }
