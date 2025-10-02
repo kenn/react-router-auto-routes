@@ -28,9 +28,9 @@ describe('migrate CLI', () => {
 
     const files = fixture.listRelativeFiles(targetAbsolute)
     expect(files).toEqual([
-      'admin+/$id.tsx',
-      'admin+/dashboard.tsx',
-      'admin+/index.tsx',
+      'admin/$id.tsx',
+      'admin/dashboard.tsx',
+      'admin/index.tsx',
       'index.tsx',
     ])
   })
@@ -76,17 +76,17 @@ describe('migrate CLI', () => {
     const files = fixture.listRelativeFiles(targetAbsolute)
     expect(files).toEqual([
       'about.tsx',
-      'admin+/_index.tsx',
-      'admin+/_layout.tsx',
-      'admin+/dashboard.tsx',
-      'admin+/users.$id.tsx',
-      'admin+/users._index.tsx',
-      'blog+/$slug.tsx',
-      'blog+/_index.tsx',
+      'admin/_index.tsx',
+      'admin/_layout.tsx',
+      'admin/dashboard.tsx',
+      'admin/users.$id.tsx',
+      'admin/users._index.tsx',
+      'blog/$slug.tsx',
+      'blog/_index.tsx',
       'index.tsx',
-      'marketing+/_index.tsx',
-      'marketing+/_layout.tsx',
-      'marketing+/pricing.tsx',
+      'marketing/_index.tsx',
+      'marketing/_layout.tsx',
+      'marketing/pricing.tsx',
     ])
   })
 
@@ -115,5 +115,7 @@ describe('migrate CLI', () => {
     const files = fixture.listRelativeFiles(targetAbsolute)
     expect(files).toContain('app/reports/$id/+assets/template.mustache')
     expect(files).toContain('app/reports/$id/+assets/support.ts')
+    expect(files).toContain('app/index.tsx')
+    expect(files).toContain('app/reports/$id/index.tsx')
   })
 })

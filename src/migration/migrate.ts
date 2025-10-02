@@ -87,15 +87,13 @@ export function convertToRoute(
   let flat = routeId
     // remove + suffix from folder names (old convention marker)
     .replace(/\+\//g, '/')
-    // convert path separators to hybrid format using + folder separator
-    .replace(pathSepRegex, '+/')
     // convert double __ to single _ for pathless layout prefix
     .replace(/(^|\/|\.)__/g, '$1_')
 
   // check if route is a parent route
-  // if so, move to hybrid folder (+) as _layout route
+  // if so, move to folder as _layout route
   if (Object.values(routes).some((r) => r.parentId === id)) {
-    flat = flat + '+/_layout'
+    flat = flat + '/_layout'
   }
 
   return flat
