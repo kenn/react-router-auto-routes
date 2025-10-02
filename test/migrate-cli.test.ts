@@ -77,20 +77,20 @@ describe('migrate CLI', () => {
     expect(files).toEqual([
       '_index.tsx',
       'about.tsx',
-      'admin+/[_]index.tsx',
-      'admin+/[_]layout.tsx',
+      'admin+/_index.tsx',
+      'admin+/_layout.tsx',
       'admin+/dashboard.tsx',
       'admin+/users.$id.tsx',
-      'admin+/users.[_]index.tsx',
+      'admin+/users._index.tsx',
       'blog+/$slug.tsx',
-      'blog+/[_]index.tsx',
-      'marketing+/[_]index.tsx',
-      'marketing+/[_]layout.tsx',
+      'blog+/_index.tsx',
+      'marketing+/_index.tsx',
+      'marketing+/_layout.tsx',
       'marketing+/pricing.tsx',
     ])
   })
 
-  it('ignores colocated assets nested under flat-file routes', () => {
+  it('migrates colocated files with + prefix', () => {
     const fixture = createRoutesFixture({
       'app/routes/app+/index.tsx':
         'export default function AppHome() { return null }\n',
@@ -113,9 +113,7 @@ describe('migrate CLI', () => {
     })
 
     const files = fixture.listRelativeFiles(targetAbsolute)
-    expect(files.length).toBeGreaterThan(0)
-    expect(files.some((file) => file.includes('assets'))).toBe(false)
-    expect(files.some((file) => file.endsWith('.mustache'))).toBe(false)
-    expect(files.some((file) => file.endsWith('support.ts'))).toBe(false)
+    expect(files).toContain('app/reports/$id/+assets/template.mustache')
+    expect(files).toContain('app/reports/$id/+assets/support.ts')
   })
 })
