@@ -2,6 +2,10 @@
 
 Automatic folder-based routing with colocation for React Router v7+.
 
+## Acknowledgments
+
+This library is heavily inspired by [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) by @kiliman. While this is a complete rewrite for React Router v7+, the core routing conventions and ideas stem from that excellent work.
+
 ## Features
 
 - 🎯 **Prefix-based colocation** - Keep helpers and components alongside routes using `+` prefix
@@ -102,7 +106,7 @@ routes/
         ├── edit.tsx       → Route: /users/:id/edit
         ├── +avatar.tsx
         └── +/
-            ├── queries.ts
+            ├── query.ts
             └── validation.ts
 ```
 
@@ -110,11 +114,14 @@ routes/
 
 **Allowed:**
 
-- `+` prefixed files and folders inside route directories
-- Anonymous folder: `+/` for misc helpers
+- `+` prefixed files and folders
+- Anonymous folder: `+/`
 - Nested folders inside `+` folders
 
-**Note:** Root-level `+` entries and nested `+/+/` folders will throw errors. A `+` appearing mid-filename (e.g., `users+admins.tsx`) creates a route with literal `+` in the URL.
+**Disallowed:**
+
+- Root-level `+` entries
+- Nested `+/+/` folders
 
 ## Configuration Options
 
@@ -125,7 +132,7 @@ autoRoutes({
     '**/.*', // Ignore dotfiles
     '**/*.test.{ts,tsx}', // Ignore test files
   ],
-  // Override the default route directory ('routes') when needed
+  // Route directory (default: 'routes')
   routeDir: 'routes',
   // Character for route params (default: '$')
   paramChar: '$',
@@ -136,32 +143,16 @@ autoRoutes({
 })
 ```
 
-`routeDir` defaults to `routes`, so you only need to specify it when your route files live somewhere else.
-
 ## Migration Guide
 
-### From remix-flat-routes (v0.8.x)
+**Option updates:**
 
-The main differences:
-
-1. **Colocation pattern changed:**
-   - **Old:** `dashboard+/index.tsx` (suffix pattern)
-   - **New:** `dashboard/index.tsx` with `dashboard/+utils.ts` (prefix pattern)
-
-2. **Option updates:**
-   - `nestedDirectoryChar` → `colocateChar` (changed behavior)
+`nestedDirectoryChar` → `colocateChar` (changed behavior)
 
 ## CLI Migration Tool
 
-Translate an existing Remix-style routes folder into any supported flat-route convention via the bundled CLI.
-
 ```bash
-# when using the published package
 npx migrate-auto-routes app/routes app/new-routes
-
-# when working from this repo
-npm run build            # ensure dist/cli.cjs exists
-node dist/cli.cjs app/routes app/new-routes
 ```
 
 ### Usage
@@ -171,9 +162,6 @@ Usage: migrate-auto-routes <sourceDir> <targetDir>
 
 The CLI overwrites the target directory if it already exists.
 ```
-
-> Note: The command is published as `migrate-auto-routes` to avoid clashing with
-> the `migrate-flat-routes` binary shipped by `remix-flat-routes`.
 
 ### Sample Workspace
 
@@ -190,7 +178,3 @@ Inspect the generated `app/new-routes` folder under `tmp/manual-migrate` before 
 
 - Node.js >= 20
 - React Router v7+
-
-## Acknowledgments
-
-This library is heavily inspired by [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) by @kiliman. While this is a complete rewrite for React Router v7+, the core routing conventions and ideas stem from that excellent work.
