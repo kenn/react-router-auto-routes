@@ -21,9 +21,7 @@ npm install -D react-router-auto-routes
 // app/routes.ts
 import { autoRoutes } from 'react-router-auto-routes'
 
-export default autoRoutes({
-  ignoredRouteFiles: ['**/.*'], // Ignore dotfiles
-})
+export default autoRoutes()
 ```
 
 ## Routing Convention
@@ -102,7 +100,10 @@ routes/
 ```ts
 autoRoutes({
   // Files to ignore (supports glob patterns)
-  ignoredRouteFiles: ['**/.*', '**/*.test.{ts,tsx}'],
+  ignoredRouteFiles: [
+    '**/.*', // Ignore dotfiles
+    '**/*.test.{ts,tsx}', // Ignore test files
+  ],
   // Override the default route directory ('routes') when needed
   routeDir: 'routes',
   // Character for route params (default: '$')
