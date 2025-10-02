@@ -3,6 +3,8 @@
 import * as fs from 'fs'
 import { migrate, type MigrateOptions } from './migrate'
 
+const COMMAND_NAME = 'migrate-auto-routes'
+
 main()
 
 function main() {
@@ -39,13 +41,9 @@ function main() {
 
 function usage() {
   console.log(
-    `Usage: migrate <sourceDir> <targetDir>
-
-The CLI overwrites the target directory if it exists.
-
-The CLI rewrites routes using the folder + ` +
-      ` colocation convention promoted by
-react-router-auto-routes.
-`,
+    `Usage: ${COMMAND_NAME} <sourceDir> <targetDir>\n\n` +
+      'The CLI overwrites the target directory if it exists.\n\n' +
+      'The CLI rewrites routes using the folder + colocation convention promoted by\n' +
+      'react-router-auto-routes.\n',
   )
 }
