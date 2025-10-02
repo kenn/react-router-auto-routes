@@ -31,12 +31,9 @@ export function defaultVisitFiles(
   }
 }
 
-export function createRouteId(file: string) {
-  return normalizeSlashes(stripFileExtension(file))
-}
-
-export function normalizeSlashes(file: string) {
-  return file.split(path.win32.sep).join('/')
+export function createRouteId(file: string): string {
+  const normalized = file.split(path.win32.sep).join('/')
+  return normalized.replace(/\.[a-z0-9]+$/i, '')
 }
 
 export function validateRouteDir(routeDir: string) {
@@ -46,18 +43,13 @@ export function validateRouteDir(routeDir: string) {
 
   if (routeDir.includes('/') || routeDir.includes('\\')) {
     throw new Error(
-      `routeDir must be a single directory name without path separators. Got: '${routeDir}'`
+      `routeDir must be a single directory name without path separators. Got: '${routeDir}'`,
     )
   }
 
   return routeDir
 }
 
-function stripFileExtension(file: string) {
-  return file.replace(/\.[a-z0-9]+$/i, '')
-}
-
-// Helper to escape regex special characters
 export function escapeRegexChar(char: string): string {
   return char.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&')
 }

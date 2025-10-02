@@ -1,9 +1,63 @@
 import * as path from 'path'
 import { autoRoutesOptions } from './types'
 import { memoizedRegex, escapeRegexChar } from '../utils'
+import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from './constants'
 
-export const routeModuleExts = ['.js', '.jsx', '.ts', '.tsx', '.md', '.mdx']
-export const serverRegex = /\.server\.(ts|tsx|js|jsx|md|mdx)$/
+export const routeModuleExts = ROUTE_EXTENSIONS
+export const serverRegex = SERVER_FILE_REGEX
+
+function checkColocationViolations(
+  segments: string[],
+  colocateChar: string,
+  filename: string,
+): void {
+  // Root-level colocation not allowed
+  if (segments.length >= 1 && segments[0].startsWith(colocateChar)) {
+    throw new Error(
+      `Colocation entries must live inside a route folder. ` +
+        `Move '${filename}' under an actual route directory.`,
+    )
+  }
+
+  // Check for nested anonymous colocation folders (+/+/)
+  let anonymousFolderCount = 0
+  for (let i = 0; i < segments.length - 1; i++) {
+    if (segments[i] === colocateChar) {
+      anonymousFolderCount++
+      if (anonymousFolderCount > 1) {
+        throw new Error(
+          `Nested anonymous colocation folders (+/+/) are not allowed. ` +
+            `Use named folders like +/components/ instead. Found in: ${filename}`,
+        )
+      }
+    }
+  }
+}
+
+function isColocated(segments: string[], colocateChar: string): boolean {
+  return segments.some((segment) => segment.startsWith(colocateChar))
+}
+
+function hasValidRouteExtension(filename: string, routeRegex?: RegExp): boolean {
+  const isFlatFile = !filename.includes(path.sep) && !filename.includes('/')
+
+  // Server files are never valid routes
+  if (serverRegex.test(filename)) {
+    return false
+  }
+
+  // Flat files only need correct extension
+  if (isFlatFile) {
+    return routeModuleExts.includes(path.extname(filename))
+  }
+
+  // For nested files, use routeRegex if provided, otherwise check extension
+  if (routeRegex) {
+    return routeRegex.test(filename)
+  }
+
+  return routeModuleExts.includes(path.extname(filename))
+}
 
 /**
  * Determines if a file is a route module using the prefix-based colocation pattern.
@@ -24,76 +78,19 @@ export function isRouteModuleFile(
   colocateChar: string = '+',
   routeRegex?: RegExp,
 ): boolean {
-  // Normalize path separators to forward slashes for consistent processing
   const normalizedPath = filename.replace(/\\/g, '/')
   const segments = normalizedPath.split('/')
 
-  // Root-level guard: Check if file/folder at routes root starts with prefix
-  if (segments.length === 1 && segments[0].startsWith(colocateChar)) {
-    throw new Error(
-      `Colocation entries must live inside a route folder. ` +
-        `Move '${filename}' under an actual route directory.`,
-    )
-  }
+  // Check for colocation rule violations (throws errors)
+  checkColocationViolations(segments, colocateChar, filename)
 
-  // Check if first segment (folder at root) starts with prefix
-  if (segments.length > 1 && segments[0].startsWith(colocateChar)) {
-    throw new Error(
-      `Colocation entries must live inside a route folder. ` +
-        `Move '${filename}' under an actual route directory.`,
-    )
-  }
-
-  // Track anonymous colocation folders to detect nesting
-  let anonymousFolderCount = 0
-  let hasColocation = false
-
-  // First pass: check for errors
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i]
-    const isLastSegment = i === segments.length - 1
-
-    // Check for anonymous colocation folder (exactly matches prefix, not starting with)
-    if (!isLastSegment && segment === colocateChar) {
-      anonymousFolderCount++
-      if (anonymousFolderCount > 1) {
-        throw new Error(
-          `Nested anonymous colocation folders (+/+/) are not allowed. ` +
-            `Use named folders like +/components/ instead. Found in: ${filename}`,
-        )
-      }
-    }
-
-    // If any segment (folder or file) starts with prefix, it's colocated
-    if (segment.startsWith(colocateChar)) {
-      hasColocation = true
-    }
-  }
-
-  // If any colocation detected, this is not a route
-  if (hasColocation) {
+  // If colocated, it's not a route module
+  if (isColocated(segments, colocateChar)) {
     return false
   }
 
-  // File is not colocated, check if it's a valid route module
-  // Flat files only need correct extension
-  let isFlatFile = !filename.includes(path.sep) && !filename.includes('/')
-  if (isFlatFile) {
-    return routeModuleExts.includes(path.extname(filename))
-  }
-
-  // Check if it's a server file (should be ignored)
-  if (serverRegex.test(filename)) {
-    return false
-  }
-
-  // For nested files, use routeRegex if provided, otherwise check extension
-  if (routeRegex) {
-    return routeRegex.test(filename)
-  }
-
-  // Fallback: Check if it has a valid route module extension
-  return routeModuleExts.includes(path.extname(filename))
+  // Check if it has valid route extension/pattern
+  return hasValidRouteExtension(filename, routeRegex)
 }
 
 export function isIndexRoute(
@@ -109,13 +106,12 @@ export function isIndexRoute(
   return indexRouteRegex.test(routeId)
 }
 
+// Keep for backwards compatibility with tests
 export function getRouteRegex(
   RegexRequiresNestedDirReplacement: RegExp,
   colocateChar: string,
 ): RegExp {
-  // Escape special regex characters in prefix
   const escapedColocateChar = escapeRegexChar(colocateChar)
-
   return new RegExp(
     RegexRequiresNestedDirReplacement.source.replace(
       '\\${colocateChar}',

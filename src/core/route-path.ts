@@ -1,10 +1,70 @@
 import * as path from 'path'
 import { autoRoutesOptions } from './types'
+import { SPECIAL_ROUTE_FILES, PATHLESS_PREFIX } from './constants'
 
 const pathSeparatorRegex = /[\/\\.]/
 
 function isPathSeparator(char: string) {
   return pathSeparatorRegex.test(char)
+}
+
+function removeSquareBrackets(segment: string): string {
+  if (!segment.includes('[') || !segment.includes(']')) {
+    return segment
+  }
+
+  let output = ''
+  let depth = 0
+
+  for (const char of segment) {
+    if (char === '[' && depth === 0) {
+      depth++
+    } else if (char === ']' && depth > 0) {
+      depth--
+    } else {
+      output += char
+    }
+  }
+
+  return output
+}
+
+function transformSegment(segment: string, paramChar: string, index: boolean): string | null {
+  // Skip pathless layout segments
+  if (segment.startsWith(PATHLESS_PREFIX)) {
+    return null
+  }
+
+  // Remove trailing slash marker
+  if (segment.endsWith(PATHLESS_PREFIX)) {
+    segment = segment.slice(0, -1)
+  }
+
+  // Remove outer square brackets (escape characters)
+  segment = removeSquareBrackets(segment)
+
+  // Skip explicit index segments for index routes
+  if (index && segment === 'index') {
+    return null
+  }
+
+  // Handle param segments: $ => *, $id => :id
+  if (segment.startsWith(paramChar)) {
+    return segment === paramChar ? '/*' : `/:${segment.slice(1)}`
+  }
+
+  // Handle optional segments with param: ($segment) => :segment?
+  if (segment.startsWith(`(${paramChar}`)) {
+    return `/:${segment.slice(2, segment.length - 1)}?`
+  }
+
+  // Handle optional segments: (segment) => segment?
+  if (segment.startsWith('(')) {
+    return `/${segment.slice(1, segment.length - 1)}?`
+  }
+
+  // Regular segment
+  return `/${segment}`
 }
 
 // create full path starting with /
@@ -13,68 +73,15 @@ export function createRoutePath(
   index: boolean,
   options: autoRoutesOptions,
 ): string | undefined {
-  let result = ''
-  let basePath = options.basePath ?? '/'
-  let paramChar = options.paramChar ?? '$'
+  const basePath = options.basePath ?? '/'
+  const paramChar = options.paramChar ?? '$'
 
-  // Make a copy to avoid mutating the original
-  let segments = [...routeSegments]
+  const pathParts = routeSegments
+    .map((segment) => transformSegment(segment, paramChar, index))
+    .filter((part): part is string => part !== null)
 
-  // For index routes, the segments already represent the correct path
-  // since we removed "index" during segment generation
-  // No need to modify them further
+  let result = pathParts.join('')
 
-  for (let i = 0; i < segments.length; i++) {
-    let segment = segments[i]
-    // skip pathless layout segments
-    if (segment.startsWith('_')) {
-      continue
-    }
-    // remove trailing slash marker
-    if (segment.endsWith('_')) {
-      segment = segment.slice(0, -1)
-    }
-
-    // remove outer square brackets
-    if (segment.includes('[') && segment.includes(']')) {
-      let output = ''
-      let depth = 0
-
-      for (const char of segment) {
-        if (char === '[' && depth === 0) {
-          depth++
-        } else if (char === ']' && depth > 0) {
-          depth--
-        } else {
-          output += char
-        }
-      }
-
-      segment = output
-    }
-
-    // skip explicit index segments for index routes
-    if (index && segment === 'index') {
-      continue
-    }
-
-    // handle param segments: $ => *, $id => :id
-    if (segment.startsWith(paramChar)) {
-      if (segment === paramChar) {
-        result += `/*`
-      } else {
-        result += `/:${segment.slice(1)}`
-      }
-      // handle optional segments with param: ($segment) => :segment?
-    } else if (segment.startsWith(`(${paramChar}`)) {
-      result += `/:${segment.slice(2, segment.length - 1)}?`
-      // handle optional segments: (segment) => segment?
-    } else if (segment.startsWith('(')) {
-      result += `/${segment.slice(1, segment.length - 1)}?`
-    } else {
-      result += `/${segment}`
-    }
-  }
   if (basePath !== '/') {
     result = basePath + result
   }
@@ -86,96 +93,92 @@ export function createRoutePath(
   return result || undefined
 }
 
+function removeSpecialRouteFile(name: string): string {
+  const hasFolder = name.includes('/')
+  if (!hasFolder) {
+    return name
+  }
+
+  const lastSegment = name.split('/').pop()
+  if (!lastSegment || !SPECIAL_ROUTE_FILES.includes(lastSegment)) {
+    return name
+  }
+
+  const lastSlash = name.lastIndexOf('/')
+  return lastSlash >= 0 ? name.substring(0, lastSlash) : name
+}
+
+function validateSegment(segment: string, paramChar: string): void {
+  if (
+    segment.includes(paramChar) &&
+    !(segment.startsWith(paramChar) || segment.startsWith(`(${paramChar}`))
+  ) {
+    throw new Error(
+      `Route params must start with prefix char ${paramChar}: ${segment}`,
+    )
+  }
+
+  if (
+    segment.includes('(') &&
+    !segment.startsWith('(') &&
+    !segment.endsWith(')')
+  ) {
+    throw new Error(
+      `Optional routes must start and end with parentheses: ${segment}`,
+    )
+  }
+}
+
+function parseSegmentsFromPath(name: string): string[] {
+  const segments: string[] = []
+  let currentSegment = ''
+  let inEscape = false
+
+  for (const char of name) {
+    if (char === '[') {
+      inEscape = true
+      currentSegment += char
+    } else if (char === ']') {
+      inEscape = false
+      currentSegment += char
+    } else if (isPathSeparator(char) && !inEscape) {
+      if (currentSegment) {
+        segments.push(currentSegment)
+        currentSegment = ''
+      }
+    } else {
+      currentSegment += char
+    }
+  }
+
+  if (currentSegment) {
+    segments.push(currentSegment)
+  }
+
+  return segments
+}
+
 export function getRouteSegments(
   name: string,
   _index: boolean,
   paramChar: string = '$',
   colocateChar: string = '+',
-) {
-  let routeSegments: string[] = []
-  let i = 0
-  let routeSegment = ''
-  let state = 'START'
-  let subState = 'NORMAL'
+): string[] {
+  // Remove special route files like index, layout, route, page
+  const cleanedName = removeSpecialRouteFile(name)
 
-  // name has already been normalized to use / as path separator
+  // Parse segments from the path
+  const segments = parseSegmentsFromPath(cleanedName)
 
-  // Check if the last segment is a special route file that should be removed
-  const specialRouteFiles = [
-    'index',
-    '_index',
-    'route',
-    '_route',
-    'layout',
-    '_layout',
-    'page',
-  ]
-  const lastSegment = name.split('/').pop()
-  const isSpecialFile = lastSegment && specialRouteFiles.includes(lastSegment)
-
-  let hasFolder = /\//.test(name)
-  // Only remove the last segment if it's a special route file
-  if (hasFolder && isSpecialFile) {
-    let last = name.lastIndexOf('/')
-    if (last >= 0) {
-      name = name.substring(0, last)
-    }
+  // Validate each segment
+  for (const segment of segments) {
+    validateSegment(segment, paramChar)
   }
 
-  let pushRouteSegment = (routeSegment: string) => {
-    if (routeSegment) {
-      routeSegments.push(routeSegment)
-    }
+  // Strip trailing .route segment if present
+  if (segments.at(-1) === 'route') {
+    segments.pop()
   }
 
-  while (i < name.length) {
-    let char = name[i]
-    switch (state) {
-      case 'START':
-        // process existing segment
-        if (
-          routeSegment.includes(paramChar) &&
-          !(
-            routeSegment.startsWith(paramChar) ||
-            routeSegment.startsWith(`(${paramChar}`)
-          )
-        ) {
-          throw new Error(
-            `Route params must start with prefix char ${paramChar}: ${routeSegment}`,
-          )
-        }
-        if (
-          routeSegment.includes('(') &&
-          !routeSegment.startsWith('(') &&
-          !routeSegment.endsWith(')')
-        ) {
-          throw new Error(
-            `Optional routes must start and end with parentheses: ${routeSegment}`,
-          )
-        }
-        pushRouteSegment(routeSegment)
-        routeSegment = ''
-        state = 'PATH'
-        continue // restart without advancing index
-      case 'PATH':
-        if (isPathSeparator(char) && subState === 'NORMAL') {
-          state = 'START'
-          break
-        } else if (char === '[') {
-          subState = 'ESCAPE'
-        } else if (char === ']') {
-          subState = 'NORMAL'
-        }
-        routeSegment += char
-        break
-    }
-    i++ // advance to next character
-  }
-  // process remaining segment
-  pushRouteSegment(routeSegment)
-  // strip trailing .route segment
-  if (routeSegments.at(-1) === 'route') {
-    routeSegments = routeSegments.slice(0, -1)
-  }
-  return routeSegments
+  return segments
 }
