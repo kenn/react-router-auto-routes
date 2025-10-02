@@ -231,4 +231,32 @@ describe('complex route structures', () => {
 
     generateFlexRoutesAndVerifyResultWithExpected(routesWithExpectedValues)
   })
+
+  it('should attach children to layout when index shares segments', () => {
+    const routeList = [
+      'home/_layout.tsx',
+      'home/index.tsx',
+      'home/profile/route.tsx',
+    ]
+    const expectedRoutes: ExpectedRouteSnapshot = {
+      'home/_layout': {
+        file: 'routes/home/_layout.tsx',
+        parentId: 'root',
+        path: 'home',
+      },
+      'home/index': {
+        file: 'routes/home/index.tsx',
+        index: true,
+        parentId: 'root',
+        path: 'home',
+      },
+      'home/profile/route': {
+        file: 'routes/home/profile/route.tsx',
+        parentId: 'routes/home/_layout',
+        path: 'profile',
+      },
+    }
+
+    expectFilesToMatchSnapshot(routeList, expectedRoutes)
+  })
 })

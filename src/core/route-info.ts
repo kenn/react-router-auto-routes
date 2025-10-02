@@ -36,15 +36,73 @@ export function getRouteInfo(
 
 export function findParentRouteId(
   routeInfo: RouteInfo,
-  nameMap: Map<string, RouteInfo>,
+  nameMap: Map<string, RouteInfo[]>,
 ): string | undefined {
   let parentName = routeInfo.segments.slice(0, -1).join('/')
+
   while (parentName) {
-    if (nameMap.has(parentName)) {
-      const parent = nameMap.get(parentName)!
-      return parent.id
+    const candidates = nameMap.get(parentName)
+    if (candidates && candidates.length > 0) {
+      const parent = selectParentCandidate(routeInfo, candidates)
+      if (parent) {
+        return parent.id
+      }
     }
-    parentName = parentName.substring(0, parentName.lastIndexOf('/'))
+
+    const lastSlashIndex = parentName.lastIndexOf('/')
+    if (lastSlashIndex === -1) {
+      break
+    }
+    parentName = parentName.substring(0, lastSlashIndex)
   }
+
   return undefined
+}
+
+function selectParentCandidate(
+  child: RouteInfo,
+  candidates: RouteInfo[],
+): RouteInfo | undefined {
+  let best: RouteInfo | undefined
+  let bestScore = Number.NEGATIVE_INFINITY
+
+  for (const candidate of candidates) {
+    if (candidate.id === child.id) {
+      continue
+    }
+
+    const candidateScore = getParentPriority(candidate)
+    if (candidateScore > bestScore) {
+      best = candidate
+      bestScore = candidateScore
+    }
+  }
+
+  if (best) {
+    return best
+  }
+
+  return candidates.find((candidate) => candidate.id !== child.id)
+}
+
+function getParentPriority(route: RouteInfo): number {
+  if (route.index) {
+    return 1
+  }
+
+  if (isLayoutRoute(route)) {
+    return 2
+  }
+
+  return 3
+}
+
+function isLayoutRoute(route: RouteInfo): boolean {
+  const fileName = route.file.split('/').pop() ?? ''
+  const withoutExtension = fileName.replace(/\.[^/.]+$/, '')
+  const normalized = withoutExtension.endsWith('.route')
+    ? withoutExtension.slice(0, -'.route'.length)
+    : withoutExtension
+
+  return normalized === '_layout' || normalized === 'layout'
 }

@@ -59,7 +59,7 @@ export default function autoRoutes(
   )
 
   const routeMap: Map<string, RouteInfo> = new Map()
-  const nameMap: Map<string, RouteInfo> = new Map()
+  const nameMap: Map<string, RouteInfo[]> = new Map()
   const routeDirs = Array.isArray(routeDir) ? routeDir : [routeDir]
 
   for (const currentRouteDir of routeDirs) {
@@ -92,7 +92,12 @@ export default function autoRoutes(
       })
 
       routeMap.set(routeInfo.id, routeInfo)
-      nameMap.set(routeInfo.name, routeInfo)
+
+      if (!nameMap.has(routeInfo.name)) {
+        nameMap.set(routeInfo.name, [routeInfo])
+      } else {
+        nameMap.get(routeInfo.name)!.push(routeInfo)
+      }
     })
   }
 
