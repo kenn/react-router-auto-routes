@@ -70,50 +70,11 @@ routes/
 ```
 
 This generates:
+
 ```jsx
 <Route path="admin" file="routes/admin/_layout.tsx">
   <Route index file="routes/admin/index.tsx" />
 </Route>
-```
-
-### Nested Folders - No Parent Required!
-
-Nested folder routes **automatically work without parent files**:
-
-```
-routes/
-└── api/
-    ├── users.ts       → /api/users ✅ No parent needed!
-    └── posts.ts       → /api/posts ✅ Works automatically!
-```
-
-The library automatically treats `api/users.ts` like `api.users.ts` when no parent exists.
-
-**When a parent file IS provided:**
-
-```
-routes/
-├── api.tsx            → Custom parent with layout/logic
-└── api/
-    ├── users.ts       → /api/users (nested under api.tsx)
-    └── posts.ts       → /api/posts
-```
-
-The nested routes will use the parent file and nest properly.
-
-**Add custom parent logic when needed:**
-
-```tsx
-// routes/api.tsx - Optional parent with custom behavior
-import { Outlet } from 'react-router'
-
-export async function loader() {
-  // Authentication, rate limiting, logging...
-}
-
-export default function Api() {
-  return <Outlet />
-}
 ```
 
 **Key insight:** Folders are just a convenience for organization. Without a parent file, `api/users.ts` behaves exactly like `api.users.ts` - both create the same `/api/users` route.
