@@ -28,10 +28,10 @@ describe('migrate CLI', () => {
 
     const files = fixture.listRelativeFiles(targetAbsolute)
     expect(files).toEqual([
-      '_index.tsx',
       'admin+/$id.tsx',
-      'admin+/_index.tsx',
       'admin+/dashboard.tsx',
+      'admin+/index.tsx',
+      'index.tsx',
     ])
   })
 
@@ -75,7 +75,6 @@ describe('migrate CLI', () => {
 
     const files = fixture.listRelativeFiles(targetAbsolute)
     expect(files).toEqual([
-      '_index.tsx',
       'about.tsx',
       'admin+/_index.tsx',
       'admin+/_layout.tsx',
@@ -84,6 +83,7 @@ describe('migrate CLI', () => {
       'admin+/users._index.tsx',
       'blog+/$slug.tsx',
       'blog+/_index.tsx',
+      'index.tsx',
       'marketing+/_index.tsx',
       'marketing+/_layout.tsx',
       'marketing+/pricing.tsx',

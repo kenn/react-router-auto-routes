@@ -91,8 +91,6 @@ export function convertToRoute(
     .replace(pathSepRegex, '+/')
     // convert double __ to single _ for pathless layout prefix
     .replace(/(^|\/|\.)__/g, '$1_')
-    // convert index to _index for index routes
-    .replace(/(^|\/|\.)index$/, '$1_index')
 
   // check if route is a parent route
   // if so, move to hybrid folder (+) as _layout route
