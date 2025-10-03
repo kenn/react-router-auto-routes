@@ -196,35 +196,28 @@ Dot notation (e.g. `routes/admin.settings.tsx`) still works as a last resort whe
 
 ## Migration Guide
 
-> **Note:** Migration tools are designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
+> **Note:** This tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.*
 
 ```bash
 npm uninstall remix-flat-routes
 npm uninstall @react-router/remix-routes-option-adapter
 ```
 
-**Option updates:**
-
-`nestedDirectoryChar` → `colocationChar` (changed behavior)
-
 ## CLI Migration Tool
 
 Migrate your routes automatically:
 
 ```bash
+# npx migrate-auto-routes <sourceDir> [targetDir]
 npx migrate-auto-routes app/routes
 # or provide an explicit destination
 npx migrate-auto-routes app/routes app/custom-new-routes
 ```
 
-**Usage:**
-```
-migrate-auto-routes <sourceDir> [targetDir]
-```
-
 The CLI overwrites the target directory if it already exists. When `targetDir` is omitted it defaults to a sibling directory named "new-routes".
 
 **Safety checks:**
+
 - Runs `npx react-router routes` before and after rewriting files
 - Copies the migrated result to `app/new-routes` (or your custom target)
 - Swaps the new routes into `app/routes` and stashes the previous version at `app/old-routes`
