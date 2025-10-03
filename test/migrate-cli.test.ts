@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -122,5 +123,30 @@ describe('migrate CLI', () => {
     expect(files).toContain('app/reports/$id/+assets/support.ts')
     expect(files).toContain('app/index.tsx')
     expect(files).toContain('app/reports/$id/index.tsx')
+  })
+
+  it('rewrites relative imports for migrated parent routes', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/admin.tsx':
+        "import { AdminShell } from '../components/AdminShell'\nexport default function AdminLayout() { return <AdminShell /> }\n",
+      'app/routes/admin/dashboard.tsx':
+        'export default function Dashboard() { return null }\n',
+      'app/components/AdminShell.tsx':
+        'export function AdminShell() { return null }\n',
+    })
+
+    const sourceAbsolute = fixture.sourceDir
+    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
+
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const layoutPath = path.join(targetAbsolute, 'admin', '_layout.tsx')
+    const contents = fs.readFileSync(layoutPath, 'utf8')
+    expect(contents).toContain("from '../../components/AdminShell'")
   })
 })

@@ -2,6 +2,7 @@ import picomatch from 'picomatch'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRouteId } from '../utils'
+import { isColocatedFile, visitFiles } from './fs-helpers'
 import {
   DefineRouteFunction,
   DefineRoutesFunction,
@@ -18,27 +19,6 @@ let routeModuleExts = ['.js', '.jsx', '.ts', '.tsx', '.md', '.mdx']
 
 function isRouteModuleFile(filename: string): boolean {
   return routeModuleExts.includes(path.extname(filename))
-}
-
-function isColocatedFile(filename: string): boolean {
-  const normalized = filename.replace(/\\/g, '/')
-  const segments = normalized.split('/')
-  if (segments.length <= 1) return false
-
-  const directorySegments = segments.slice(0, -1)
-  const usesFlatFilesConvention = directorySegments.some((segment) =>
-    segment.endsWith('+'),
-  )
-
-  if (!usesFlatFilesConvention) return false
-
-  return directorySegments.some((segment) => {
-    if (segment === '' || segment === '.') return false
-    if (segment.endsWith('+')) return false
-    if (segment.startsWith('(') && segment.endsWith(')')) return false
-    if (segment.startsWith('__')) return false
-    return true
-  })
 }
 
 export type CreateRoutesFromFoldersOptions = {
@@ -380,21 +360,4 @@ function getParentRouteIds(
 
 function byLongestFirst(a: string, b: string): number {
   return b.length - a.length
-}
-
-function visitFiles(
-  dir: string,
-  visitor: (file: string) => void,
-  baseDir = dir,
-): void {
-  for (let filename of fs.readdirSync(dir)) {
-    let file = path.resolve(dir, filename)
-    let stat = fs.lstatSync(file)
-
-    if (stat.isDirectory()) {
-      visitFiles(file, visitor, baseDir)
-    } else if (stat.isFile()) {
-      visitor(path.relative(baseDir, file))
-    }
-  }
 }
