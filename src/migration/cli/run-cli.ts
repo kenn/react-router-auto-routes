@@ -65,7 +65,7 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     return 1
   }
 
-  if (!ensureCleanGitWorktree()) {
+  if (!ensureCleanGitWorktree(resolvedSource)) {
     return 1
   }
 
@@ -141,7 +141,7 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
   }
 }
 
-function ensureCleanGitWorktree(): boolean {
+function ensureCleanGitWorktree(resolvedSource: string): boolean {
   const repoCheck = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
     cwd: process.cwd(),
     encoding: 'utf8',
@@ -151,6 +151,24 @@ function ensureCleanGitWorktree(): boolean {
     logError(
       'Git repository not detected. Initialize git (or run inside a repository) before using migrate-auto-routes.',
     )
+    return false
+  }
+
+  const topLevelResult = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  })
+
+  if (topLevelResult.status !== 0) {
+    logError('Unable to determine git repository root. Ensure git is installed and accessible.')
+    return false
+  }
+
+  const repoRoot = topLevelResult.stdout.trim()
+  const sourceRelative = path.relative(repoRoot, resolvedSource)
+
+  if (sourceRelative.startsWith('..')) {
+    logError('Source directory must be inside the git repository.')
     return false
   }
 
@@ -164,14 +182,44 @@ function ensureCleanGitWorktree(): boolean {
     return false
   }
 
-  if (status.stdout.trim() !== '') {
+  const dirtyEntries = status.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => isWithinSources(line, sourceRelative))
+
+  if (dirtyEntries.length > 0) {
     logError(
-      'Working tree must be clean before running migrate-auto-routes. Commit or stash your changes and rerun.',
+      `Working tree must be clean for '${sourceRelative}'. Commit or stash changes affecting this directory and rerun.`,
     )
     return false
   }
 
   return true
+}
+
+function isWithinSources(statusLine: string, sourceRelative: string): boolean {
+  if (!sourceRelative || sourceRelative === '.') {
+    return statusLine.length > 0
+  }
+
+  const indicator = statusLine.slice(0, 3)
+  let remainder = statusLine.slice(3)
+
+  if (indicator.startsWith('R')) {
+    const parts = remainder.split(' -> ')
+    return parts.some((part) => matchesSource(part, sourceRelative))
+  }
+
+  return matchesSource(remainder, sourceRelative)
+}
+
+function matchesSource(pathname: string, sourceRelative: string): boolean {
+  const normalized = pathname.replace(/"/g, '').trim()
+  if (normalized === sourceRelative) {
+    return true
+  }
+  return normalized.startsWith(`${sourceRelative}/`)
 }
 
 function usage(): void {

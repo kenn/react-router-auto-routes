@@ -352,7 +352,7 @@ describe('runCli', () => {
 
   it('refuses to run when git worktree is dirty', () => {
     const fixture = createBasicRoutesFixture('run-cli-dirty')
-    fs.writeFileSync(fixture.resolve('UNTRACKED.tmp'), 'dirty\n')
+    fs.writeFileSync(fixture.resolve('app', 'routes', 'dirty.tmp'), 'dirty\n')
 
     const previousCwd = process.cwd()
     process.chdir(fixture.workspace)
@@ -365,8 +365,28 @@ describe('runCli', () => {
 
     expect(exitCode).toBe(1)
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Working tree must be clean'),
+      expect.stringContaining("Working tree must be clean for 'app/routes'"),
     )
+  })
+
+  it('allows dirty files outside the source directory', () => {
+    const fixture = createBasicRoutesFixture('run-cli-dirty-outside')
+    fs.writeFileSync(fixture.resolve('NOTES.md'), 'notes\n')
+
+    const runner: CommandRunner = () => ({
+      status: 0,
+      stdout: 'ROUTES\n',
+      stderr: '',
+    })
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    try {
+      const exitCode = runCli(['app/routes'], { runner })
+      expect(exitCode).toBe(0)
+    } finally {
+      process.chdir(previousCwd)
+    }
   })
 
   it('reverts when route generation differs', () => {
