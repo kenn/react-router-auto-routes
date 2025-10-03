@@ -43,7 +43,7 @@
 
 - Favor pure functions; avoid side effects beyond filesystem scanning in utilities.
 - Update or add Vitest coverage when changing route parsing/detection.
-- Run `pnpm typecheck` and `pnpm test` before committing.
+- Run `pnpm typecheck` and `pnpm test` before committing, and show ✅ for each.
 - Keep README examples aligned with any new conventions or options.
 - When finished, generate a one liner commit message summarizing changes.
 

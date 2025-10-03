@@ -7,7 +7,7 @@ import {
   DefineRouteFunction,
   DefineRoutesFunction,
   RouteManifest,
-} from './routes'
+} from './route-definition'
 
 const paramChar = '$' as const
 const escapeStart = '[' as const
