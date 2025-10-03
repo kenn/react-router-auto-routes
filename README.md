@@ -220,6 +220,7 @@ The CLI overwrites the target directory if it already exists. When `targetDir` i
 
 **Safety checks:**
 
+- Verifies you are inside a Git repository with a clean worktree before running the migration CLI
 - Runs `npx react-router routes` before and after rewriting files
 - Copies the migrated result to `app/new-routes` (or your custom target)
 - Swaps the new routes into `app/routes`, using `app/old-routes` as a temporary backup during the run

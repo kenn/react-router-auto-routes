@@ -293,6 +293,8 @@ describe('runCli', () => {
       entryPath,
       `import { createRoutesFromFolders } from 'remix-flat-routes'\nexport default function routes() {\n  return createRoutesFromFolders(() => {})\n}\n`,
     )
+    fixture.git('add', 'app/routes.ts')
+    fixture.git('commit', '-m', 'legacy entry')
 
     const runnerMock = vi.fn(() => ({
       status: 0,
@@ -327,6 +329,44 @@ describe('runCli', () => {
       'admin/index.tsx',
       'index.tsx',
     ])
+  })
+
+  it('refuses to run when not inside a git repository', () => {
+    const fixture = createBasicRoutesFixture('run-cli-no-git')
+    fs.rmSync(path.join(fixture.workspace, '.git'), { recursive: true, force: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    let exitCode = -1
+    try {
+      exitCode = runCli(['app/routes'])
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    expect(exitCode).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Git repository not detected'),
+    )
+  })
+
+  it('refuses to run when git worktree is dirty', () => {
+    const fixture = createBasicRoutesFixture('run-cli-dirty')
+    fs.writeFileSync(fixture.resolve('UNTRACKED.tmp'), 'dirty\n')
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    let exitCode = -1
+    try {
+      exitCode = runCli(['app/routes'])
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    expect(exitCode).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Working tree must be clean'),
+    )
   })
 
   it('reverts when route generation differs', () => {

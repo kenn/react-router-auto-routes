@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 
 import { migrate, type MigrateOptions } from '../migrate'
 import {
@@ -61,6 +62,10 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
       `backup directory '${pathRelative(process.cwd(), resolvedBackup)}' already exists. ` +
         'Remove or rename it before running the migration.',
     )
+    return 1
+  }
+
+  if (!ensureCleanGitWorktree()) {
     return 1
   }
 
@@ -134,6 +139,39 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     logError(error)
     return 1
   }
+}
+
+function ensureCleanGitWorktree(): boolean {
+  const repoCheck = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  })
+
+  if (repoCheck.status !== 0 || repoCheck.stdout.trim() !== 'true') {
+    logError(
+      'Git repository not detected. Initialize git (or run inside a repository) before using migrate-auto-routes.',
+    )
+    return false
+  }
+
+  const status = spawnSync('git', ['status', '--porcelain'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  })
+
+  if (status.status !== 0) {
+    logError('Unable to read git status. Ensure git is installed and accessible.')
+    return false
+  }
+
+  if (status.stdout.trim() !== '') {
+    logError(
+      'Working tree must be clean before running migrate-auto-routes. Commit or stash your changes and rerun.',
+    )
+    return false
+  }
+
+  return true
 }
 
 function usage(): void {
