@@ -7,53 +7,6 @@ import {
   generateFlexRoutesAndVerifyResultWithExpected,
 } from './utils/route-test-helpers'
 
-describe('special character escaping', () => {
-  it('should escape underscore', () => {
-    const routesWithExpectedValues: Record<string, ExpectedValues> = {
-      '[__].tsx': {
-        id: 'routes/[__]',
-        path: '__',
-        parentId: 'root',
-      },
-      '[_].tsx': {
-        id: 'routes/[_]',
-        path: '_',
-        parentId: 'root',
-      },
-      '_layout.[___]/index.tsx': {
-        id: 'routes/_layout.[___]/index',
-        path: '___',
-        parentId: 'root',
-      },
-      '_layout.parent.[__]/index.tsx': {
-        id: 'routes/_layout.parent.[__]/index',
-        path: 'parent/__',
-        parentId: 'root',
-      },
-    }
-
-    generateFlexRoutesAndVerifyResultWithExpected(routesWithExpectedValues)
-  })
-})
-
-describe('route detection helpers', () => {
-  it('preserves custom regex flags when substituting the colocation placeholder', () => {
-    const colocateChar = '+' as const
-    const baseRegex = new RegExp(
-      '((\\${colocateChar}[\\/\\\\][^\\/\\\\:?*]+)|[\\/\\\\]((index|route|layout|page)|(_[^\\/\\\\:?*]+)|([^\\/\\\\:?*]+\\.route)))\\.(TSX)$',
-      'i',
-    )
-
-    const routeRegex = getRouteRegex(baseRegex, colocateChar)
-
-    expect(routeRegex.flags).toContain('i')
-    expect(routeRegex.test('admin/file.route.TSX')).toBe(true)
-    expect(
-      isRouteModuleFile('admin/file.route.TSX', colocateChar, routeRegex),
-    ).toBe(true)
-  })
-})
-
 describe('routing options', () => {
   describe('custom base path', () => {
     it('should generate correct routes with base path prefix', () => {
@@ -141,5 +94,52 @@ describe('routing options', () => {
         "routeDir must be a single directory name without path separators. Got: 'app/routes'",
       )
     })
+  })
+})
+
+describe('special character escaping', () => {
+  it('should escape underscore', () => {
+    const routesWithExpectedValues: Record<string, ExpectedValues> = {
+      '[__].tsx': {
+        id: 'routes/[__]',
+        path: '__',
+        parentId: 'root',
+      },
+      '[_].tsx': {
+        id: 'routes/[_]',
+        path: '_',
+        parentId: 'root',
+      },
+      '_layout.[___]/index.tsx': {
+        id: 'routes/_layout.[___]/index',
+        path: '___',
+        parentId: 'root',
+      },
+      '_layout.parent.[__]/index.tsx': {
+        id: 'routes/_layout.parent.[__]/index',
+        path: 'parent/__',
+        parentId: 'root',
+      },
+    }
+
+    generateFlexRoutesAndVerifyResultWithExpected(routesWithExpectedValues)
+  })
+})
+
+describe('route detection helpers', () => {
+  it('preserves custom regex flags when substituting the colocation placeholder', () => {
+    const colocateChar = '+' as const
+    const baseRegex = new RegExp(
+      '((\\${colocateChar}[\\/\\\\][^\\/\\\\:?*]+)|[\\/\\\\]((index|route|layout|page)|(_[^\\/\\\\:?*]+)|([^\\/\\\\:?*]+\\.route)))\\.(TSX)$',
+      'i',
+    )
+
+    const routeRegex = getRouteRegex(baseRegex, colocateChar)
+
+    expect(routeRegex.flags).toContain('i')
+    expect(routeRegex.test('admin/file.route.TSX')).toBe(true)
+    expect(
+      isRouteModuleFile('admin/file.route.TSX', colocateChar, routeRegex),
+    ).toBe(true)
   })
 })

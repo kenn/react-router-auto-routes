@@ -10,6 +10,140 @@ import {
 import type { RouteFixture } from './utils/route-test-helpers'
 
 describe('route structures', () => {
+  describe('index routes', () => {
+    it('generates correct ids for flat files', () => {
+      const files = ['$lang.$ref.tsx', '$lang.$ref._index.tsx', '$lang.$ref.$.tsx', '_index.tsx', 'index.tsx']
+      const routes = createRoutesFromFiles(files)
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/_index']?.index).toBe(true)
+      expect(manifest['routes/$lang.$ref._index']?.index).toBe(true)
+      expect(manifest['routes/index']?.index).toBe(true)
+      expect(manifest['routes/index']?.path).toBeUndefined()
+    })
+
+    it('generates correct ids for flat folders', () => {
+      const files = [
+        '$lang.$ref/route.tsx',
+        '$lang.$ref._index/route.tsx',
+        '$lang.$ref.$/route.tsx',
+        '_index/route.tsx',
+      ]
+      const routes = createRoutesFromFiles(files)
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/_index/route']?.index).toBe(true)
+      expect(manifest['routes/$lang.$ref._index/route']?.index).toBe(true)
+    })
+  })
+
+  describe('layout nesting', () => {
+    it('nests index routes under layouts', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('dashboard/_layout.tsx', {
+          id: 'dashboard/_layout',
+          parentId: 'root',
+          path: 'dashboard',
+        }),
+        route('dashboard/index.tsx', {
+          id: 'dashboard/index',
+          parentId: 'routes/dashboard/_layout',
+          index: true,
+        }),
+        route('settings/_layout.tsx', {
+          id: 'settings/_layout',
+          parentId: 'root',
+          path: 'settings',
+        }),
+        route('settings/index.tsx', {
+          id: 'settings/index',
+          parentId: 'routes/settings/_layout',
+          index: true,
+        }),
+      ])
+    })
+
+    it('handles deeply nested layout hierarchies', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('dashboard/_layout.tsx', {
+          id: 'dashboard/_layout',
+          parentId: 'root',
+          path: 'dashboard',
+        }),
+        route('dashboard/projects/_layout.tsx', {
+          id: 'dashboard/projects/_layout',
+          parentId: 'routes/dashboard/_layout',
+          path: 'projects',
+        }),
+        route('dashboard/projects/$id/index.tsx', {
+          id: 'dashboard/projects/$id/index',
+          parentId: 'routes/dashboard/projects/_layout',
+          index: true,
+          path: ':id',
+        }),
+        route('dashboard/projects/$id/$section/index.tsx', {
+          id: 'dashboard/projects/$id/$section/index',
+          parentId: 'routes/dashboard/projects/_layout',
+          index: true,
+          path: ':id/:section',
+        }),
+      ])
+    })
+  })
+
+  describe('hybrid route conventions', () => {
+    it('handles hybrid flat and nested structures', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('_index/route.tsx', {
+          id: '_index/route',
+          parentId: 'root',
+          index: true,
+        }),
+        route('_public/_layout.tsx', {
+          id: '_public/_layout',
+          parentId: 'root',
+        }),
+        route('_public/about/route.tsx', {
+          id: '_public/about/route',
+          parentId: 'routes/_public/_layout',
+          path: 'about',
+        }),
+        route('_public/contact[.jpg]/route.tsx', {
+          id: '_public/contact[.jpg]/route',
+          parentId: 'routes/_public/_layout',
+          path: 'contact.jpg',
+        }),
+        route('test.$/route.tsx', {
+          id: 'test.$/route',
+          parentId: 'root',
+          path: 'test/*',
+        }),
+        route('users/_layout.tsx', {
+          id: 'users/_layout',
+          parentId: 'root',
+          path: 'users',
+        }),
+        fileOnly('users/users.css'),
+        route('users/route/route.tsx', {
+          id: 'users/route/route',
+          parentId: 'root',
+          path: 'users',
+        }),
+        route('users/$userId/route.tsx', {
+          id: 'users/$userId/route',
+          parentId: 'routes/users/route/route',
+          path: ':userId',
+        }),
+        fileOnly('users/$userId/avatar.png'),
+        route('users/$userId_.edit/route.tsx', {
+          id: 'users/$userId_.edit/route',
+          parentId: 'routes/users/route/route',
+          path: ':userId/edit',
+        }),
+      ])
+    })
+  })
+
   describe('complex scenarios', () => {
     const snapshotScenarios: Record<string, RouteFixture[]> = {
       'supports complex auth and app routes': [
@@ -240,143 +374,4 @@ describe('route structures', () => {
     })
   })
 
-  describe('hybrid route conventions', () => {
-    it('handles hybrid flat and nested structures', () => {
-      expectRouteFixturesToMatchSnapshot([
-        route('_index/route.tsx', {
-          id: '_index/route',
-          parentId: 'root',
-          index: true,
-        }),
-        route('_public/_layout.tsx', {
-          id: '_public/_layout',
-          parentId: 'root',
-        }),
-        route('_public/about/route.tsx', {
-          id: '_public/about/route',
-          parentId: 'routes/_public/_layout',
-          path: 'about',
-        }),
-        route('_public/contact[.jpg]/route.tsx', {
-          id: '_public/contact[.jpg]/route',
-          parentId: 'routes/_public/_layout',
-          path: 'contact.jpg',
-        }),
-        route('test.$/route.tsx', {
-          id: 'test.$/route',
-          parentId: 'root',
-          path: 'test/*',
-        }),
-        route('users/_layout.tsx', {
-          id: 'users/_layout',
-          parentId: 'root',
-          path: 'users',
-        }),
-        fileOnly('users/users.css'),
-        route('users/route/route.tsx', {
-          id: 'users/route/route',
-          parentId: 'root',
-          path: 'users',
-        }),
-        route('users/$userId/route.tsx', {
-          id: 'users/$userId/route',
-          parentId: 'routes/users/route/route',
-          path: ':userId',
-        }),
-        fileOnly('users/$userId/avatar.png'),
-        route('users/$userId_.edit/route.tsx', {
-          id: 'users/$userId_.edit/route',
-          parentId: 'routes/users/route/route',
-          path: ':userId/edit',
-        }),
-      ])
-    })
-  })
-
-  describe('index routes', () => {
-    it('generates correct ids for flat files', () => {
-      const files = [
-        '$lang.$ref.tsx',
-        '$lang.$ref._index.tsx',
-        '$lang.$ref.$.tsx',
-        '_index.tsx',
-        'index.tsx',
-      ]
-      const routes = createRoutesFromFiles(files)
-      const manifest = flattenRoutesById(routes)
-
-      expect(manifest['routes/_index']?.index).toBe(true)
-      expect(manifest['routes/$lang.$ref._index']?.index).toBe(true)
-      expect(manifest['routes/index']?.index).toBe(true)
-      expect(manifest['routes/index']?.path).toBeUndefined()
-    })
-
-    it('generates correct ids for flat folders', () => {
-      const files = [
-        '$lang.$ref/route.tsx',
-        '$lang.$ref._index/route.tsx',
-        '$lang.$ref.$/route.tsx',
-        '_index/route.tsx',
-      ]
-      const routes = createRoutesFromFiles(files)
-      const manifest = flattenRoutesById(routes)
-
-      expect(manifest['routes/_index/route']?.index).toBe(true)
-      expect(manifest['routes/$lang.$ref._index/route']?.index).toBe(true)
-    })
-  })
-
-  describe('layout nesting', () => {
-    it('nests index routes under layouts', () => {
-      expectRouteFixturesToMatchSnapshot([
-        route('dashboard/_layout.tsx', {
-          id: 'dashboard/_layout',
-          parentId: 'root',
-          path: 'dashboard',
-        }),
-        route('dashboard/index.tsx', {
-          id: 'dashboard/index',
-          parentId: 'routes/dashboard/_layout',
-          index: true,
-        }),
-        route('settings/_layout.tsx', {
-          id: 'settings/_layout',
-          parentId: 'root',
-          path: 'settings',
-        }),
-        route('settings/index.tsx', {
-          id: 'settings/index',
-          parentId: 'routes/settings/_layout',
-          index: true,
-        }),
-      ])
-    })
-
-    it('handles deeply nested layout hierarchies', () => {
-      expectRouteFixturesToMatchSnapshot([
-        route('dashboard/_layout.tsx', {
-          id: 'dashboard/_layout',
-          parentId: 'root',
-          path: 'dashboard',
-        }),
-        route('dashboard/projects/_layout.tsx', {
-          id: 'dashboard/projects/_layout',
-          parentId: 'routes/dashboard/_layout',
-          path: 'projects',
-        }),
-        route('dashboard/projects/$id/index.tsx', {
-          id: 'dashboard/projects/$id/index',
-          parentId: 'routes/dashboard/projects/_layout',
-          index: true,
-          path: ':id',
-        }),
-        route('dashboard/projects/$id/$section/index.tsx', {
-          id: 'dashboard/projects/$id/$section/index',
-          parentId: 'routes/dashboard/projects/_layout',
-          index: true,
-          path: ':id/:section',
-        }),
-      ])
-    })
-  })
 })
