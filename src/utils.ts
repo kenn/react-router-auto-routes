@@ -17,18 +17,23 @@ export function memoizedRegex(input: string): RegExp {
 export function defaultVisitFiles(
   dir: string,
   visitor: (file: string) => void,
-  baseDir = dir,
 ) {
-  for (let filename of fs.readdirSync(dir)) {
-    let file = path.resolve(dir, filename)
-    let stat = fs.statSync(file)
+  const rootDir = dir
 
-    if (stat.isDirectory()) {
-      defaultVisitFiles(file, visitor, baseDir)
-    } else if (stat.isFile()) {
-      visitor(path.relative(baseDir, file))
+  const walk = (currentDir: string) => {
+    for (const filename of fs.readdirSync(currentDir)) {
+      const file = path.resolve(currentDir, filename)
+      const stat = fs.statSync(file)
+
+      if (stat.isDirectory()) {
+        walk(file)
+      } else if (stat.isFile()) {
+        visitor(path.relative(rootDir, file))
+      }
     }
   }
+
+  walk(dir)
 }
 
 export function createRouteId(file: string): string {

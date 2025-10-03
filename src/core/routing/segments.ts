@@ -67,7 +67,6 @@ export function createRoutePath(
   index: boolean,
   options: autoRoutesOptions,
 ): string | undefined {
-  const basePath = options.basePath ?? '/'
   const paramChar = options.paramChar ?? '$'
 
   const pathParts = routeSegments
@@ -75,10 +74,6 @@ export function createRoutePath(
     .filter((part): part is string => part !== null)
 
   let result = pathParts.join('')
-
-  if (basePath !== '/') {
-    result = basePath + result
-  }
 
   if (result.endsWith('/')) {
     result = result.slice(0, -1)

@@ -4,18 +4,23 @@ import path from 'node:path'
 export function visitFiles(
   dir: string,
   visitor: (file: string) => void,
-  baseDir = dir,
 ): void {
-  for (let filename of fs.readdirSync(dir)) {
-    let file = path.resolve(dir, filename)
-    let stat = fs.lstatSync(file)
+  const rootDir = dir
 
-    if (stat.isDirectory()) {
-      visitFiles(file, visitor, baseDir)
-    } else if (stat.isFile()) {
-      visitor(path.relative(baseDir, file))
+  const walk = (currentDir: string) => {
+    for (const filename of fs.readdirSync(currentDir)) {
+      const file = path.resolve(currentDir, filename)
+      const stat = fs.lstatSync(file)
+
+      if (stat.isDirectory()) {
+        walk(file)
+      } else if (stat.isFile()) {
+        visitor(path.relative(rootDir, file))
+      }
     }
   }
+
+  walk(dir)
 }
 
 export function isColocatedFile(filename: string): boolean {

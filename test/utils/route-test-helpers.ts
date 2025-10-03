@@ -108,7 +108,7 @@ export function expectRoutesToMatch(
 }
 
 export function visitFilesFromArray(files: string[]) {
-  return (_dir: string, visitor: (file: string) => void, _baseDir?: string) => {
+  return (_dir: string, visitor: (file: string) => void) => {
     files.forEach((file) => {
       visitor(file)
     })

@@ -23,13 +23,11 @@ export interface RouteConfig {
 export type VisitFilesFunction = (
   dir: string,
   visitor: (file: string) => void,
-  baseDir?: string,
 ) => void
 
 export type autoRoutesOptions = {
   rootDir?: string
   routesDir?: string | string[]
-  basePath?: string
   visitFiles?: VisitFilesFunction
   paramChar?: string
   colocateChar?: string
@@ -40,7 +38,6 @@ export type autoRoutesOptions = {
 export type ResolvedOptions = {
   rootDir: string
   routeDirs: readonly string[]
-  basePath: string
   visitFiles: VisitFilesFunction
   paramChar: string
   colocateChar: string

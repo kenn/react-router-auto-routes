@@ -8,24 +8,6 @@ import {
 } from './utils/route-test-helpers'
 
 describe('routing options', () => {
-  describe('custom base path', () => {
-    it('should generate correct routes with base path prefix', () => {
-      const flatFiles = [
-        '$lang.$ref.tsx',
-        '$lang.$ref._index.tsx',
-        '$lang.$ref.$.tsx',
-        '_index.tsx',
-      ]
-      const routes = createRoutesFromFiles(flatFiles, { basePath: '/myapp' })
-      const manifest = flattenRoutesById(routes)
-      const rootChildren = Object.values(manifest).filter(
-        (route) => route.parentId === 'root' && route.path,
-      )
-      expect(rootChildren.length).toBeGreaterThan(0)
-      expect(rootChildren[0]!.path!.startsWith('myapp/')).toBe(true)
-    })
-  })
-
   describe('custom param prefix char', () => {
     it('should generate correct paths with custom param prefix', () => {
       const flatFiles = ['^userId.tsx', '^.tsx']
