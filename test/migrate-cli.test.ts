@@ -1,8 +1,12 @@
 import path from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { migrate } from '../src/migration/migrate'
+
+beforeEach(() => {
+  vi.spyOn(console, 'log').mockImplementation(() => {})
+})
 
 import {
   cleanupTmpWorkspaces,
@@ -11,6 +15,7 @@ import {
 } from './utils/tmp-workspace'
 
 afterEach(() => {
+  vi.restoreAllMocks()
   cleanupTmpWorkspaces()
 })
 
