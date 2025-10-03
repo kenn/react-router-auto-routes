@@ -109,12 +109,13 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
 
     if (beforeNormalized === afterNormalized) {
       logInfo('✅ Routes match between runs. Migration looks good!')
-      logInfo(
-        `📁 Original routes moved to '${pathRelative(
-          process.cwd(),
-          resolvedBackup,
-        )}'. Keep or remove at your discretion.`,
-      )
+      if (fs.existsSync(resolvedBackup)) {
+        fs.rmSync(resolvedBackup, { recursive: true, force: true })
+        logInfo(
+          `🧹 Removed temporary backup '${pathRelative(process.cwd(), resolvedBackup)}'. ` +
+            'Use git history if you need the previous structure.',
+        )
+      }
       return 0
     }
 

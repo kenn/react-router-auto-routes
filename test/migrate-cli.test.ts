@@ -199,7 +199,7 @@ describe('migrate CLI', () => {
 })
 
 describe('runCli', () => {
-  it('migrates routes using default target and keeps a backup on success', () => {
+  it('migrates routes using default target and cleans up backup on success', () => {
     const fixture = createBasicRoutesFixture('run-cli-success')
 
     const snapshots = ['ROUTES\n', 'ROUTES\n']
@@ -220,7 +220,7 @@ describe('runCli', () => {
     expect(consoleErrorSpy.mock.calls).toEqual([])
 
     const backupDir = path.join(fixture.workspace, 'app', 'old-routes')
-    expect(fs.existsSync(backupDir)).toBe(true)
+    expect(fs.existsSync(backupDir)).toBe(false)
     expect(fs.existsSync(fixture.sourceDir)).toBe(true)
     expect(fs.existsSync(path.join(fixture.workspace, 'app', 'new-routes'))).toBe(
       false,
@@ -235,12 +235,7 @@ describe('runCli', () => {
     ])
 
     const backupFiles = fixture.listRelativeFiles(backupDir)
-    expect(backupFiles).toEqual([
-      'admin/$id.tsx',
-      'admin/dashboard.tsx',
-      'admin/index.tsx',
-      'index.tsx',
-    ])
+    expect(backupFiles).toEqual([])
   })
 
   it('treats + suffix renames as equivalent in route snapshots', () => {
@@ -288,11 +283,7 @@ describe('runCli', () => {
     const backupFiles = fixture.listRelativeFiles(
       fixture.resolve('app', 'old-routes'),
     )
-    expect(backupFiles).toEqual([
-      '_auth+/_layout.tsx',
-      '_auth+/login.tsx',
-      'root.tsx',
-    ])
+    expect(backupFiles).toEqual([])
   })
 
   it('rewrites legacy remix-flat-routes entry to autoRoutes()', () => {
@@ -322,7 +313,7 @@ describe('runCli', () => {
     expect(runnerMock).toHaveBeenCalledTimes(2)
 
     const backupDir = fixture.resolve('app', 'old-routes')
-    expect(fs.existsSync(backupDir)).toBe(true)
+    expect(fs.existsSync(backupDir)).toBe(false)
 
     const updatedEntry = fs.readFileSync(entryPath, 'utf8')
     expect(updatedEntry).toBe(
