@@ -209,27 +209,26 @@ npm uninstall @react-router/remix-routes-option-adapter
 
 ## CLI Migration Tool
 
+Migrate your routes automatically:
+
 ```bash
 npx migrate-auto-routes app/routes
 # or provide an explicit destination
 npx migrate-auto-routes app/routes app/custom-new-routes
 ```
 
-The CLI now performs a safety check around the migration:
+**Usage:**
+```
+migrate-auto-routes <sourceDir> [targetDir]
+```
 
+The CLI overwrites the target directory if it already exists. When `targetDir` is omitted it defaults to a sibling directory named "new-routes".
+
+**Safety checks:**
 - Runs `npx react-router routes` before and after rewriting files
 - Copies the migrated result to `app/new-routes` (or your custom target)
 - Swaps the new routes into `app/routes` and stashes the previous version at `app/old-routes`
 - If the generated route output differs, prints a diff, restores the original directory, and keeps the migrated files at the target path for inspection
-
-### Usage
-
-```
-Usage: migrate-auto-routes <sourceDir> [targetDir]
-
-The CLI overwrites the target directory if it already exists.
-When targetDir is omitted it defaults to a sibling directory named "new-routes".
-```
 
 ## Requirements
 
