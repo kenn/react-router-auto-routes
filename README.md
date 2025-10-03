@@ -127,7 +127,6 @@ autoRoutes({
     '**/*.test.{ts,tsx}', // Ignore test files
   ],
   // Route directory (default: 'routes')
-  // Can also be an array: routeDir: ['routes', 'special-routes']
   routeDir: 'routes',
   // Character for route params (default: '$')
   paramChar: '$',
@@ -137,6 +136,40 @@ autoRoutes({
   routeRegex: /\.(ts|tsx|js|jsx|md|mdx)$/,
 })
 ```
+
+### Multiple Route Directories
+
+Organize routes across multiple directories for better separation of concerns:
+
+```ts
+autoRoutes({
+  routeDir: ['routes', 'admin', 'api']
+})
+```
+
+**Example structure:**
+```
+app/
+├── routes/              → Public routes
+│   ├── _index.tsx       → /
+│   └── about.tsx        → /about
+├── admin/               → Admin routes
+│   ├── admin._layout.tsx → /admin layout
+│   └── admin.dashboard.tsx → /admin/dashboard
+└── api/                 → API routes
+    └── api.users.tsx    → /api/users
+```
+
+**Important:** Files in non-default directories must use dot notation to create proper paths. For example:
+- `admin/settings.tsx` → `/settings` ❌
+- `admin/admin.settings.tsx` → `/admin/settings` ✅
+
+All routes are merged into a single route tree. Route IDs include the directory name for organizational clarity.
+
+**Use cases:**
+- Separate authenticated vs. public routes
+- Isolate API endpoints from UI routes
+- Feature-based organization (blog, shop, dashboard)
 
 ## Migration Guide
 

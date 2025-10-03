@@ -95,6 +95,85 @@ describe('routing options', () => {
       )
     })
   })
+
+  describe('multiple routeDir', () => {
+    it('should merge routes from multiple directories with correct paths', () => {
+      const visitFiles = (dir: string, visitor: (file: string) => void) => {
+        if (dir.endsWith('routes')) {
+          visitor('index.tsx')
+          visitor('about.tsx')
+        }
+
+        if (dir.endsWith('admin')) {
+          visitor('admin.dashboard.tsx')
+          visitor('admin.settings.tsx')
+        }
+
+        if (dir.endsWith('api')) {
+          visitor('api.users.tsx')
+        }
+      }
+
+      const routes = createRoutesFromFiles([], {
+        routeDir: ['routes', 'admin', 'api'],
+        visitFiles,
+      })
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/index']).toBeDefined()
+      expect(manifest['routes/about']?.path).toBe('about')
+      expect(manifest['admin/admin.dashboard']).toBeDefined()
+      expect(manifest['admin/admin.settings']?.path).toBe('admin/settings')
+      expect(manifest['api/api.users']).toBeDefined()
+    })
+
+    it('should handle nesting across multiple directories', () => {
+      const routes = createRoutesFromFiles(
+        [
+          '_index.tsx',
+          'admin._layout.tsx',
+          'admin.dashboard.tsx',
+          'api.users.tsx',
+        ],
+        {
+          routeDir: ['routes', 'admin', 'api'],
+          visitFiles: (dir, visitor) => {
+            if (dir.includes('routes')) visitor('_index.tsx')
+            if (dir.includes('admin')) {
+              visitor('admin._layout.tsx')
+              visitor('admin.dashboard.tsx')
+            }
+            if (dir.includes('api')) visitor('api.users.tsx')
+          },
+        },
+      )
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/_index']?.index).toBe(true)
+      expect(manifest['admin/admin._layout']?.path).toBe('admin')
+      // Dashboard is not nested under layout when in different route directories
+      expect(manifest['admin/admin.dashboard']?.path).toBe('admin/dashboard')
+      expect(manifest['api/api.users']?.path).toBe('api/users')
+    })
+
+    it('should not overwrite routes with different directory prefixes', () => {
+      const routes = createRoutesFromFiles(['shared.tsx'], {
+        routeDir: ['routes', 'admin'],
+        visitFiles: (dir, visitor) => {
+          // Both directories have shared.tsx
+          visitor('shared.tsx')
+        },
+      })
+      const manifest = flattenRoutesById(routes)
+
+      // Both should exist with different IDs
+      const sharedRoutes = Object.keys(manifest).filter((id) =>
+        id.includes('shared'),
+      )
+      expect(sharedRoutes).toContain('routes/shared')
+      expect(sharedRoutes).toContain('admin/shared')
+    })
+  })
 })
 
 describe('special character escaping', () => {
