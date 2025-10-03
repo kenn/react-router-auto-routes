@@ -295,7 +295,7 @@ describe('runCli', () => {
     ])
   })
 
-  it('skips snapshot verification when legacy remix-flat-routes entry is detected', () => {
+  it('rewrites legacy remix-flat-routes entry to autoRoutes()', () => {
     const fixture = createBasicRoutesFixture('run-cli-legacy')
     const entryPath = fixture.resolve('app', 'routes.ts')
     fs.writeFileSync(
@@ -319,10 +319,15 @@ describe('runCli', () => {
       process.chdir(previousCwd)
     }
 
-    expect(runnerMock).toHaveBeenCalledTimes(1)
+    expect(runnerMock).toHaveBeenCalledTimes(2)
 
     const backupDir = fixture.resolve('app', 'old-routes')
     expect(fs.existsSync(backupDir)).toBe(true)
+
+    const updatedEntry = fs.readFileSync(entryPath, 'utf8')
+    expect(updatedEntry).toBe(
+      "import { autoRoutes } from 'react-router-auto-routes'\n\nexport default autoRoutes()\n",
+    )
 
     const migratedFiles = fixture.listRelativeFiles(fixture.sourceDir)
     expect(migratedFiles).toEqual([

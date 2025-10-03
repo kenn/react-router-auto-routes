@@ -42,3 +42,21 @@ export function detectLegacyRouteEntry(sourceDir: string): {
 
   return { entryPath: null, isLegacy: false }
 }
+
+export function rewriteLegacyRouteEntry(entryPath: string): boolean {
+  let contents: string
+  try {
+    contents = fs.readFileSync(entryPath, 'utf8')
+  } catch {
+    return false
+  }
+
+  if (contents.includes('react-router-auto-routes')) {
+    return false
+  }
+
+  const normalized = `import { autoRoutes } from 'react-router-auto-routes'\n\nexport default autoRoutes()\n`
+  fs.writeFileSync(entryPath, normalized)
+
+  return true
+}

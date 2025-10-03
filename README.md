@@ -224,7 +224,7 @@ The CLI overwrites the target directory if it already exists. When `targetDir` i
 - Copies the migrated result to `app/new-routes` (or your custom target)
 - Swaps the new routes into `app/routes` and stashes the previous version at `app/old-routes`
 - If the generated route output differs, prints a diff, restores the original directory, and keeps the migrated files at the target path for inspection
-- When your project still imports `createRoutesFromFolders`/`remix-flat-routes`, the CLI swaps the new folders in place, warns about the legacy entry file, and skips the snapshot comparison so you can update it to `autoRoutes()` first
+- When your project still imports `createRoutesFromFolders`/`remix-flat-routes`, the CLI updates `app/routes.ts` to export `autoRoutes()` so the snapshot check runs against the migrated tree
 
 ## Requirements
 
