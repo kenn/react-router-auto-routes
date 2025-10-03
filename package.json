@@ -14,8 +14,6 @@
   "scripts": {
     "build": "tsup",
     "test": "NODE_OPTIONS=\"--no-warnings=DEP0040\" vitest",
-    "migrate:sample": "node scripts/manual-migrate.mjs prepare",
-    "migrate:sample:clean": "node scripts/manual-migrate.mjs clean",
     "typecheck": "tsc -b",
     "migrate": "rm -rf ./app/new-routes && npm run build && node ./dist/cli.cjs",
     "prepublishOnly": "npm run typecheck && npm run build"

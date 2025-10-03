@@ -213,17 +213,6 @@ Usage: migrate-auto-routes <sourceDir> <targetDir>
 The CLI overwrites the target directory if it already exists.
 ```
 
-### Sample Workspace
-
-Experiment without touching your app by using the helper scripts:
-
-```bash
-npm run migrate:sample          # seeds tmp/manual-migrate and runs the CLI
-npm run migrate:sample:clean    # removes the generated workspace
-```
-
-Inspect the generated `app/new-routes` folder under `tmp/manual-migrate` before cleaning up. Routes are written using the folder + `+` colocation convention promoted by this package.
-
 ## Requirements
 
 - Node.js >= 20
