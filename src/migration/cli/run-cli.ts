@@ -2,10 +2,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { migrate, type MigrateOptions } from '../migrate'
-import { defaultTargetDir, swapRoutes, revertRoutes } from './fs-ops'
+import {
+  defaultTargetDir,
+  pathRelative,
+  revertRoutes,
+  swapRoutes,
+} from '../fs-helpers'
+import { logError, logInfo } from '../logger'
 import { diffSnapshots, normalizeSnapshot } from './diff'
 import { captureRoutesSnapshot, defaultRunner, type CommandRunner } from './runner'
-import { logError, pathRelative } from './utils'
 
 export type RunOptions = {
   runner?: CommandRunner
@@ -21,12 +26,12 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
   const targetDir = argv[1] ?? defaultTargetDir(sourceDir)
 
   if (sourceDir === targetDir) {
-    console.error('source and target directories must be different')
+    logError('source and target directories must be different')
     return 1
   }
 
   if (!fs.existsSync(sourceDir)) {
-    console.error(`source directory '${sourceDir}' does not exist`)
+    logError(`source directory '${sourceDir}' does not exist`)
     return 1
   }
 
@@ -39,17 +44,17 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
   const resolvedBackup = path.join(parentDir, 'old-routes')
 
   if (resolvedSource === resolvedBackup) {
-    console.error('source directory cannot be named old-routes')
+    logError('source directory cannot be named old-routes')
     return 1
   }
 
   if (resolvedTarget === resolvedBackup) {
-    console.error('target directory cannot be the backup directory old-routes')
+    logError('target directory cannot be the backup directory old-routes')
     return 1
   }
 
   if (fs.existsSync(resolvedBackup)) {
-    console.error(
+    logError(
       `backup directory '${pathRelative(process.cwd(), resolvedBackup)}' already exists. ` +
         'Remove or rename it before running the migration.',
     )
@@ -88,8 +93,8 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     const afterNormalized = normalizeSnapshot(afterSnapshot)
 
     if (beforeNormalized === afterNormalized) {
-      console.log('✅ Routes match between runs. Migration looks good!')
-      console.log(
+      logInfo('✅ Routes match between runs. Migration looks good!')
+      logInfo(
         `📁 Original routes moved to '${pathRelative(
           process.cwd(),
           resolvedBackup,
@@ -98,9 +103,9 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
       return 0
     }
 
-    console.error('❌ Route output changed. Reverting migration.')
+    logError('❌ Route output changed. Reverting migration.')
     const diff = diffSnapshots(beforeNormalized, afterNormalized)
-    console.error(diff)
+    logError(diff)
     revertRoutes(resolvedSource, resolvedTarget, resolvedBackup)
     return 1
   } catch (error) {
@@ -116,7 +121,7 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
 }
 
 function usage(): void {
-  console.log(
+  logInfo(
     'Usage: migrate-auto-routes <sourceDir> [targetDir]\n\n' +
       'The CLI overwrites the target directory if it exists.\n\n' +
       'The CLI rewrites routes using the folder + colocation convention promoted by\n' +

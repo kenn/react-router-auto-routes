@@ -1,7 +1,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { createRoutesFromFolders } from './create-routes-from-folders'
-import { isColocatedFile, visitFiles } from './fs-helpers'
+import {
+  isColocatedFile,
+  normalizeDirectoryPath,
+  visitFiles,
+} from './fs-helpers'
 import {
   normalizeAbsolutePath,
   rewriteAndCopy,
@@ -176,27 +180,4 @@ function convertColocatedPath(file: string): string {
   })
 
   return converted.join(path.sep)
-}
-
-function normalizeDirectoryPath(dir: string) {
-  if (dir === '') {
-    return dir
-  }
-
-  let normalized = path.normalize(dir)
-
-  if (normalized !== path.sep) {
-    normalized = normalized.replace(/[\\/]+$/, '')
-  }
-
-  if (normalized === '.') {
-    return normalized
-  }
-
-  const dotSlashPrefix = `.${path.sep}`
-  if (normalized.startsWith(dotSlashPrefix)) {
-    normalized = normalized.slice(dotSlashPrefix.length)
-  }
-
-  return normalized
 }

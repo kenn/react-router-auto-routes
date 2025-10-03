@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 
-import { logError } from './utils'
+import { logError, logInfo, logWarn } from '../logger'
 
 export type CommandResult = {
   status: number
@@ -29,20 +29,20 @@ export function captureRoutesSnapshot(
   runner: CommandRunner,
   label: string,
 ): string | null {
-  console.log(`▶️  Running "npx react-router routes" (${label})`)
+  logInfo(`▶️  Running "npx react-router routes" (${label})`)
 
   const result = runner()
 
   if (result.error) {
-    console.error('Failed to run "npx react-router routes".')
+    logError('Failed to run "npx react-router routes".')
     logError(result.error)
     return null
   }
 
   if (result.status !== 0) {
-    console.error('"npx react-router routes" exited with a non-zero status.')
+    logError('"npx react-router routes" exited with a non-zero status.')
     if (result.stderr) {
-      console.error(result.stderr.trim())
+      logError(result.stderr.trim())
     }
     return null
   }
@@ -50,7 +50,7 @@ export function captureRoutesSnapshot(
   if (result.stderr) {
     const trimmed = result.stderr.trim()
     if (trimmed) {
-      console.warn(trimmed)
+      logWarn(trimmed)
     }
   }
 
