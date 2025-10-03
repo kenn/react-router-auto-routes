@@ -73,13 +73,7 @@ routes/
 │   └── index.tsx      → /admin (nested under layout)
 ```
 
-This generates:
-
-```jsx
-<Route path="admin" file="routes/admin/_layout.tsx">
-  <Route index file="routes/admin/index.tsx" />
-</Route>
-```
+This generates a nested RouteConfig structure where `admin/index.tsx` becomes a child index route under `admin/_layout.tsx`.
 
 **Key insight:** Folders are just a convenience for organization. Without a parent file, `api/users.ts` behaves exactly like `api.users.ts` - both create the same `/api/users` route.
 
@@ -133,6 +127,7 @@ autoRoutes({
     '**/*.test.{ts,tsx}', // Ignore test files
   ],
   // Route directory (default: 'routes')
+  // Can also be an array: routeDir: ['routes', 'special-routes']
   routeDir: 'routes',
   // Character for route params (default: '$')
   paramChar: '$',
