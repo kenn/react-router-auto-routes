@@ -16,6 +16,8 @@ export type RunOptions = {
   runner?: CommandRunner
 }
 
+export type { CommandRunner }
+
 export function runCli(argv: string[], options: RunOptions = {}): number {
   if (argv.length === 0 || argv.length > 2) {
     usage()

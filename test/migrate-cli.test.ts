@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { migrate } from '../src/migration/migrate'
-import { runCli, type CommandRunner } from '../src/migration/cli'
+import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
 
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
