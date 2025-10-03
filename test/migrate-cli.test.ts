@@ -130,6 +130,48 @@ describe('migrate CLI', () => {
     expect(files).toContain('app/reports/$id/index.tsx')
   })
 
+  it('ignores macOS metadata files', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/.DS_Store': '',
+      'app/routes/index.tsx':
+        'export default function Index() { return null }\n',
+    })
+
+    const sourceAbsolute = fixture.sourceDir
+    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
+
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const files = fixture.listRelativeFiles(targetAbsolute)
+    expect(files).toEqual(['index.tsx'])
+  })
+
+  it('keeps ignoring .DS_Store when custom ignore patterns are provided', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/.DS_Store': '',
+      'app/routes/about.ignoreme': 'ignored\n',
+      'app/routes/about.tsx':
+        'export default function About() { return null }\n',
+    })
+
+    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+      ignoredRouteFiles: ['**/*.ignoreme'],
+    })
+
+    const files = fixture.listRelativeFiles(targetAbsolute)
+    expect(files).toEqual(['about.tsx'])
+  })
+
   it('rewrites relative imports for migrated parent routes', () => {
     const fixture = createRoutesFixture({
       'app/routes/admin.tsx':

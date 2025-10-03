@@ -31,16 +31,20 @@ export function migrate(
   sourceDir = normalizeDirectoryPath(sourceDir)
   targetDir = normalizeDirectoryPath(targetDir)
 
+  const ignoredPatterns = Array.from(
+    new Set([...(options.ignoredRouteFiles ?? []), '**/.DS_Store']),
+  )
+
   console.log('🛠️ Migrating routes to + folder convention...')
   console.log(`🗂️ source: ${sourceDir}`)
   console.log(`🗂️ target: ${targetDir}`)
-  console.log(`🙈ignored files: ${options.ignoredRouteFiles}`)
+  console.log(`🙈ignored files: ${ignoredPatterns}`)
   console.log()
 
   const routes = createRoutesFromFolders(defineRoutes, {
     appDirectory: './',
     routesDirectory: sourceDir,
-    ignoredFilePatterns: options.ignoredRouteFiles,
+    ignoredFilePatterns: ignoredPatterns,
   })
 
   const routeMappings = collectRouteMappings(routes, sourceDir, targetDir)

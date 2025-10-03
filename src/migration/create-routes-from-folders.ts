@@ -16,6 +16,7 @@ const optionalStart = '(' as const
 const optionalEnd = ')' as const
 
 let routeModuleExts = ['.js', '.jsx', '.ts', '.tsx', '.md', '.mdx']
+const ignoredFilenames = new Set(['.DS_Store'])
 
 function isRouteModuleFile(filename: string): boolean {
   return routeModuleExts.includes(path.extname(filename))
@@ -69,6 +70,11 @@ export function createRoutesFromFolders(
 
   // First, find all route modules in app/routes
   visitFiles(appRoutesDirectory, (file) => {
+    const basename = path.basename(file)
+    if (ignoredFilenames.has(basename)) {
+      return
+    }
+
     if (
       ignoredFilePatterns.length > 0 &&
       ignoredFilePatterns.some((pattern) => picomatch.isMatch(file, pattern))

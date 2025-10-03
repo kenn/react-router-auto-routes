@@ -8,9 +8,9 @@ export function logWarn(message: string): void {
 
 export function logError(error: unknown): void {
   if (error instanceof Error) {
-    console.error(error.message)
+    console.error(`❌ ${error.message}`)
     return
   }
 
-  console.error(String(error))
+  console.error(`❌ ${String(error)}`)
 }

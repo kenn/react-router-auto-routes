@@ -141,6 +141,8 @@ autoRoutes({
 })
 ```
 
+`.DS_Store` is always ignored automatically, even when you provide custom `ignoredRouteFiles`, and the migration CLI inherits the same default.
+
 ### Multiple Route Directories
 
 Organize routes across multiple directories for better separation of concerns:
