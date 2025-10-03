@@ -7,13 +7,9 @@ export default defineConfig(() => {
     clean: true,
   }
 
-  const indexCommonOptions = {
-    entry: ['src/core/index.ts'],
-  }
-
   return [{
     ...commonOptions,
-    ...indexCommonOptions,
+    entry: ['src/core/index.ts'],
     format: 'esm',
     dts: true, // Generate declaration file (.d.ts)
   }, {
