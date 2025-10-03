@@ -2,12 +2,11 @@ import picomatch from 'picomatch'
 import * as path from 'path'
 
 import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from '../constants'
-import { ResolvedOptions, RouteInfo, autoRoutesOptions } from '../types'
+import { ResolvedOptions, RouteInfo } from '../types'
 import {
   createRouteId,
   escapeRegexChar,
   memoizedRegex,
-  validateRouteDir,
 } from '../../utils'
 import { createRoutePath, getRouteSegments } from './segments'
 
@@ -96,10 +95,7 @@ export function getRouteRegex(
   )
 }
 
-export function isIndexRoute(
-  routeId: string,
-  options: autoRoutesOptions,
-): boolean {
+export function isIndexRoute(routeId: string): boolean {
   const indexRouteRegex = memoizedRegex(
     `((^|[.])(index|_index))($|\\/)|(\\/(_?index))($|\\/)`,
   )
@@ -109,14 +105,18 @@ export function isIndexRoute(
 export function getRouteInfo(
   routeDir: string,
   file: string,
-  options: autoRoutesOptions,
+  options: ResolvedOptions,
 ): RouteInfo {
-  validateRouteDir(routeDir)
-
   const filePath = path.join(routeDir, file).split(path.win32.sep).join('/')
   const routeId = createRouteId(filePath)
-  const routeIdWithoutRoutes = routeId.slice(routeDir.length + 1)
-  const index = isIndexRoute(routeIdWithoutRoutes, options)
+  const routePrefix = `${routeDir}/`
+  if (!routeId.startsWith(routePrefix)) {
+    throw new Error(
+      `Route id '${routeId}' does not start with expected prefix '${routePrefix}'`,
+    )
+  }
+  const routeIdWithoutRoutes = routeId.slice(routePrefix.length)
+  const index = isIndexRoute(routeIdWithoutRoutes)
   const routeSegments = getRouteSegments(
     routeIdWithoutRoutes,
     index,
@@ -127,6 +127,8 @@ export function getRouteInfo(
 
   return {
     id: routeId,
+    root: routeDir,
+    relativeId: routeIdWithoutRoutes,
     path: routePath!,
     file: filePath,
     name: routeSegments.join('/'),
@@ -137,7 +139,7 @@ export function getRouteInfo(
 
 export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
   const {
-    appDir,
+    rootDir,
     routeDirs,
     ignoredRouteFiles,
     visitFiles,
@@ -148,7 +150,7 @@ export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
   const routeMap = new Map<string, RouteInfo>()
 
   for (const currentRouteDir of routeDirs) {
-    const directory = path.join(appDir, currentRouteDir)
+    const directory = path.join(rootDir, currentRouteDir)
 
     visitFiles(directory, (file) => {
       if (

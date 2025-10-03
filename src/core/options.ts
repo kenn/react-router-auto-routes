@@ -1,8 +1,8 @@
-import { defaultVisitFiles, escapeRegexChar } from '../utils'
+import { defaultVisitFiles, escapeRegexChar, normalizeRoutesDir } from '../utils'
 import { autoRoutesOptions, ResolvedOptions } from './types'
 import {
-  DEFAULT_APP_DIR,
-  DEFAULT_ROUTE_DIR,
+  DEFAULT_ROOT_DIR,
+  DEFAULT_ROUTES_DIR,
   DEFAULT_BASE_PATH,
   DEFAULT_PARAM_CHAR,
   DEFAULT_COLOCATE_CHAR,
@@ -13,8 +13,8 @@ export function resolveOptions(
   options: autoRoutesOptions = {},
 ): ResolvedOptions {
   const {
-    appDir = DEFAULT_APP_DIR,
-    routeDir = DEFAULT_ROUTE_DIR,
+    rootDir: rawRootDir = DEFAULT_ROOT_DIR,
+    routesDir = DEFAULT_ROUTES_DIR,
     basePath = DEFAULT_BASE_PATH,
     paramChar = DEFAULT_PARAM_CHAR,
     colocateChar: userColocateChar,
@@ -34,11 +34,13 @@ export function resolveOptions(
     routeRegexSource.flags,
   )
 
-  const routeDirsArray = Array.isArray(routeDir) ? [...routeDir] : [routeDir]
+  const rootDir = rawRootDir.trim() === '' ? '.' : rawRootDir.trim()
+  const routeDirsArray = Array.isArray(routesDir) ? [...routesDir] : [routesDir]
+  const normalizedRouteDirs = routeDirsArray.map((dir) => normalizeRoutesDir(dir))
 
   return {
-    appDir,
-    routeDirs: Object.freeze(routeDirsArray),
+    rootDir,
+    routeDirs: Object.freeze(normalizedRouteDirs),
     basePath,
     visitFiles,
     paramChar,

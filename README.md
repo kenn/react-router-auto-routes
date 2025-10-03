@@ -128,8 +128,10 @@ autoRoutes({
     '**/.*', // Ignore dotfiles
     '**/*.test.{ts,tsx}', // Ignore test files
   ],
-  // Route directory (default: 'routes')
-  routeDir: 'routes',
+  // Base directory to resolve route roots from (default: 'app')
+  rootDir: 'app',
+  // Route roots (default: 'routes')
+  routesDir: ['routes/public', 'routes/admin'],
   // Character for route params (default: '$')
   paramChar: '$',
   // Character marking colocated entries (default: '+')
@@ -145,37 +147,53 @@ Organize routes across multiple directories for better separation of concerns:
 
 ```ts
 autoRoutes({
-  routeDir: ['routes', 'admin', 'api']
+  rootDir: 'app',
+  routesDir: ['routes/public', 'routes/admin', 'routes/api'],
 })
 ```
 
 **Example structure:**
+
 ```
 app/
-├── routes/              → Public routes
-│   ├── _index.tsx       → /
-│   └── about.tsx        → /about
-├── admin/               → Admin routes
-│   ├── admin._layout.tsx → /admin layout
-│   └── admin.dashboard.tsx → /admin/dashboard
-└── api/                 → API routes
-    └── api.users.tsx    → /api/users
+└── routes/
+    ├── public/                       → Public routes mounted at /
+    │   ├── _layout.tsx               → shared layout for /
+    │   ├── index.tsx                 → /
+    │   └── about.tsx                 → /about
+    ├── admin/                        → Admin routes mounted at /admin
+    │   └── admin/
+    │       ├── _layout.tsx           → /admin layout
+    │       └── dashboard.tsx         → /admin/dashboard
+    └── api/                          → API routes mounted at /api
+        └── api/
+            ├── _layout.tsx           → /api layout
+            └── users/index.tsx       → /api/users
 ```
 
-**Important:** Files in non-default directories must use dot notation to create proper paths. For example:
-- `admin/settings.tsx` → `/settings` ❌
-- `admin/admin.settings.tsx` → `/admin/settings` ✅
+The first folder inside each non-root route root repeats the desired URL prefix. For example, `routes/admin/admin/_layout.tsx` contributes the `/admin` segment, and siblings like `routes/admin/admin/dashboard.tsx` nest beneath it.
 
-All routes are merged into a single route tree. Route IDs include the directory name for organizational clarity.
+**Important:** Prefer real folders and layouts when wiring nested URLs. For example:
+
+- `routes/admin/admin/_layout.tsx` + `routes/admin/admin/dashboard.tsx` → `/admin/dashboard` ✅
+- `routes/admin/settings.tsx` without a parent layout → `/settings` ❌
+
+Dot notation (e.g. `routes/admin.settings.tsx`) still works as a last resort when you want to keep everything flat, but folder-based organization keeps segment boundaries obvious. All routes are merged into a single tree and their IDs retain the originating root (e.g. `routes/admin/admin/dashboard`).
 
 **Use cases:**
+
 - Separate authenticated vs. public routes
 - Isolate API endpoints from UI routes
 - Feature-based organization (blog, shop, dashboard)
 
 ## Migration Guide
 
-> **Note:** Migration tools are designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.*
+> **Note:** Migration tools are designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
+
+```bash
+npm uninstall remix-flat-routes
+npm uninstall @react-router/remix-routes-option-adapter
+```
 
 **Option updates:**
 

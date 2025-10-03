@@ -36,18 +36,42 @@ export function createRouteId(file: string): string {
   return normalized.replace(/\.[a-z0-9]+$/i, '')
 }
 
-export function validateRouteDir(routeDir: string) {
-  if (!routeDir) {
-    return routeDir
-  }
+export function normalizeRoutesDir(routeDir: string) {
+  const trimmed = routeDir.trim()
 
-  if (routeDir.includes('/') || routeDir.includes('\\')) {
+  if (!trimmed) {
     throw new Error(
-      `routeDir must be a single directory name without path separators. Got: '${routeDir}'`,
+      `routesDir entries must be non-empty strings. Got: '${routeDir}'`,
     )
   }
 
-  return routeDir
+  let normalized = trimmed.replace(/\\/g, '/')
+  normalized = normalized.replace(/\/+/g, '/')
+
+  while (normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1)
+  }
+
+  if (!normalized) {
+    throw new Error(
+      `routesDir entries must resolve to a folder. Got: '${routeDir}'`,
+    )
+  }
+
+  if (normalized.startsWith('/')) {
+    throw new Error(
+      `routesDir entries must be relative paths, not absolute. Got: '${routeDir}'`,
+    )
+  }
+
+  const segments = normalized.split('/')
+  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new Error(
+      `routesDir entries cannot contain '.' or '..' segments. Got: '${routeDir}'`,
+    )
+  }
+
+  return normalized
 }
 
 export function escapeRegexChar(char: string): string {

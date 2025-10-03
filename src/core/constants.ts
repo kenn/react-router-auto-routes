@@ -16,8 +16,8 @@ export const SPECIAL_ROUTE_FILES = [
 export const SERVER_FILE_REGEX = /\.server\.(ts|tsx|js|jsx|md|mdx)$/
 
 // Default configuration values
-export const DEFAULT_APP_DIR = 'app'
-export const DEFAULT_ROUTE_DIR = 'routes'
+export const DEFAULT_ROOT_DIR = 'app'
+export const DEFAULT_ROUTES_DIR = 'routes'
 export const DEFAULT_BASE_PATH = '/'
 export const DEFAULT_PARAM_CHAR = '$'
 export const DEFAULT_COLOCATE_CHAR = '+'

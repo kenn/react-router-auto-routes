@@ -1,5 +1,7 @@
 export type RouteInfo = {
   id: string
+  root: string
+  relativeId: string
   path: string | undefined
   file: string
   name: string
@@ -25,8 +27,8 @@ export type VisitFilesFunction = (
 ) => void
 
 export type autoRoutesOptions = {
-  appDir?: string
-  routeDir?: string | string[]
+  rootDir?: string
+  routesDir?: string | string[]
   basePath?: string
   visitFiles?: VisitFilesFunction
   paramChar?: string
@@ -36,7 +38,7 @@ export type autoRoutesOptions = {
 }
 
 export type ResolvedOptions = {
-  appDir: string
+  rootDir: string
   routeDirs: readonly string[]
   basePath: string
   visitFiles: VisitFilesFunction

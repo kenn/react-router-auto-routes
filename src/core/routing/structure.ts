@@ -1,6 +1,10 @@
 import { ROOT_PARENT } from '../constants'
 import { RouteConfig, RouteInfo } from '../types'
 
+function nameKey(root: string, name: string): string {
+  return `${root}::${name}`
+}
+
 function isLayoutRoute(route: RouteInfo): boolean {
   const fileName = route.file.split('/').pop() ?? ''
   const withoutExtension = fileName.replace(/\.[^/.]+$/, '')
@@ -47,7 +51,7 @@ export function findParentRouteId(
     : routeInfo.segments.slice(0, -1).join('/')
 
   while (parentName) {
-    const candidates = nameMap.get(parentName)
+    const candidates = nameMap.get(nameKey(routeInfo.root, parentName))
     if (candidates && candidates.length > 0) {
       const parent = findBestParent(routeInfo, candidates)
       if (parent) {
@@ -69,11 +73,12 @@ function createNameMap(routes: readonly RouteInfo[]): Map<string, RouteInfo[]> {
   const nameMap = new Map<string, RouteInfo[]>()
 
   for (const route of routes) {
-    const existing = nameMap.get(route.name)
+    const key = nameKey(route.root, route.name)
+    const existing = nameMap.get(key)
     if (existing) {
       existing.push(route)
     } else {
-      nameMap.set(route.name, [route])
+      nameMap.set(key, [route])
     }
   }
 
@@ -85,7 +90,7 @@ function shouldNormalizeRoute(route: RouteInfo): boolean {
     return false
   }
 
-  const pathParts = route.id.split('/').slice(1)
+  const pathParts = route.relativeId.split('/').filter(Boolean)
   const usesSpecialSyntax = pathParts.some(
     (part) => part.includes('.') || part.includes('(') || part.includes(')'),
   )
@@ -107,7 +112,7 @@ function normalizeName(
     return route.name
   }
 
-  const existingParents = nameMap.get(parentName)
+  const existingParents = nameMap.get(nameKey(route.root, parentName))
   const hasNonIndexParent = existingParents?.some((parent) => !parent.index)
 
   if (!hasNonIndexParent) {

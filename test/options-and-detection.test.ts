@@ -70,33 +70,55 @@ describe('routing options', () => {
     })
   })
 
-  describe('routeDir validation', () => {
-    it('should reject routeDir with leading dot segments', () => {
+  describe('routesDir normalization', () => {
+    it('supports nested directory entries', () => {
+      const routes = createRoutesFromFiles(['users.tsx'], { routesDir: 'routes/public' })
+      const manifest = flattenRoutesById(routes)
+      expect(manifest['routes/public/users']).toBeDefined()
+    })
+
+    it('nests routes under layouts when prefix folders are repeated', () => {
+      const routes = createRoutesFromFiles(
+        ['admin/_layout.tsx', 'admin/dashboard.tsx'],
+        { routesDir: 'routes/admin' },
+      )
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/admin/admin/_layout']?.path).toBe('admin')
+      expect(manifest['routes/admin/admin/dashboard']?.parentId).toBe(
+        'routes/admin/admin/_layout',
+      )
+      expect(manifest['routes/admin/admin/dashboard']?.path).toBe('dashboard')
+    })
+
+    it('rejects dot-prefixed relative paths', () => {
       expect(() => {
-        createRoutesFromFiles(['index.tsx'], { routeDir: './routes' })
+        createRoutesFromFiles(['index.tsx'], { routesDir: './routes' })
       }).toThrow(
-        "routeDir must be a single directory name without path separators. Got: './routes'",
+        "routesDir entries cannot contain '.' or '..' segments. Got: './routes'",
       )
     })
 
-    it('should reject routeDir with trailing separators', () => {
+    it('rejects parent directory segments', () => {
       expect(() => {
-        createRoutesFromFiles(['index.tsx'], { routeDir: 'routes/' })
-      }).toThrow(
-        "routeDir must be a single directory name without path separators. Got: 'routes/'",
-      )
+        createRoutesFromFiles(['index.tsx'], { routesDir: '../routes' })
+      }).toThrow("routesDir entries cannot contain '.' or '..' segments. Got: '../routes'")
     })
 
-    it('should reject routeDir with nested paths', () => {
+    it('rejects absolute paths', () => {
       expect(() => {
-        createRoutesFromFiles(['index.tsx'], { routeDir: 'app/routes' })
-      }).toThrow(
-        "routeDir must be a single directory name without path separators. Got: 'app/routes'",
-      )
+        createRoutesFromFiles(['index.tsx'], { routesDir: '/routes' })
+      }).toThrow("routesDir entries must be relative paths, not absolute. Got: '/routes'")
+    })
+
+    it('rejects empty entries', () => {
+      expect(() => {
+        createRoutesFromFiles(['index.tsx'], { routesDir: '' })
+      }).toThrow("routesDir entries must be non-empty strings. Got: ''")
     })
   })
 
-  describe('multiple routeDir', () => {
+  describe('multiple routesDir', () => {
     it('should merge routes from multiple directories with correct paths', () => {
       const visitFiles = (dir: string, visitor: (file: string) => void) => {
         if (dir.endsWith('routes')) {
@@ -115,7 +137,7 @@ describe('routing options', () => {
       }
 
       const routes = createRoutesFromFiles([], {
-        routeDir: ['routes', 'admin', 'api'],
+        routesDir: ['routes', 'admin', 'api'],
         visitFiles,
       })
       const manifest = flattenRoutesById(routes)
@@ -136,7 +158,7 @@ describe('routing options', () => {
           'api.users.tsx',
         ],
         {
-          routeDir: ['routes', 'admin', 'api'],
+          routesDir: ['routes', 'admin', 'api'],
           visitFiles: (dir, visitor) => {
             if (dir.includes('routes')) visitor('_index.tsx')
             if (dir.includes('admin')) {
@@ -158,7 +180,7 @@ describe('routing options', () => {
 
     it('should not overwrite routes with different directory prefixes', () => {
       const routes = createRoutesFromFiles(['shared.tsx'], {
-        routeDir: ['routes', 'admin'],
+        routesDir: ['routes', 'admin'],
         visitFiles: (dir, visitor) => {
           // Both directories have shared.tsx
           visitor('shared.tsx')
