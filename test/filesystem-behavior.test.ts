@@ -457,7 +457,7 @@ describe('prefix colocation integration tests', () => {
 })
 
 describe('custom prefix character', () => {
-  it('should respect colocateChar overrides', () => {
+  it('should respect colocationChar overrides', () => {
     expectRouteFixturesToMatchSnapshot(
       [
         route('dashboard/index.tsx', {
@@ -469,31 +469,31 @@ describe('custom prefix character', () => {
         fileOnly('dashboard/_utils.ts'),
         fileOnly('dashboard/_/helpers.ts'),
       ],
-      { colocateChar: '_' },
+      { colocationChar: '_' },
     )
   })
 })
 
 describe('custom prefix character edge cases', () => {
-  it('should throw root-level error when colocateChar overrides to _', () => {
+  it('should throw root-level error when colocationChar overrides to _', () => {
     const files = ['_utils.ts']
     expect(() =>
-      createRoutesFromFiles(files, { colocateChar: '_' }),
+      createRoutesFromFiles(files, { colocationChar: '_' }),
     ).toThrowError(
       "Colocation entries must live inside a route folder. Move '_utils.ts' under an actual route directory.",
     )
   })
 
-  it('should throw nested anonymous error when colocateChar overrides to _', () => {
+  it('should throw nested anonymous error when colocationChar overrides to _', () => {
     const files = ['dashboard/_/_/helpers.ts']
     expect(() =>
-      createRoutesFromFiles(files, { colocateChar: '_' }),
+      createRoutesFromFiles(files, { colocationChar: '_' }),
     ).toThrowError(
       'Nested anonymous colocation folders (+/+/) are not allowed. Use named folders like +/components/ instead. Found in: dashboard/_/_/helpers.ts',
     )
   })
 
-  it('should treat + files as routes when colocateChar is _', () => {
+  it('should treat + files as routes when colocationChar is _', () => {
     expectRouteFixturesToMatchSnapshot(
       [
         route('dashboard/index.tsx', {
@@ -508,7 +508,7 @@ describe('custom prefix character edge cases', () => {
           path: '+utils',
         }),
       ],
-      { colocateChar: '_' },
+      { colocationChar: '_' },
     )
   })
 })

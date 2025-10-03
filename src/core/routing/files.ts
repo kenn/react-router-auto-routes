@@ -3,11 +3,7 @@ import * as path from 'path'
 
 import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from '../constants'
 import { ResolvedOptions, RouteInfo } from '../types'
-import {
-  createRouteId,
-  escapeRegexChar,
-  memoizedRegex,
-} from '../../utils'
+import { createRouteId, escapeRegexChar, memoizedRegex } from '../../utils'
 import { createRoutePath, getRouteSegments } from './segments'
 
 export const routeModuleExts = ROUTE_EXTENSIONS
@@ -15,10 +11,10 @@ export const serverRegex = SERVER_FILE_REGEX
 
 function checkColocationViolations(
   segments: string[],
-  colocateChar: string,
+  colocationChar: string,
   filename: string,
 ): void {
-  if (segments.length >= 1 && segments[0].startsWith(colocateChar)) {
+  if (segments.length >= 1 && segments[0].startsWith(colocationChar)) {
     throw new Error(
       `Colocation entries must live inside a route folder. ` +
         `Move '${filename}' under an actual route directory.`,
@@ -27,7 +23,7 @@ function checkColocationViolations(
 
   let anonymousFolderCount = 0
   for (let i = 0; i < segments.length - 1; i++) {
-    if (segments[i] === colocateChar) {
+    if (segments[i] === colocationChar) {
       anonymousFolderCount++
       if (anonymousFolderCount > 1) {
         throw new Error(
@@ -39,8 +35,8 @@ function checkColocationViolations(
   }
 }
 
-function isColocated(segments: string[], colocateChar: string): boolean {
-  return segments.some((segment) => segment.startsWith(colocateChar))
+function isColocated(segments: string[], colocationChar: string): boolean {
+  return segments.some((segment) => segment.startsWith(colocationChar))
 }
 
 function hasValidRouteExtension(
@@ -66,15 +62,15 @@ function hasValidRouteExtension(
 
 export function isRouteModuleFile(
   filename: string,
-  colocateChar: string = '+',
+  colocationChar: string = '+',
   routeRegex?: RegExp,
 ): boolean {
   const normalizedPath = filename.replace(/\\/g, '/')
   const segments = normalizedPath.split('/')
 
-  checkColocationViolations(segments, colocateChar, filename)
+  checkColocationViolations(segments, colocationChar, filename)
 
-  if (isColocated(segments, colocateChar)) {
+  if (isColocated(segments, colocationChar)) {
     return false
   }
 
@@ -83,13 +79,13 @@ export function isRouteModuleFile(
 
 export function getRouteRegex(
   RegexRequiresNestedDirReplacement: RegExp,
-  colocateChar: string,
+  colocationChar: string,
 ): RegExp {
-  const escapedColocateChar = escapeRegexChar(colocateChar)
+  const escapedColocationChar = escapeRegexChar(colocationChar)
   return new RegExp(
     RegexRequiresNestedDirReplacement.source.replace(
-      '\\${colocateChar}',
-      `\\${escapedColocateChar}`,
+      '\\${colocationChar}',
+      `\\${escapedColocationChar}`,
     ),
     RegexRequiresNestedDirReplacement.flags,
   )
@@ -121,7 +117,7 @@ export function getRouteInfo(
     routeIdWithoutRoutes,
     index,
     options.paramChar,
-    options.colocateChar,
+    options.colocationChar,
   )
   const routePath = createRoutePath(routeSegments, index, options)
 
@@ -143,7 +139,7 @@ export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
     routeDirs,
     ignoredRouteFiles,
     visitFiles,
-    colocateChar,
+    colocationChar,
     routeRegex,
   } = options
 
@@ -162,7 +158,7 @@ export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
         return
       }
 
-      if (!isRouteModuleFile(file, colocateChar, routeRegex)) {
+      if (!isRouteModuleFile(file, colocationChar, routeRegex)) {
         return
       }
 

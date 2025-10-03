@@ -151,7 +151,7 @@ export function getRouteSegments(
   name: string,
   _index: boolean,
   paramChar: string = '$',
-  _colocateChar: string = '+',
+  _colocationChar: string = '+',
 ): string[] {
   const cleanedName = removeSpecialRouteFile(name)
   const segments = parseSegmentsFromPath(cleanedName)

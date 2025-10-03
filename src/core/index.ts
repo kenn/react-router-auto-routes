@@ -14,12 +14,12 @@ export { autoRoutes }
 export type { RouteConfig, autoRoutesOptions } from './types'
 
 const DEFAULT_ROUTE_REGEX =
-  /((\${colocateChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
+  /((\${colocationChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
 
-function resolveRouteRegex(pattern: RegExp, colocateChar: string): RegExp {
-  const escapedColocateChar = escapeRegexChar(colocateChar)
+function resolveRouteRegex(pattern: RegExp, colocationChar: string): RegExp {
+  const escapedColocationChar = escapeRegexChar(colocationChar)
   return new RegExp(
-    pattern.source.replace('\\${colocateChar}', `\\${escapedColocateChar}`),
+    pattern.source.replace('\\${colocationChar}', `\\${escapedColocationChar}`),
     pattern.flags,
   )
 }
@@ -31,17 +31,17 @@ export default function autoRoutes(
     rootDir: rawRootDir = 'app',
     routesDir = 'routes',
     paramChar = '$',
-    colocateChar: userColocateChar,
+    colocationChar: userColocationChar,
     routeRegex: userRouteRegex,
     ignoredRouteFiles = [],
     visitFiles: userVisitFiles,
   } = options
 
-  const colocateChar = userColocateChar ?? '+'
+  const colocationChar = userColocationChar ?? '+'
   const visitFiles = userVisitFiles ?? defaultVisitFiles
   const routeRegex = resolveRouteRegex(
     userRouteRegex ?? DEFAULT_ROUTE_REGEX,
-    colocateChar,
+    colocationChar,
   )
 
   const rootDir = rawRootDir.trim() === '' ? '.' : rawRootDir.trim()
@@ -55,7 +55,7 @@ export default function autoRoutes(
     routeDirs: normalizedRouteDirs,
     visitFiles,
     paramChar,
-    colocateChar,
+    colocationChar,
     ignoredRouteFiles: [...ignoredRouteFiles],
     routeRegex,
   }

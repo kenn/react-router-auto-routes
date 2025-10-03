@@ -135,7 +135,7 @@ autoRoutes({
   // Character for route params (default: '$')
   paramChar: '$',
   // Character marking colocated entries (default: '+')
-  colocateChar: '+',
+  colocationChar: '+',
   // Custom route file regex (advanced)
   routeRegex: /\.(ts|tsx|js|jsx|md|mdx)$/,
 })
@@ -199,7 +199,7 @@ npm uninstall @react-router/remix-routes-option-adapter
 
 **Option updates:**
 
-`nestedDirectoryChar` → `colocateChar` (changed behavior)
+`nestedDirectoryChar` → `colocationChar` (changed behavior)
 
 ## CLI Migration Tool
 

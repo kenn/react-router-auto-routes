@@ -30,7 +30,7 @@ export type autoRoutesOptions = {
   routesDir?: string | string[]
   visitFiles?: VisitFilesFunction
   paramChar?: string
-  colocateChar?: string
+  colocationChar?: string
   ignoredRouteFiles?: readonly string[]
   routeRegex?: RegExp
 }
@@ -40,7 +40,7 @@ export type ResolvedOptions = {
   routeDirs: readonly string[]
   visitFiles: VisitFilesFunction
   paramChar: string
-  colocateChar: string
+  colocationChar: string
   ignoredRouteFiles: readonly string[]
   routeRegex: RegExp
 }
