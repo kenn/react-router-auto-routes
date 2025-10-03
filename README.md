@@ -2,10 +2,6 @@
 
 Automatic folder-based routing with colocation for React Router v7+.
 
-## Acknowledgments
-
-This library is heavily inspired by [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) by @kiliman. While this is a complete rewrite for React Router v7+, the core routing conventions and ideas stem from that excellent work.
-
 ## Philosophy
 
 Built on [convention-over-configuration](https://en.wikipedia.org/wiki/Convention_over_configuration) principles—your file structure defines your routes automatically, with smart defaults that just work, and scale well.
@@ -239,3 +235,7 @@ When targetDir is omitted it defaults to a sibling directory named "new-routes".
 
 - Node.js >= 20
 - React Router v7+
+
+## Acknowledgments
+
+This library is heavily inspired by [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) by @kiliman. While this is a complete rewrite for React Router v7+, the core routing conventions and ideas stem from that excellent work.
