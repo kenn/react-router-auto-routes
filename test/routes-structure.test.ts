@@ -1,7 +1,6 @@
 import {
-  createRouteFixtures,
   createRoutesFromFiles,
-  expectFilesToMatchSnapshot,
+  expectRouteFixturesToMatchSnapshot,
   ExpectedValues,
   fileOnly,
   flattenRoutesById,
@@ -226,13 +225,9 @@ describe('route structures', () => {
     }
 
     it('covers complex routing scenarios with minimal cases', () => {
-      for (const [scenarioName, fixtures] of Object.entries(
-        snapshotScenarios,
-      )) {
-        const { files, expected } = createRouteFixtures(fixtures)
-
+      for (const [scenarioName, fixtures] of Object.entries(snapshotScenarios)) {
         try {
-          expectFilesToMatchSnapshot(files, expected)
+          expectRouteFixturesToMatchSnapshot(fixtures)
         } catch (error: unknown) {
           if (error instanceof Error) {
             error.message = `Scenario "${scenarioName}" failed: ${error.message}`
@@ -247,7 +242,7 @@ describe('route structures', () => {
 
   describe('hybrid route conventions', () => {
     it('handles hybrid flat and nested structures', () => {
-      const { files, expected } = createRouteFixtures([
+      expectRouteFixturesToMatchSnapshot([
         route('_index/route.tsx', {
           id: '_index/route',
           parentId: 'root',
@@ -295,8 +290,6 @@ describe('route structures', () => {
           path: ':userId/edit',
         }),
       ])
-
-      expectFilesToMatchSnapshot(files, expected)
     })
   })
 
@@ -335,7 +328,7 @@ describe('route structures', () => {
 
   describe('layout nesting', () => {
     it('nests index routes under layouts', () => {
-      const { files, expected } = createRouteFixtures([
+      expectRouteFixturesToMatchSnapshot([
         route('dashboard/_layout.tsx', {
           id: 'dashboard/_layout',
           parentId: 'root',
@@ -357,12 +350,10 @@ describe('route structures', () => {
           index: true,
         }),
       ])
-
-      expectFilesToMatchSnapshot(files, expected)
     })
 
     it('handles deeply nested layout hierarchies', () => {
-      const { files, expected } = createRouteFixtures([
+      expectRouteFixturesToMatchSnapshot([
         route('dashboard/_layout.tsx', {
           id: 'dashboard/_layout',
           parentId: 'root',
@@ -386,8 +377,6 @@ describe('route structures', () => {
           path: ':id/:section',
         }),
       ])
-
-      expectFilesToMatchSnapshot(files, expected)
     })
   })
 })

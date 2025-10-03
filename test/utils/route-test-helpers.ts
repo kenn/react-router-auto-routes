@@ -164,6 +164,14 @@ export function createRouteFixtures(fixtures: RouteFixture[]) {
   return { files, expected }
 }
 
+export function expectRouteFixturesToMatchSnapshot(
+  fixtures: RouteFixture[],
+  options: autoRoutesOptions = {},
+): RouteSnapshot {
+  const { files, expected } = createRouteFixtures(fixtures)
+  return expectFilesToMatchSnapshot(files, expected, options)
+}
+
 export function generateFlexRoutesAndVerifyResultWithExpected(
   routesWithExpectedValues: Record<string, ExpectedValues>,
 ) {

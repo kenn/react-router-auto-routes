@@ -1,7 +1,7 @@
 import {
   createRouteFixtures,
   createRoutesFromFiles,
-  expectFilesToMatchSnapshot,
+  expectRouteFixturesToMatchSnapshot,
   expectRoutesToMatch,
   fileOnly,
   flattenRoutesById,
@@ -10,7 +10,7 @@ import {
 
 describe('flat file routes', () => {
   it('should define routes for flat-files', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('$lang.$ref.tsx', {
         id: '$lang.$ref',
         parentId: 'root',
@@ -37,12 +37,10 @@ describe('flat file routes', () => {
         path: 'healthcheck',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should support markdown routes as flat-files', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('docs.tsx', {
         id: 'docs',
         parentId: 'root',
@@ -54,14 +52,12 @@ describe('flat file routes', () => {
         path: 'readme',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
 describe('flat folder routes', () => {
   it('should define routes for flat-folders', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('$lang.$ref/route.tsx', {
         id: '$lang.$ref/route',
         parentId: 'root',
@@ -88,8 +84,6 @@ describe('flat folder routes', () => {
         path: 'healthcheck',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should define routes for flat-folders on Windows', () => {
@@ -134,7 +128,7 @@ describe('flat folder routes', () => {
   })
 
   it('should ignore non-route files in flat-folders', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('$lang.$ref/_layout.tsx', {
         id: '$lang.$ref/_layout',
         parentId: 'root',
@@ -163,12 +157,10 @@ describe('flat folder routes', () => {
         path: 'healthcheck',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should support markdown routes as flat-folders', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('docs/_layout.tsx', {
         id: 'docs/_layout',
         parentId: 'root',
@@ -180,12 +172,10 @@ describe('flat folder routes', () => {
         path: 'readme',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should treat nested files without special suffixes as routes', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('oauth.tsx', {
         id: 'oauth',
         parentId: 'root',
@@ -197,8 +187,6 @@ describe('flat folder routes', () => {
         path: 'google',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
@@ -270,7 +258,8 @@ describe('ignored routes', () => {
   const ignoredRouteFiles = ['**/.*', '**/*.css', '**/*.test.{js,jsx,ts,tsx}']
 
   it('should ignore routes for flat-files', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot(
+      [
       route('$lang.$ref.tsx', {
         id: '$lang.$ref',
         parentId: 'root',
@@ -300,15 +289,15 @@ describe('ignored routes', () => {
       fileOnly('_index.test.tsx'),
       fileOnly('styles/style.css'),
       fileOnly('__tests__/route.test.tsx'),
-    ])
-
-    expectFilesToMatchSnapshot(files, expected, { ignoredRouteFiles })
+    ],
+      { ignoredRouteFiles },
+    )
   })
 })
 
 describe('prefix-based colocation with + folders', () => {
   it('should ignore files in anonymous colocation folder +/', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('dashboard/index.tsx', {
         id: 'dashboard/index',
         parentId: 'root',
@@ -318,12 +307,10 @@ describe('prefix-based colocation with + folders', () => {
       fileOnly('dashboard/+/utils.ts'),
       fileOnly('dashboard/+/helpers.ts'),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should ignore files in named colocation folders +components/, +lib/', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('dashboard/index.tsx', {
         id: 'dashboard/index',
         parentId: 'root',
@@ -333,12 +320,10 @@ describe('prefix-based colocation with + folders', () => {
       fileOnly('dashboard/+components/avatar.tsx'),
       fileOnly('dashboard/+lib/api.ts'),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should ignore nested folders in colocation folders', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('dashboard/index.tsx', {
         id: 'dashboard/index',
         parentId: 'root',
@@ -348,14 +333,12 @@ describe('prefix-based colocation with + folders', () => {
       fileOnly('dashboard/+/utils/format.ts'),
       fileOnly('dashboard/+components/buttons/button.tsx'),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
 describe('prefix-based colocation with + files', () => {
   it('should ignore files starting with +', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('dashboard/index.tsx', {
         id: 'dashboard/index',
         parentId: 'root',
@@ -365,12 +348,10 @@ describe('prefix-based colocation with + files', () => {
       fileOnly('dashboard/+utils.ts'),
       fileOnly('dashboard/+types.ts'),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should ignore a file named +.ts inside a route folder', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('dashboard/index.tsx', {
         id: 'dashboard/index',
         parentId: 'root',
@@ -379,20 +360,16 @@ describe('prefix-based colocation with + files', () => {
       }),
       fileOnly('dashboard/+.ts'),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should treat + in middle of filename as normal route', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('users+admins.tsx', {
         id: 'users+admins',
         parentId: 'root',
         path: 'users+admins',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
@@ -428,7 +405,7 @@ describe('prefix colocation error cases', () => {
 
 describe('prefix colocation integration tests', () => {
   it('should handle both folder and file prefix patterns', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('dashboard/index.tsx', {
         id: 'dashboard/index',
         parentId: 'root',
@@ -439,12 +416,10 @@ describe('prefix colocation integration tests', () => {
       fileOnly('dashboard/+/helpers.ts'),
       fileOnly('dashboard/+lib/api.ts'),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should handle complex route structure', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('_index.tsx', {
         id: '_index',
         parentId: 'root',
@@ -464,12 +439,10 @@ describe('prefix colocation integration tests', () => {
         path: 'edit',
       }),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should work with Windows path separators (backslashes)', () => {
-    const { files, expected } = createRouteFixtures([
+    expectRouteFixturesToMatchSnapshot([
       route('dashboard\\index.tsx', {
         id: 'dashboard/index',
         parentId: 'root',
@@ -480,25 +453,24 @@ describe('prefix colocation integration tests', () => {
       fileOnly('dashboard\\+\\helpers.ts'),
       fileOnly('dashboard\\+components\\chart.tsx'),
     ])
-
-    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
 describe('custom prefix character', () => {
   it('should respect colocateChar overrides', () => {
-    const { files, expected } = createRouteFixtures([
-      route('dashboard/index.tsx', {
-        id: 'dashboard/index',
-        parentId: 'root',
-        path: 'dashboard',
-        index: true,
-      }),
-      fileOnly('dashboard/_utils.ts'),
-      fileOnly('dashboard/_/helpers.ts'),
-    ])
-
-    expectFilesToMatchSnapshot(files, expected, { colocateChar: '_' })
+    expectRouteFixturesToMatchSnapshot(
+      [
+        route('dashboard/index.tsx', {
+          id: 'dashboard/index',
+          parentId: 'root',
+          path: 'dashboard',
+          index: true,
+        }),
+        fileOnly('dashboard/_utils.ts'),
+        fileOnly('dashboard/_/helpers.ts'),
+      ],
+      { colocateChar: '_' },
+    )
   })
 })
 
@@ -522,20 +494,21 @@ describe('custom prefix character edge cases', () => {
   })
 
   it('should treat + files as routes when colocateChar is _', () => {
-    const { files, expected } = createRouteFixtures([
-      route('dashboard/index.tsx', {
-        id: 'dashboard/index',
-        parentId: 'root',
-        path: 'dashboard',
-        index: true,
-      }),
-      route('+utils.ts', {
-        id: '+utils',
-        parentId: 'root',
-        path: '+utils',
-      }),
-    ])
-
-    expectFilesToMatchSnapshot(files, expected, { colocateChar: '_' })
+    expectRouteFixturesToMatchSnapshot(
+      [
+        route('dashboard/index.tsx', {
+          id: 'dashboard/index',
+          parentId: 'root',
+          path: 'dashboard',
+          index: true,
+        }),
+        route('+utils.ts', {
+          id: '+utils',
+          parentId: 'root',
+          path: '+utils',
+        }),
+      ],
+      { colocateChar: '_' },
+    )
   })
 })
