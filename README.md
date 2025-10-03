@@ -10,7 +10,7 @@ Built on [convention-over-configuration](https://en.wikipedia.org/wiki/Conventio
 
 > "Place code as close to where it's relevant as possible" — Kent C. Dodds
 
-Keep your components, tests, utilities, and routes together. No more hunting across directories or artificial separation of concerns. The `+` prefix lets you organize naturally while the router stays out of your way.
+Keep your components, tests, utilities, and routes together. No more hunting across folders or artificial separation of concerns. The `+` prefix lets you organize naturally while the router stays out of your way.
 
 ## Features
 
@@ -149,9 +149,9 @@ autoRoutes({
 
 `.DS_Store` is always ignored automatically, even when you provide custom `ignoredRouteFiles`, and the migration CLI inherits the same default.
 
-### Multiple Route Directories
+### Multiple Route Folders
 
-Organize routes across multiple directories for better separation of concerns:
+Organize routes across multiple folders for better separation of concerns:
 
 ```ts
 autoRoutes({
