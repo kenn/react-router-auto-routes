@@ -14,7 +14,7 @@ export { autoRoutes }
 export type { RouteConfig, autoRoutesOptions } from './types'
 
 const DEFAULT_ROUTE_REGEX =
-  /((\${colocationChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
+  /((\${colocationChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
 
 function resolveRouteRegex(pattern: RegExp, colocationChar: string): RegExp {
   const escapedColocationChar = escapeRegexChar(colocationChar)

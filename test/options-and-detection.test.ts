@@ -54,7 +54,9 @@ describe('routing options', () => {
 
   describe('routesDir normalization', () => {
     it('supports nested directory entries', () => {
-      const routes = createRoutesFromFiles(['users.tsx'], { routesDir: 'routes/public' })
+      const routes = createRoutesFromFiles(['users.tsx'], {
+        routesDir: 'routes/public',
+      })
       const manifest = flattenRoutesById(routes)
       expect(manifest['routes/public/users']).toBeDefined()
     })
@@ -84,13 +86,17 @@ describe('routing options', () => {
     it('rejects parent directory segments', () => {
       expect(() => {
         createRoutesFromFiles(['index.tsx'], { routesDir: '../routes' })
-      }).toThrow("routesDir entries cannot contain '.' or '..' segments. Got: '../routes'")
+      }).toThrow(
+        "routesDir entries cannot contain '.' or '..' segments. Got: '../routes'",
+      )
     })
 
     it('rejects absolute paths', () => {
       expect(() => {
         createRoutesFromFiles(['index.tsx'], { routesDir: '/routes' })
-      }).toThrow("routesDir entries must be relative paths, not absolute. Got: '/routes'")
+      }).toThrow(
+        "routesDir entries must be relative paths, not absolute. Got: '/routes'",
+      )
     })
 
     it('rejects empty entries', () => {
@@ -213,7 +219,7 @@ describe('route detection helpers', () => {
   it('preserves custom regex flags when substituting the colocation placeholder', () => {
     const colocationChar = '+' as const
     const baseRegex = new RegExp(
-      '((\\${colocationChar}[\\/\\\\][^\\/\\\\:?*]+)|[\\/\\\\]((index|route|layout|page)|(_[^\\/\\\\:?*]+)|([^\\/\\\\:?*]+\\.route)))\\.(TSX)$',
+      '((\\${colocationChar}[\\/\\\\][^\\/\\\\:?*]+)|[\\/\\\\]((index|route|layout)|(_[^\\/\\\\:?*]+)|([^\\/\\\\:?*]+\\.route)))\\.(TSX)$',
       'i',
     )
 

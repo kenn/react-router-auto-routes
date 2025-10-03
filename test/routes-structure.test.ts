@@ -12,7 +12,13 @@ import type { RouteFixture } from './utils/route-test-helpers'
 describe('route structures', () => {
   describe('index routes', () => {
     it('generates correct ids for flat files', () => {
-      const files = ['$lang.$ref.tsx', '$lang.$ref._index.tsx', '$lang.$ref.$.tsx', '_index.tsx', 'index.tsx']
+      const files = [
+        '$lang.$ref.tsx',
+        '$lang.$ref._index.tsx',
+        '$lang.$ref.$.tsx',
+        '_index.tsx',
+        'index.tsx',
+      ]
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
 
@@ -269,10 +275,10 @@ describe('route structures', () => {
           parentId: 'routes/parent',
           path: 'some/nested',
         }),
-        route('parent.some_.nested.page.tsx', {
-          id: 'parent.some_.nested.page',
+        route('parent.some_.nested.settings.tsx', {
+          id: 'parent.some_.nested.settings',
           parentId: 'routes/parent',
-          path: 'some/nested/page',
+          path: 'some/nested/settings',
         }),
       ],
       'supports params with trailing underscore': [
@@ -359,7 +365,9 @@ describe('route structures', () => {
     }
 
     it('covers complex routing scenarios with minimal cases', () => {
-      for (const [scenarioName, fixtures] of Object.entries(snapshotScenarios)) {
+      for (const [scenarioName, fixtures] of Object.entries(
+        snapshotScenarios,
+      )) {
         try {
           expectRouteFixturesToMatchSnapshot(fixtures)
         } catch (error: unknown) {
@@ -373,5 +381,4 @@ describe('route structures', () => {
       generateFlexRoutesAndVerifyResultWithExpected(trailingSlashScenario)
     })
   })
-
 })
