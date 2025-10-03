@@ -28,6 +28,8 @@ import { autoRoutes } from 'react-router-auto-routes'
 export default autoRoutes()
 ```
 
+> **Migrating from remix-flat-routes?** See the [Migration Guide](#migration-guide) below.
+
 ## Routing Convention
 
 ```
