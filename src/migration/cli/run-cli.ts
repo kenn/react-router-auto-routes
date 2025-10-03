@@ -8,9 +8,10 @@ import {
   revertRoutes,
   swapRoutes,
 } from '../fs-helpers'
-import { logError, logInfo } from '../logger'
+import { logError, logInfo, logWarn } from '../logger'
 import { diffSnapshots, normalizeSnapshot } from './diff'
 import { captureRoutesSnapshot, defaultRunner, type CommandRunner } from './runner'
+import { detectLegacyRouteEntry } from './route-entry'
 
 export type RunOptions = {
   runner?: CommandRunner
@@ -63,6 +64,8 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     return 1
   }
 
+  const { entryPath, isLegacy } = detectLegacyRouteEntry(resolvedSource)
+
   const beforeSnapshot = captureRoutesSnapshot(runner, 'before migration')
   if (beforeSnapshot === null) {
     return 1
@@ -84,6 +87,25 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
   try {
     swapRoutes(resolvedSource, resolvedTarget, resolvedBackup)
     swapped = true
+
+    if (isLegacy) {
+      const entryRelative = entryPath
+        ? pathRelative(process.cwd(), entryPath)
+        : 'app/routes.ts'
+      logWarn(
+        `Detected legacy route entry '${entryRelative}' that still references remix-flat-routes.`,
+      )
+      logWarn(
+        'Update it to import autoRoutes() from react-router-auto-routes, then rerun `npx react-router routes`.',
+      )
+      logInfo(
+        `📁 Original routes moved to '${pathRelative(
+          process.cwd(),
+          resolvedBackup,
+        )}'. Keep or remove at your discretion.`,
+      )
+      return 0
+    }
 
     const afterSnapshot = captureRoutesSnapshot(runner, 'after migration')
     if (afterSnapshot === null) {

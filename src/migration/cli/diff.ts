@@ -29,11 +29,34 @@ function normalizeRouteFilePath(filePath: string): string {
 }
 
 export function normalizeSnapshot(snapshot: string): string {
-  return snapshot
-    .replace(/\r\n/g, '\n')
-    .replace(/file="([^"]+)"/g, (_, filePath: string) => {
-      return `file="${normalizeRouteFilePath(filePath)}"`
-    })
+  const normalizedRoutes: string[] = []
+
+  const lines = snapshot.replace(/\r\n/g, '\n').split('\n')
+  for (const line of lines) {
+    const routeMatch = line.match(/<Route\b([^>]*)>/)
+    if (!routeMatch) {
+      continue
+    }
+
+    const attributes = routeMatch[1]
+    const fileMatch = attributes.match(/file="([^"]+)"/)
+    if (!fileMatch) {
+      continue
+    }
+
+    const normalizedFile = normalizeRouteFilePath(fileMatch[1])
+    const isIndex = /(^|\s)index(\s|$)/.test(attributes)
+    const caseSensitive = /caseSensitive="?(true|false)"?/.test(attributes)
+    const parts = [
+      `file=${normalizedFile}`,
+      `index=${isIndex ? '1' : '0'}`,
+      `caseSensitive=${caseSensitive ? '1' : '0'}`,
+    ]
+    normalizedRoutes.push(parts.join('|'))
+  }
+
+  normalizedRoutes.sort()
+  return normalizedRoutes.join('\n')
 }
 
 type DiffEntry = { type: 'same' | 'remove' | 'add'; line: string }

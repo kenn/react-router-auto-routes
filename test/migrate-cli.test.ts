@@ -295,10 +295,51 @@ describe('runCli', () => {
     ])
   })
 
+  it('skips snapshot verification when legacy remix-flat-routes entry is detected', () => {
+    const fixture = createBasicRoutesFixture('run-cli-legacy')
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    fs.writeFileSync(
+      entryPath,
+      `import { createRoutesFromFolders } from 'remix-flat-routes'\nexport default function routes() {\n  return createRoutesFromFolders(() => {})\n}\n`,
+    )
+
+    const runnerMock = vi.fn(() => ({
+      status: 0,
+      stdout: 'ROUTES\n',
+      stderr: '',
+    }))
+    const runner = runnerMock as unknown as CommandRunner
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    try {
+      const exitCode = runCli(['app/routes'], { runner })
+      expect(exitCode).toBe(0)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    expect(runnerMock).toHaveBeenCalledTimes(1)
+
+    const backupDir = fixture.resolve('app', 'old-routes')
+    expect(fs.existsSync(backupDir)).toBe(true)
+
+    const migratedFiles = fixture.listRelativeFiles(fixture.sourceDir)
+    expect(migratedFiles).toEqual([
+      'admin/$id.tsx',
+      'admin/dashboard.tsx',
+      'admin/index.tsx',
+      'index.tsx',
+    ])
+  })
+
   it('reverts when route generation differs', () => {
     const fixture = createBasicRoutesFixture('run-cli-diff')
 
-    const snapshots = ['OLD ROUTES\n', 'NEW ROUTES\n']
+    const snapshots = [
+      `<Routes>\n  <Route file="routes/foo.tsx" />\n</Routes>\n`,
+      `<Routes>\n  <Route file="routes/bar.tsx" />\n</Routes>\n`,
+    ]
     const runner: CommandRunner = () => {
       const stdout = snapshots.shift() ?? ''
       return { status: 0, stdout, stderr: '' }
