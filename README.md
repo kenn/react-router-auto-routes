@@ -173,6 +173,8 @@ All routes are merged into a single route tree. Route IDs include the directory 
 
 ## Migration Guide
 
+> **Note:** Migration tools are designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.*
+
 **Option updates:**
 
 `nestedDirectoryChar` → `colocateChar` (changed behavior)
