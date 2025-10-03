@@ -4,9 +4,14 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { migrate } from '../src/migration/migrate'
+import { runCli, type CommandRunner } from '../src/migration/cli'
+
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {})
+  consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
 import {
@@ -148,5 +153,98 @@ describe('migrate CLI', () => {
     const layoutPath = path.join(targetAbsolute, 'admin', '_layout.tsx')
     const contents = fs.readFileSync(layoutPath, 'utf8')
     expect(contents).toContain("from '../../components/AdminShell'")
+  })
+})
+
+describe('runCli', () => {
+  it('migrates routes using default target and keeps a backup on success', () => {
+    const fixture = createBasicRoutesFixture('run-cli-success')
+
+    const snapshots = ['ROUTES\n', 'ROUTES\n']
+    const runner: CommandRunner = () => {
+      const stdout = snapshots.shift() ?? 'ROUTES\n'
+      return { status: 0, stdout, stderr: '' }
+    }
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    try {
+      const exitCode = runCli(['app/routes'], { runner })
+      expect(exitCode).toBe(0)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    expect(consoleErrorSpy.mock.calls).toEqual([])
+
+    const backupDir = path.join(fixture.workspace, 'app', 'old-routes')
+    expect(fs.existsSync(backupDir)).toBe(true)
+    expect(fs.existsSync(fixture.sourceDir)).toBe(true)
+    expect(fs.existsSync(path.join(fixture.workspace, 'app', 'new-routes'))).toBe(
+      false,
+    )
+
+    const migratedFiles = fixture.listRelativeFiles(fixture.sourceDir)
+    expect(migratedFiles).toEqual([
+      'admin/$id.tsx',
+      'admin/dashboard.tsx',
+      'admin/index.tsx',
+      'index.tsx',
+    ])
+
+    const backupFiles = fixture.listRelativeFiles(backupDir)
+    expect(backupFiles).toEqual([
+      'admin/$id.tsx',
+      'admin/dashboard.tsx',
+      'admin/index.tsx',
+      'index.tsx',
+    ])
+  })
+
+  it('reverts when route generation differs', () => {
+    const fixture = createBasicRoutesFixture('run-cli-diff')
+
+    const snapshots = ['OLD ROUTES\n', 'NEW ROUTES\n']
+    const runner: CommandRunner = () => {
+      const stdout = snapshots.shift() ?? ''
+      return { status: 0, stdout, stderr: '' }
+    }
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    let exitCode = -1
+    try {
+      exitCode = runCli(['app/routes'], { runner })
+    } finally {
+      process.chdir(previousCwd)
+    }
+    expect(exitCode).toBe(1)
+
+    const backupDir = path.join(fixture.workspace, 'app', 'old-routes')
+    expect(fs.existsSync(backupDir)).toBe(false)
+
+    const newDir = path.join(fixture.workspace, 'app', 'new-routes')
+    expect(fs.existsSync(newDir)).toBe(true)
+
+    const restoredFiles = fixture.listRelativeFiles(fixture.sourceDir)
+    expect(restoredFiles).toEqual([
+      'admin/$id.tsx',
+      'admin/dashboard.tsx',
+      'admin/index.tsx',
+      'index.tsx',
+    ])
+
+    const migratedFiles = fixture.listRelativeFiles(newDir)
+    expect(migratedFiles).toEqual([
+      'admin/$id.tsx',
+      'admin/dashboard.tsx',
+      'admin/index.tsx',
+      'index.tsx',
+    ])
+
+    const diffCall = consoleErrorSpy.mock.calls.find(([message]) =>
+      typeof message === 'string' && message.includes('--- react-router routes (before)'),
+    )
+    expect(diffCall).toBeDefined()
   })
 })
