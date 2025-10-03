@@ -1,116 +1,127 @@
 import {
+  createRouteFixtures,
   createRoutesFromFiles,
   expectFilesToMatchSnapshot,
   expectRoutesToMatch,
-  ExpectedRouteSnapshot,
+  fileOnly,
   flattenRoutesById,
+  route,
 } from './utils/route-test-helpers'
 
 describe('flat file routes', () => {
   it('should define routes for flat-files', () => {
-    const flatFiles = [
-      '$lang.$ref.tsx',
-      '$lang.$ref._index.tsx',
-      '$lang.$ref.$.tsx',
-      '_index.tsx',
-      'healthcheck.tsx',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      '$lang.$ref': {
-        file: 'routes/$lang.$ref.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('$lang.$ref.tsx', {
+        id: '$lang.$ref',
         parentId: 'root',
         path: ':lang/:ref',
-      },
-      '$lang.$ref.$': {
-        file: 'routes/$lang.$ref.$.tsx',
+      }),
+      route('$lang.$ref._index.tsx', {
+        id: '$lang.$ref._index',
+        parentId: 'routes/$lang.$ref',
+        index: true,
+      }),
+      route('$lang.$ref.$.tsx', {
+        id: '$lang.$ref.$',
         parentId: 'routes/$lang.$ref',
         path: '*',
-      },
-      '$lang.$ref._index': {
-        file: 'routes/$lang.$ref._index.tsx',
-        index: true,
-        parentId: 'routes/$lang.$ref',
-      },
-      _index: {
-        file: 'routes/_index.tsx',
-        index: true,
+      }),
+      route('_index.tsx', {
+        id: '_index',
         parentId: 'root',
-      },
-      healthcheck: {
-        file: 'routes/healthcheck.tsx',
+        index: true,
+      }),
+      route('healthcheck.tsx', {
+        id: 'healthcheck',
         parentId: 'root',
         path: 'healthcheck',
-      },
-    }
-    expectFilesToMatchSnapshot(flatFiles, expectedRoutes)
+      }),
+    ])
+
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should support markdown routes as flat-files', () => {
-    const flatFiles = ['docs.tsx', 'docs.readme.md']
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      docs: {
-        file: 'routes/docs.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('docs.tsx', {
+        id: 'docs',
         parentId: 'root',
         path: 'docs',
-      },
-      'docs.readme': {
-        file: 'routes/docs.readme.md',
+      }),
+      route('docs.readme.md', {
+        id: 'docs.readme',
         parentId: 'routes/docs',
         path: 'readme',
-      },
-    }
-    expectFilesToMatchSnapshot(flatFiles, expectedRoutes)
+      }),
+    ])
+
+    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
 describe('flat folder routes', () => {
   it('should define routes for flat-folders', () => {
-    const flatFolders = [
-      '$lang.$ref/route.tsx',
-      '$lang.$ref._index/route.tsx',
-      '$lang.$ref.$/route.tsx',
-      '_index/route.tsx',
-      'healthcheck/route.tsx',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      '$lang.$ref.$/route': {
-        file: 'routes/$lang.$ref.$/route.tsx',
-        parentId: 'routes/$lang.$ref/route',
-        path: '*',
-      },
-      '$lang.$ref._index/route': {
-        file: 'routes/$lang.$ref._index/route.tsx',
-        index: true,
-        parentId: 'routes/$lang.$ref/route',
-      },
-      '$lang.$ref/route': {
-        file: 'routes/$lang.$ref/route.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('$lang.$ref/route.tsx', {
+        id: '$lang.$ref/route',
         parentId: 'root',
         path: ':lang/:ref',
-      },
-      '_index/route': {
-        file: 'routes/_index/route.tsx',
+      }),
+      route('$lang.$ref._index/route.tsx', {
+        id: '$lang.$ref._index/route',
+        parentId: 'routes/$lang.$ref/route',
         index: true,
+      }),
+      route('$lang.$ref.$/route.tsx', {
+        id: '$lang.$ref.$/route',
+        parentId: 'routes/$lang.$ref/route',
+        path: '*',
+      }),
+      route('_index/route.tsx', {
+        id: '_index/route',
         parentId: 'root',
-      },
-      'healthcheck/route': {
-        file: 'routes/healthcheck/route.tsx',
+        index: true,
+      }),
+      route('healthcheck/route.tsx', {
+        id: 'healthcheck/route',
         parentId: 'root',
         path: 'healthcheck',
-      },
-    }
-    expectFilesToMatchSnapshot(flatFolders, expectedRoutes)
+      }),
+    ])
+
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should define routes for flat-folders on Windows', () => {
-    const flatFolders = [
-      '$lang.$ref\\route.tsx',
-      '$lang.$ref._index\\route.tsx',
-      '$lang.$ref.$\\route.tsx',
-      '_index\\route.tsx',
-      'healthcheck\\route.tsx',
-    ]
-    const routes = createRoutesFromFiles(flatFolders)
+    const { files, expected } = createRouteFixtures([
+      route('$lang.$ref\\route.tsx', {
+        id: '$lang.$ref/route',
+        parentId: 'root',
+        path: ':lang/:ref',
+      }),
+      route('$lang.$ref._index\\route.tsx', {
+        id: '$lang.$ref._index/route',
+        parentId: 'routes/$lang.$ref/route',
+        index: true,
+      }),
+      route('$lang.$ref.$\\route.tsx', {
+        id: '$lang.$ref.$/route',
+        parentId: 'routes/$lang.$ref/route',
+        path: '*',
+      }),
+      route('_index\\route.tsx', {
+        id: '_index/route',
+        parentId: 'root',
+        index: true,
+      }),
+      route('healthcheck\\route.tsx', {
+        id: 'healthcheck/route',
+        parentId: 'root',
+        path: 'healthcheck',
+      }),
+    ])
+
+    const routes = createRoutesFromFiles(files)
     const lookup = flattenRoutesById(routes)
     expect(lookup['routes/$lang.$ref._index/route']).toBeDefined()
     expect(lookup['routes/$lang.$ref._index/route']?.parentId).toBe(
@@ -119,109 +130,75 @@ describe('flat folder routes', () => {
     expect(lookup['routes/$lang.$ref._index/route']?.file).toBe(
       'routes/$lang.$ref._index/route.tsx',
     )
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      '$lang.$ref.$/route': {
-        file: 'routes/$lang.$ref.$/route.tsx',
-        parentId: 'routes/$lang.$ref/route',
-        path: '*',
-      },
-      '$lang.$ref._index/route': {
-        file: 'routes/$lang.$ref._index/route.tsx',
-        index: true,
-        parentId: 'routes/$lang.$ref/route',
-      },
-      '$lang.$ref/route': {
-        file: 'routes/$lang.$ref/route.tsx',
-        parentId: 'root',
-        path: ':lang/:ref',
-      },
-      '_index/route': {
-        file: 'routes/_index/route.tsx',
-        index: true,
-        parentId: 'root',
-      },
-      'healthcheck/route': {
-        file: 'routes/healthcheck/route.tsx',
-        parentId: 'root',
-        path: 'healthcheck',
-      },
-    }
-    expectRoutesToMatch(routes, expectedRoutes)
+    expectRoutesToMatch(routes, expected)
   })
 
   it('should ignore non-route files in flat-folders', () => {
-    const flatFolders = [
-      '$lang.$ref/_layout.tsx',
-      '$lang.$ref/component.tsx',
-      '$lang.$ref._index/route.tsx',
-      '$lang.$ref._index/style.css',
-      '$lang.$ref.$/model.server.ts',
-      '_index/route.tsx',
-      'healthcheck/route.tsx',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      '$lang.$ref/component': {
-        file: 'routes/$lang.$ref/component.tsx',
-        parentId: 'routes/$lang.$ref/_layout',
-        path: 'component',
-      },
-      '$lang.$ref._index/route': {
-        file: 'routes/$lang.$ref._index/route.tsx',
-        index: true,
-        parentId: 'routes/$lang.$ref/_layout',
-      },
-      '$lang.$ref/_layout': {
-        file: 'routes/$lang.$ref/_layout.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('$lang.$ref/_layout.tsx', {
+        id: '$lang.$ref/_layout',
         parentId: 'root',
         path: ':lang/:ref',
-      },
-      '_index/route': {
-        file: 'routes/_index/route.tsx',
+      }),
+      route('$lang.$ref/component.tsx', {
+        id: '$lang.$ref/component',
+        parentId: 'routes/$lang.$ref/_layout',
+        path: 'component',
+      }),
+      route('$lang.$ref._index/route.tsx', {
+        id: '$lang.$ref._index/route',
+        parentId: 'routes/$lang.$ref/_layout',
         index: true,
+      }),
+      fileOnly('$lang.$ref._index/style.css'),
+      fileOnly('$lang.$ref.$/model.server.ts'),
+      route('_index/route.tsx', {
+        id: '_index/route',
         parentId: 'root',
-      },
-      'healthcheck/route': {
-        file: 'routes/healthcheck/route.tsx',
+        index: true,
+      }),
+      route('healthcheck/route.tsx', {
+        id: 'healthcheck/route',
         parentId: 'root',
         path: 'healthcheck',
-      },
-    }
-    expectFilesToMatchSnapshot(flatFolders, expectedRoutes)
+      }),
+    ])
+
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should support markdown routes as flat-folders', () => {
-    const flatFolders = ['docs/_layout.tsx', 'docs/readme.route.mdx']
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'docs/_layout': {
-        file: 'routes/docs/_layout.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('docs/_layout.tsx', {
+        id: 'docs/_layout',
         parentId: 'root',
         path: 'docs',
-      },
-      'docs/readme.route': {
-        file: 'routes/docs/readme.route.mdx',
+      }),
+      route('docs/readme.route.mdx', {
+        id: 'docs/readme.route',
         parentId: 'routes/docs/_layout',
         path: 'readme',
-      },
-    }
-    expectFilesToMatchSnapshot(flatFolders, expectedRoutes)
+      }),
+    ])
+
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should treat nested files without special suffixes as routes', () => {
-    const flatFolders = ['oauth.tsx', 'oauth/google.tsx']
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      oauth: {
-        file: 'routes/oauth.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('oauth.tsx', {
+        id: 'oauth',
         parentId: 'root',
         path: 'oauth',
-      },
-      'oauth/google': {
-        file: 'routes/oauth/google.tsx',
+      }),
+      route('oauth/google.tsx', {
+        id: 'oauth/google',
         parentId: 'routes/oauth',
         path: 'google',
-      },
-    }
+      }),
+    ])
 
-    expectFilesToMatchSnapshot(flatFolders, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
@@ -232,13 +209,13 @@ describe('folder normalization', () => {
 
     expect(routes).toHaveLength(2)
 
-    const googleRoute = routes.find(r => r.id === 'routes/oauth/google')
+    const googleRoute = routes.find((r) => r.id === 'routes/oauth/google')
     expect(googleRoute).toBeDefined()
     expect(googleRoute?.file).toBe('routes/oauth/google.ts')
     expect(googleRoute?.path).toBe('oauth/google')
     expect(googleRoute?.children).toBeUndefined()
 
-    const logoutRoute = routes.find(r => r.id === 'routes/oauth/logout')
+    const logoutRoute = routes.find((r) => r.id === 'routes/oauth/logout')
     expect(logoutRoute).toBeDefined()
     expect(logoutRoute?.file).toBe('routes/oauth/logout.ts')
     expect(logoutRoute?.path).toBe('oauth/logout')
@@ -261,11 +238,11 @@ describe('folder normalization', () => {
 
     expect(routes).toHaveLength(2)
 
-    const usersRoute = routes.find(r => r.id === 'routes/api/v1/users')
+    const usersRoute = routes.find((r) => r.id === 'routes/api/v1/users')
     expect(usersRoute).toBeDefined()
     expect(usersRoute?.path).toBe('api/v1/users')
 
-    const postsRoute = routes.find(r => r.id === 'routes/api/v1/posts')
+    const postsRoute = routes.find((r) => r.id === 'routes/api/v1/posts')
     expect(postsRoute).toBeDefined()
     expect(postsRoute?.path).toBe('api/v1/posts')
   })
@@ -293,148 +270,129 @@ describe('ignored routes', () => {
   const ignoredRouteFiles = ['**/.*', '**/*.css', '**/*.test.{js,jsx,ts,tsx}']
 
   it('should ignore routes for flat-files', () => {
-    const flatFiles = [
-      '$lang.$ref.tsx',
-      '$lang.$ref._index.tsx',
-      '$lang.$ref.$.tsx',
-      '_index.tsx',
-      'healthcheck.tsx',
-      'style.css',
-      '_index.test.tsx',
-      'styles/style.css',
-      '__tests__/route.test.tsx',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      '$lang.$ref': {
-        file: 'routes/$lang.$ref.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('$lang.$ref.tsx', {
+        id: '$lang.$ref',
         parentId: 'root',
         path: ':lang/:ref',
-      },
-      '$lang.$ref.$': {
-        file: 'routes/$lang.$ref.$.tsx',
+      }),
+      route('$lang.$ref._index.tsx', {
+        id: '$lang.$ref._index',
+        parentId: 'routes/$lang.$ref',
+        index: true,
+      }),
+      route('$lang.$ref.$.tsx', {
+        id: '$lang.$ref.$',
         parentId: 'routes/$lang.$ref',
         path: '*',
-      },
-      '$lang.$ref._index': {
-        file: 'routes/$lang.$ref._index.tsx',
-        index: true,
-        parentId: 'routes/$lang.$ref',
-      },
-      _index: {
-        file: 'routes/_index.tsx',
-        index: true,
+      }),
+      route('_index.tsx', {
+        id: '_index',
         parentId: 'root',
-      },
-      healthcheck: {
-        file: 'routes/healthcheck.tsx',
+        index: true,
+      }),
+      route('healthcheck.tsx', {
+        id: 'healthcheck',
         parentId: 'root',
         path: 'healthcheck',
-      },
-    }
-    expectFilesToMatchSnapshot(flatFiles, expectedRoutes, { ignoredRouteFiles })
+      }),
+      fileOnly('style.css'),
+      fileOnly('_index.test.tsx'),
+      fileOnly('styles/style.css'),
+      fileOnly('__tests__/route.test.tsx'),
+    ])
+
+    expectFilesToMatchSnapshot(files, expected, { ignoredRouteFiles })
   })
 })
 
 describe('prefix-based colocation with + folders', () => {
   it('should ignore files in anonymous colocation folder +/', () => {
-    const files = [
-      'dashboard/index.tsx',
-      'dashboard/+/utils.ts',
-      'dashboard/+/helpers.ts',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard/+/utils.ts'),
+      fileOnly('dashboard/+/helpers.ts'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should ignore files in named colocation folders +components/, +lib/', () => {
-    const files = [
-      'dashboard/index.tsx',
-      'dashboard/+components/avatar.tsx',
-      'dashboard/+lib/api.ts',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard/+components/avatar.tsx'),
+      fileOnly('dashboard/+lib/api.ts'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should ignore nested folders in colocation folders', () => {
-    const files = [
-      'dashboard/index.tsx',
-      'dashboard/+/utils/format.ts',
-      'dashboard/+components/buttons/button.tsx',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard/+/utils/format.ts'),
+      fileOnly('dashboard/+components/buttons/button.tsx'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
 describe('prefix-based colocation with + files', () => {
   it('should ignore files starting with +', () => {
-    const files = [
-      'dashboard/index.tsx',
-      'dashboard/+utils.ts',
-      'dashboard/+types.ts',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard/+utils.ts'),
+      fileOnly('dashboard/+types.ts'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should ignore a file named +.ts inside a route folder', () => {
-    const files = ['dashboard/index.tsx', 'dashboard/+.ts']
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard/+.ts'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should treat + in middle of filename as normal route', () => {
-    const files = ['users+admins.tsx']
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'users+admins': {
-        file: 'routes/users+admins.tsx',
+    const { files, expected } = createRouteFixtures([
+      route('users+admins.tsx', {
+        id: 'users+admins',
         parentId: 'root',
         path: 'users+admins',
-      },
-    }
+      }),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
@@ -470,91 +428,77 @@ describe('prefix colocation error cases', () => {
 
 describe('prefix colocation integration tests', () => {
   it('should handle both folder and file prefix patterns', () => {
-    const files = [
-      'dashboard/index.tsx',
-      'dashboard/+utils.ts',
-      'dashboard/+/helpers.ts',
-      'dashboard/+lib/api.ts',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard/+utils.ts'),
+      fileOnly('dashboard/+/helpers.ts'),
+      fileOnly('dashboard/+lib/api.ts'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should handle complex route structure', () => {
-    const files = [
-      '_index.tsx',
-      'users.$userId.tsx',
-      'users.$userId/+avatar.tsx',
-      'users.$userId/+/utils.ts',
-      'users.$userId/+components/form.tsx',
-      'users.$userId.edit.tsx',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      _index: {
-        file: 'routes/_index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('_index.tsx', {
+        id: '_index',
         parentId: 'root',
-      },
-      'users.$userId': {
-        file: 'routes/users.$userId.tsx',
+        index: true,
+      }),
+      route('users.$userId.tsx', {
+        id: 'users.$userId',
         parentId: 'root',
         path: 'users/:userId',
-      },
-      'users.$userId.edit': {
-        file: 'routes/users.$userId.edit.tsx',
+      }),
+      fileOnly('users.$userId/+avatar.tsx'),
+      fileOnly('users.$userId/+/utils.ts'),
+      fileOnly('users.$userId/+components/form.tsx'),
+      route('users.$userId.edit.tsx', {
+        id: 'users.$userId.edit',
         parentId: 'routes/users.$userId',
         path: 'edit',
-      },
-    }
+      }),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 
   it('should work with Windows path separators (backslashes)', () => {
-    const files = [
-      'dashboard\\index.tsx',
-      'dashboard\\+utils.ts',
-      'dashboard\\+\\helpers.ts',
-      'dashboard\\+components\\chart.tsx',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard\\index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard\\+utils.ts'),
+      fileOnly('dashboard\\+\\helpers.ts'),
+      fileOnly('dashboard\\+components\\chart.tsx'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes)
+    expectFilesToMatchSnapshot(files, expected)
   })
 })
 
 describe('custom prefix character', () => {
   it('should respect colocateChar overrides', () => {
-    const files = [
-      'dashboard/index.tsx',
-      'dashboard/_utils.ts',
-      'dashboard/_/helpers.ts',
-    ]
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-    }
+        index: true,
+      }),
+      fileOnly('dashboard/_utils.ts'),
+      fileOnly('dashboard/_/helpers.ts'),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes, { colocateChar: '_' })
+    expectFilesToMatchSnapshot(files, expected, { colocateChar: '_' })
   })
 })
 
@@ -578,21 +522,20 @@ describe('custom prefix character edge cases', () => {
   })
 
   it('should treat + files as routes when colocateChar is _', () => {
-    const files = ['dashboard/index.tsx', '+utils.ts']
-    const expectedRoutes: ExpectedRouteSnapshot = {
-      'dashboard/index': {
-        file: 'routes/dashboard/index.tsx',
-        index: true,
+    const { files, expected } = createRouteFixtures([
+      route('dashboard/index.tsx', {
+        id: 'dashboard/index',
         parentId: 'root',
         path: 'dashboard',
-      },
-      '+utils': {
-        file: 'routes/+utils.ts',
+        index: true,
+      }),
+      route('+utils.ts', {
+        id: '+utils',
         parentId: 'root',
         path: '+utils',
-      },
-    }
+      }),
+    ])
 
-    expectFilesToMatchSnapshot(files, expectedRoutes, { colocateChar: '_' })
+    expectFilesToMatchSnapshot(files, expected, { colocateChar: '_' })
   })
 })

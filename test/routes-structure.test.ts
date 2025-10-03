@@ -1,264 +1,210 @@
 import {
+  createRouteFixtures,
   createRoutesFromFiles,
   expectFilesToMatchSnapshot,
-  ExpectedRouteSnapshot,
   ExpectedValues,
+  fileOnly,
   flattenRoutesById,
   generateFlexRoutesAndVerifyResultWithExpected,
+  route,
 } from './utils/route-test-helpers'
+import type { RouteFixture } from './utils/route-test-helpers'
 
 describe('route structures', () => {
   describe('complex scenarios', () => {
-    const snapshotScenarios: Record<
-      string,
-      {
-        routeList: string[]
-        expectedRoutes: ExpectedRouteSnapshot
-      }
-    > = {
-      'supports complex auth and app routes': {
-        routeList: [
-          '_auth.forgot-password.tsx',
-          '_auth.login.tsx',
-          '_auth.reset-password.tsx',
-          '_auth.signup.tsx',
-          '_auth.tsx',
-          '_landing.about.tsx',
-          '_landing.index.tsx',
-          '_landing.tsx',
-          'app.calendar.$day.tsx',
-          'app.calendar.index.tsx',
-          'app.calendar.tsx',
-          'app.projects.$id.tsx',
-          'app.projects.tsx',
-          'app.tsx',
-          'app_.projects.$id.roadmap.tsx',
-          'app_.projects.$id.roadmap[.pdf].tsx',
-        ],
-        expectedRoutes: {
-          _auth: {
-            file: 'routes/_auth.tsx',
-            parentId: 'root',
-          },
-          '_auth.forgot-password': {
-            file: 'routes/_auth.forgot-password.tsx',
-            parentId: 'routes/_auth',
-            path: 'forgot-password',
-          },
-          '_auth.login': {
-            file: 'routes/_auth.login.tsx',
-            parentId: 'routes/_auth',
-            path: 'login',
-          },
-          '_auth.reset-password': {
-            file: 'routes/_auth.reset-password.tsx',
-            parentId: 'routes/_auth',
-            path: 'reset-password',
-          },
-          '_auth.signup': {
-            file: 'routes/_auth.signup.tsx',
-            parentId: 'routes/_auth',
-            path: 'signup',
-          },
-          _landing: {
-            file: 'routes/_landing.tsx',
-            parentId: 'root',
-          },
-          '_landing.about': {
-            file: 'routes/_landing.about.tsx',
-            parentId: 'routes/_landing',
-            path: 'about',
-          },
-          '_landing.index': {
-            file: 'routes/_landing.index.tsx',
-            index: true,
-            parentId: 'routes/_landing',
-          },
-          app: {
-            file: 'routes/app.tsx',
-            parentId: 'root',
-            path: 'app',
-          },
-          'app.calendar': {
-            file: 'routes/app.calendar.tsx',
-            parentId: 'routes/app',
-            path: 'calendar',
-          },
-          'app.calendar.$day': {
-            file: 'routes/app.calendar.$day.tsx',
-            parentId: 'routes/app.calendar',
-            path: ':day',
-          },
-          'app.calendar.index': {
-            file: 'routes/app.calendar.index.tsx',
-            index: true,
-            parentId: 'routes/app.calendar',
-          },
-          'app.projects': {
-            file: 'routes/app.projects.tsx',
-            parentId: 'routes/app',
-            path: 'projects',
-          },
-          'app.projects.$id': {
-            file: 'routes/app.projects.$id.tsx',
-            parentId: 'routes/app.projects',
-            path: ':id',
-          },
-          'app_.projects.$id.roadmap': {
-            file: 'routes/app_.projects.$id.roadmap.tsx',
-            parentId: 'root',
-            path: 'app/projects/:id/roadmap',
-          },
-          'app_.projects.$id.roadmap[.pdf]': {
-            file: 'routes/app_.projects.$id.roadmap[.pdf].tsx',
-            parentId: 'root',
-            path: 'app/projects/:id/roadmap.pdf',
-          },
-        },
-      },
-      'handles nested organization routes': {
-        routeList: [
-          'app.$organizationSlug.tsx',
-          'app.$organizationSlug.edit.tsx',
-          'app.$organizationSlug.projects.tsx',
-          'app.$organizationSlug.projects.$projectId.tsx',
-          'app.$organizationSlug.projects.$projectId.edit.tsx',
-          'app.$organizationSlug.projects.new.tsx',
-        ],
-        expectedRoutes: {
-          'app.$organizationSlug': {
-            file: 'routes/app.$organizationSlug.tsx',
-            parentId: 'root',
-            path: 'app/:organizationSlug',
-          },
-          'app.$organizationSlug.edit': {
-            file: 'routes/app.$organizationSlug.edit.tsx',
-            parentId: 'routes/app.$organizationSlug',
-            path: 'edit',
-          },
-          'app.$organizationSlug.projects': {
-            file: 'routes/app.$organizationSlug.projects.tsx',
-            parentId: 'routes/app.$organizationSlug',
-            path: 'projects',
-          },
-          'app.$organizationSlug.projects.$projectId': {
-            file: 'routes/app.$organizationSlug.projects.$projectId.tsx',
-            parentId: 'routes/app.$organizationSlug.projects',
-            path: ':projectId',
-          },
-          'app.$organizationSlug.projects.$projectId.edit': {
-            file: 'routes/app.$organizationSlug.projects.$projectId.edit.tsx',
-            parentId: 'routes/app.$organizationSlug.projects.$projectId',
-            path: 'edit',
-          },
-          'app.$organizationSlug.projects.new': {
-            file: 'routes/app.$organizationSlug.projects.new.tsx',
-            parentId: 'routes/app.$organizationSlug.projects',
-            path: 'new',
-          },
-        },
-      },
-      'allows explicit parent overrides': {
-        routeList: ['parent.tsx', 'parent.some.nested.tsx', 'parent.some_.nested.page.tsx'],
-        expectedRoutes: {
-          parent: {
-            file: 'routes/parent.tsx',
-            parentId: 'root',
-            path: 'parent',
-          },
-          'parent.some.nested': {
-            file: 'routes/parent.some.nested.tsx',
-            parentId: 'routes/parent',
-            path: 'some/nested',
-          },
-          'parent.some_.nested.page': {
-            file: 'routes/parent.some_.nested.page.tsx',
-            parentId: 'routes/parent',
-            path: 'some/nested/page',
-          },
-        },
-      },
-      'supports params with trailing underscore': {
-        routeList: [
-          'app.$organizationSlug_._projects.tsx',
-          'app.$organizationSlug_._projects.projects.new.tsx',
-          'app.$organizationSlug_._projects.projects.$projectId.tsx',
-          'app.$organizationSlug_._projects.projects.$projectId.edit.tsx',
-        ],
-        expectedRoutes: {
-          'app.$organizationSlug_._projects': {
-            file: 'routes/app.$organizationSlug_._projects.tsx',
-            parentId: 'root',
-            path: 'app/:organizationSlug',
-          },
-          'app.$organizationSlug_._projects.projects.$projectId': {
-            file: 'routes/app.$organizationSlug_._projects.projects.$projectId.tsx',
-            parentId: 'routes/app.$organizationSlug_._projects',
-            path: 'projects/:projectId',
-          },
-          'app.$organizationSlug_._projects.projects.$projectId.edit': {
-            file: 'routes/app.$organizationSlug_._projects.projects.$projectId.edit.tsx',
-            parentId: 'routes/app.$organizationSlug_._projects.projects.$projectId',
-            path: 'edit',
-          },
-          'app.$organizationSlug_._projects.projects.new': {
-            file: 'routes/app.$organizationSlug_._projects.projects.new.tsx',
-            parentId: 'routes/app.$organizationSlug_._projects',
-            path: 'projects/new',
-          },
-        },
-      },
-      'nests index routes under layouts with shared segments': {
-        routeList: ['home/_layout.tsx', 'home/index.tsx', 'home/profile/route.tsx'],
-        expectedRoutes: {
-          'home/_layout': {
-            file: 'routes/home/_layout.tsx',
-            parentId: 'root',
-            path: 'home',
-          },
-          'home/index': {
-            file: 'routes/home/index.tsx',
-            index: true,
-            parentId: 'routes/home/_layout',
-          },
-          'home/profile/route': {
-            file: 'routes/home/profile/route.tsx',
-            parentId: 'routes/home/_layout',
-            path: 'profile',
-          },
-        },
-      },
-      'skips index routes when resolving parents': {
-        routeList: [
-          'home/_layout.tsx',
-          'home/kickoffs/_layout.tsx',
-          'home/kickoffs/$id/index.tsx',
-          'home/kickoffs/$id/$key/details.route.tsx',
-        ],
-        expectedRoutes: {
-          'home/_layout': {
-            file: 'routes/home/_layout.tsx',
-            parentId: 'root',
-            path: 'home',
-          },
-          'home/kickoffs/_layout': {
-            file: 'routes/home/kickoffs/_layout.tsx',
-            parentId: 'routes/home/_layout',
-            path: 'kickoffs',
-          },
-          'home/kickoffs/$id/index': {
-            file: 'routes/home/kickoffs/$id/index.tsx',
-            index: true,
-            parentId: 'routes/home/kickoffs/_layout',
-            path: ':id',
-          },
-          'home/kickoffs/$id/$key/details.route': {
-            file: 'routes/home/kickoffs/$id/$key/details.route.tsx',
-            parentId: 'routes/home/kickoffs/_layout',
-            path: ':id/:key/details',
-          },
-        },
-      },
+    const snapshotScenarios: Record<string, RouteFixture[]> = {
+      'supports complex auth and app routes': [
+        route('_auth.forgot-password.tsx', {
+          id: '_auth.forgot-password',
+          parentId: 'routes/_auth',
+          path: 'forgot-password',
+        }),
+        route('_auth.login.tsx', {
+          id: '_auth.login',
+          parentId: 'routes/_auth',
+          path: 'login',
+        }),
+        route('_auth.reset-password.tsx', {
+          id: '_auth.reset-password',
+          parentId: 'routes/_auth',
+          path: 'reset-password',
+        }),
+        route('_auth.signup.tsx', {
+          id: '_auth.signup',
+          parentId: 'routes/_auth',
+          path: 'signup',
+        }),
+        route('_auth.tsx', {
+          id: '_auth',
+          parentId: 'root',
+        }),
+        route('_landing.about.tsx', {
+          id: '_landing.about',
+          parentId: 'routes/_landing',
+          path: 'about',
+        }),
+        route('_landing.index.tsx', {
+          id: '_landing.index',
+          parentId: 'routes/_landing',
+          index: true,
+        }),
+        route('_landing.tsx', {
+          id: '_landing',
+          parentId: 'root',
+        }),
+        route('app.calendar.$day.tsx', {
+          id: 'app.calendar.$day',
+          parentId: 'routes/app.calendar',
+          path: ':day',
+        }),
+        route('app.calendar.index.tsx', {
+          id: 'app.calendar.index',
+          parentId: 'routes/app.calendar',
+          index: true,
+        }),
+        route('app.calendar.tsx', {
+          id: 'app.calendar',
+          parentId: 'routes/app',
+          path: 'calendar',
+        }),
+        route('app.projects.$id.tsx', {
+          id: 'app.projects.$id',
+          parentId: 'routes/app.projects',
+          path: ':id',
+        }),
+        route('app.projects.tsx', {
+          id: 'app.projects',
+          parentId: 'routes/app',
+          path: 'projects',
+        }),
+        route('app.tsx', {
+          id: 'app',
+          parentId: 'root',
+          path: 'app',
+        }),
+        route('app_.projects.$id.roadmap.tsx', {
+          id: 'app_.projects.$id.roadmap',
+          parentId: 'root',
+          path: 'app/projects/:id/roadmap',
+        }),
+        route('app_.projects.$id.roadmap[.pdf].tsx', {
+          id: 'app_.projects.$id.roadmap[.pdf]',
+          parentId: 'root',
+          path: 'app/projects/:id/roadmap.pdf',
+        }),
+      ],
+      'handles nested organization routes': [
+        route('app.$organizationSlug.tsx', {
+          id: 'app.$organizationSlug',
+          parentId: 'root',
+          path: 'app/:organizationSlug',
+        }),
+        route('app.$organizationSlug.edit.tsx', {
+          id: 'app.$organizationSlug.edit',
+          parentId: 'routes/app.$organizationSlug',
+          path: 'edit',
+        }),
+        route('app.$organizationSlug.projects.tsx', {
+          id: 'app.$organizationSlug.projects',
+          parentId: 'routes/app.$organizationSlug',
+          path: 'projects',
+        }),
+        route('app.$organizationSlug.projects.$projectId.tsx', {
+          id: 'app.$organizationSlug.projects.$projectId',
+          parentId: 'routes/app.$organizationSlug.projects',
+          path: ':projectId',
+        }),
+        route('app.$organizationSlug.projects.$projectId.edit.tsx', {
+          id: 'app.$organizationSlug.projects.$projectId.edit',
+          parentId: 'routes/app.$organizationSlug.projects.$projectId',
+          path: 'edit',
+        }),
+        route('app.$organizationSlug.projects.new.tsx', {
+          id: 'app.$organizationSlug.projects.new',
+          parentId: 'routes/app.$organizationSlug.projects',
+          path: 'new',
+        }),
+      ],
+      'allows explicit parent overrides': [
+        route('parent.tsx', {
+          id: 'parent',
+          parentId: 'root',
+          path: 'parent',
+        }),
+        route('parent.some.nested.tsx', {
+          id: 'parent.some.nested',
+          parentId: 'routes/parent',
+          path: 'some/nested',
+        }),
+        route('parent.some_.nested.page.tsx', {
+          id: 'parent.some_.nested.page',
+          parentId: 'routes/parent',
+          path: 'some/nested/page',
+        }),
+      ],
+      'supports params with trailing underscore': [
+        route('app.$organizationSlug_._projects.tsx', {
+          id: 'app.$organizationSlug_._projects',
+          parentId: 'root',
+          path: 'app/:organizationSlug',
+        }),
+        route('app.$organizationSlug_._projects.projects.new.tsx', {
+          id: 'app.$organizationSlug_._projects.projects.new',
+          parentId: 'routes/app.$organizationSlug_._projects',
+          path: 'projects/new',
+        }),
+        route('app.$organizationSlug_._projects.projects.$projectId.tsx', {
+          id: 'app.$organizationSlug_._projects.projects.$projectId',
+          parentId: 'routes/app.$organizationSlug_._projects',
+          path: 'projects/:projectId',
+        }),
+        route('app.$organizationSlug_._projects.projects.$projectId.edit.tsx', {
+          id: 'app.$organizationSlug_._projects.projects.$projectId.edit',
+          parentId:
+            'routes/app.$organizationSlug_._projects.projects.$projectId',
+          path: 'edit',
+        }),
+      ],
+      'nests index routes under layouts with shared segments': [
+        route('home/_layout.tsx', {
+          id: 'home/_layout',
+          parentId: 'root',
+          path: 'home',
+        }),
+        route('home/index.tsx', {
+          id: 'home/index',
+          parentId: 'routes/home/_layout',
+          index: true,
+        }),
+        route('home/profile/route.tsx', {
+          id: 'home/profile/route',
+          parentId: 'routes/home/_layout',
+          path: 'profile',
+        }),
+      ],
+      'skips index routes when resolving parents': [
+        route('home/_layout.tsx', {
+          id: 'home/_layout',
+          parentId: 'root',
+          path: 'home',
+        }),
+        route('home/kickoffs/_layout.tsx', {
+          id: 'home/kickoffs/_layout',
+          parentId: 'routes/home/_layout',
+          path: 'kickoffs',
+        }),
+        route('home/kickoffs/$id/index.tsx', {
+          id: 'home/kickoffs/$id/index',
+          parentId: 'routes/home/kickoffs/_layout',
+          index: true,
+          path: ':id',
+        }),
+        route('home/kickoffs/$id/$key/details.route.tsx', {
+          id: 'home/kickoffs/$id/$key/details.route',
+          parentId: 'routes/home/kickoffs/_layout',
+          path: ':id/:key/details',
+        }),
+      ],
     }
 
     const trailingSlashScenario: Record<string, ExpectedValues> = {
@@ -280,11 +226,13 @@ describe('route structures', () => {
     }
 
     it('covers complex routing scenarios with minimal cases', () => {
-      for (const [scenarioName, { routeList, expectedRoutes }] of Object.entries(
+      for (const [scenarioName, fixtures] of Object.entries(
         snapshotScenarios,
       )) {
+        const { files, expected } = createRouteFixtures(fixtures)
+
         try {
-          expectFilesToMatchSnapshot(routeList, expectedRoutes)
+          expectFilesToMatchSnapshot(files, expected)
         } catch (error: unknown) {
           if (error instanceof Error) {
             error.message = `Scenario "${scenarioName}" failed: ${error.message}`
@@ -299,74 +247,68 @@ describe('route structures', () => {
 
   describe('hybrid route conventions', () => {
     it('handles hybrid flat and nested structures', () => {
-      const files = [
-        '_index/route.tsx',
-        '_public/_layout.tsx',
-        '_public/about/route.tsx',
-        '_public/contact[.jpg]/route.tsx',
-        'test.$/route.tsx',
-        'users/_layout.tsx',
-        'users/users.css',
-        'users/route/route.tsx',
-        'users/$userId/route.tsx',
-        'users/$userId/avatar.png',
-        'users/$userId_.edit/route.tsx',
-      ]
-
-      const expectedRoutes: ExpectedRouteSnapshot = {
-        '_index/route': {
-          file: 'routes/_index/route.tsx',
+      const { files, expected } = createRouteFixtures([
+        route('_index/route.tsx', {
+          id: '_index/route',
+          parentId: 'root',
           index: true,
+        }),
+        route('_public/_layout.tsx', {
+          id: '_public/_layout',
           parentId: 'root',
-        },
-        '_public/_layout': {
-          file: 'routes/_public/_layout.tsx',
-          parentId: 'root',
-        },
-        '_public/about/route': {
-          file: 'routes/_public/about/route.tsx',
+        }),
+        route('_public/about/route.tsx', {
+          id: '_public/about/route',
           parentId: 'routes/_public/_layout',
           path: 'about',
-        },
-        '_public/contact[.jpg]/route': {
-          file: 'routes/_public/contact[.jpg]/route.tsx',
+        }),
+        route('_public/contact[.jpg]/route.tsx', {
+          id: '_public/contact[.jpg]/route',
           parentId: 'routes/_public/_layout',
           path: 'contact.jpg',
-        },
-        'test.$/route': {
-          file: 'routes/test.$/route.tsx',
+        }),
+        route('test.$/route.tsx', {
+          id: 'test.$/route',
           parentId: 'root',
           path: 'test/*',
-        },
-        'users/$userId/route': {
-          file: 'routes/users/$userId/route.tsx',
+        }),
+        route('users/_layout.tsx', {
+          id: 'users/_layout',
+          parentId: 'root',
+          path: 'users',
+        }),
+        fileOnly('users/users.css'),
+        route('users/route/route.tsx', {
+          id: 'users/route/route',
+          parentId: 'root',
+          path: 'users',
+        }),
+        route('users/$userId/route.tsx', {
+          id: 'users/$userId/route',
           parentId: 'routes/users/route/route',
           path: ':userId',
-        },
-        'users/$userId_.edit/route': {
-          file: 'routes/users/$userId_.edit/route.tsx',
+        }),
+        fileOnly('users/$userId/avatar.png'),
+        route('users/$userId_.edit/route.tsx', {
+          id: 'users/$userId_.edit/route',
           parentId: 'routes/users/route/route',
           path: ':userId/edit',
-        },
-        'users/_layout': {
-          file: 'routes/users/_layout.tsx',
-          parentId: 'root',
-          path: 'users',
-        },
-        'users/route/route': {
-          file: 'routes/users/route/route.tsx',
-          parentId: 'root',
-          path: 'users',
-        },
-      }
+        }),
+      ])
 
-      expectFilesToMatchSnapshot(files, expectedRoutes)
+      expectFilesToMatchSnapshot(files, expected)
     })
   })
 
   describe('index routes', () => {
     it('generates correct ids for flat files', () => {
-      const files = ['$lang.$ref.tsx', '$lang.$ref._index.tsx', '$lang.$ref.$.tsx', '_index.tsx', 'index.tsx']
+      const files = [
+        '$lang.$ref.tsx',
+        '$lang.$ref._index.tsx',
+        '$lang.$ref.$.tsx',
+        '_index.tsx',
+        'index.tsx',
+      ]
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
 
@@ -393,73 +335,59 @@ describe('route structures', () => {
 
   describe('layout nesting', () => {
     it('nests index routes under layouts', () => {
-      const files = [
-        'dashboard/_layout.tsx',
-        'dashboard/index.tsx',
-        'settings/_layout.tsx',
-        'settings/index.tsx',
-      ]
-
-      const expectedRoutes: ExpectedRouteSnapshot = {
-        'dashboard/_layout': {
-          file: 'routes/dashboard/_layout.tsx',
+      const { files, expected } = createRouteFixtures([
+        route('dashboard/_layout.tsx', {
+          id: 'dashboard/_layout',
           parentId: 'root',
           path: 'dashboard',
-        },
-        'dashboard/index': {
-          file: 'routes/dashboard/index.tsx',
-          index: true,
+        }),
+        route('dashboard/index.tsx', {
+          id: 'dashboard/index',
           parentId: 'routes/dashboard/_layout',
-        },
-        'settings/_layout': {
-          file: 'routes/settings/_layout.tsx',
+          index: true,
+        }),
+        route('settings/_layout.tsx', {
+          id: 'settings/_layout',
           parentId: 'root',
           path: 'settings',
-        },
-        'settings/index': {
-          file: 'routes/settings/index.tsx',
-          index: true,
+        }),
+        route('settings/index.tsx', {
+          id: 'settings/index',
           parentId: 'routes/settings/_layout',
-        },
-      }
+          index: true,
+        }),
+      ])
 
-      expectFilesToMatchSnapshot(files, expectedRoutes)
+      expectFilesToMatchSnapshot(files, expected)
     })
 
     it('handles deeply nested layout hierarchies', () => {
-      const files = [
-        'dashboard/_layout.tsx',
-        'dashboard/projects/_layout.tsx',
-        'dashboard/projects/$id/index.tsx',
-        'dashboard/projects/$id/$section/index.tsx',
-      ]
-
-      const expectedRoutes: ExpectedRouteSnapshot = {
-        'dashboard/_layout': {
-          file: 'routes/dashboard/_layout.tsx',
+      const { files, expected } = createRouteFixtures([
+        route('dashboard/_layout.tsx', {
+          id: 'dashboard/_layout',
           parentId: 'root',
           path: 'dashboard',
-        },
-        'dashboard/projects/_layout': {
-          file: 'routes/dashboard/projects/_layout.tsx',
+        }),
+        route('dashboard/projects/_layout.tsx', {
+          id: 'dashboard/projects/_layout',
           parentId: 'routes/dashboard/_layout',
           path: 'projects',
-        },
-        'dashboard/projects/$id/index': {
-          file: 'routes/dashboard/projects/$id/index.tsx',
-          index: true,
+        }),
+        route('dashboard/projects/$id/index.tsx', {
+          id: 'dashboard/projects/$id/index',
           parentId: 'routes/dashboard/projects/_layout',
+          index: true,
           path: ':id',
-        },
-        'dashboard/projects/$id/$section/index': {
-          file: 'routes/dashboard/projects/$id/$section/index.tsx',
-          index: true,
+        }),
+        route('dashboard/projects/$id/$section/index.tsx', {
+          id: 'dashboard/projects/$id/$section/index',
           parentId: 'routes/dashboard/projects/_layout',
+          index: true,
           path: ':id/:section',
-        },
-      }
+        }),
+      ])
 
-      expectFilesToMatchSnapshot(files, expectedRoutes)
+      expectFilesToMatchSnapshot(files, expected)
     })
   })
 })

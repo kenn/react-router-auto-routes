@@ -20,6 +20,20 @@ export type ExpectedRouteSnapshot = Record<
   Partial<FlattenedRouteEntry>
 >
 
+export type RouteFixtureExpectation = {
+  id: string
+  parentId?: string
+  path?: string
+  index?: boolean
+  caseSensitive?: boolean
+  file?: string
+}
+
+export type RouteFixture = {
+  file: string
+  expectation?: RouteFixtureExpectation
+}
+
 export type ExpectedValues = {
   id: string
   path: string | undefined
@@ -119,6 +133,35 @@ export function expectFilesToMatchSnapshot(
   const routes = createRoutesFromFiles(files, options)
   expectRoutesToMatch(routes, expected)
   return routes
+}
+
+export const route = (
+  file: string,
+  expectation: RouteFixtureExpectation,
+): RouteFixture => ({
+  file,
+  expectation,
+})
+
+export const fileOnly = (file: string): RouteFixture => ({ file })
+
+export function createRouteFixtures(fixtures: RouteFixture[]) {
+  const files = fixtures.map(({ file }) => file)
+  const expected: ExpectedRouteSnapshot = {}
+
+  for (const { file, expectation } of fixtures) {
+    if (!expectation) continue
+
+    const { id, file: overrideFile, ...rest } = expectation
+    const normalizedFile = overrideFile ?? `routes/${file.replace(/\\/g, '/')}`
+
+    expected[id] = {
+      file: normalizedFile,
+      ...rest,
+    }
+  }
+
+  return { files, expected }
 }
 
 export function generateFlexRoutesAndVerifyResultWithExpected(
