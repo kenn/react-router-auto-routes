@@ -6,6 +6,16 @@ Automatic folder-based routing with colocation for React Router v7+.
 
 This library is heavily inspired by [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) by @kiliman. While this is a complete rewrite for React Router v7+, the core routing conventions and ideas stem from that excellent work.
 
+## Philosophy
+
+Built on [convention-over-configuration](https://en.wikipedia.org/wiki/Convention_over_configuration) principles—your file structure defines your routes automatically, with smart defaults that just work, and scale well.
+
+[Colocation](https://kentcdodds.com/blog/colocation) is a first-class feature:
+
+> "Place code as close to where it's relevant as possible" — Kent C. Dodds
+
+Keep your components, tests, utilities, and routes together. No more hunting across directories or artificial separation of concerns. The `+` prefix lets you organize naturally while the router stays out of your way.
+
 ## Features
 
 - 🎯 **Prefix-based colocation** - Keep helpers and components alongside routes using `+` prefix
