@@ -243,6 +243,58 @@ describe('runCli', () => {
     ])
   })
 
+  it('treats + suffix renames as equivalent in route snapshots', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/root.tsx':
+        'export default function Root() { return null }\n',
+      'app/routes/_auth+/_layout.tsx':
+        'import { Outlet } from "react-router"\nexport default function Layout() { return <Outlet /> }\n',
+      'app/routes/_auth+/login.tsx':
+        'export default function Login() { return null }\n',
+    })
+
+    const snapshots = [
+      `<Routes>\n  <Route file="root.tsx">\n    <Route file="routes/_auth+/_layout.tsx">\n      <Route path="login" file="routes/_auth+/login.tsx" />\n    </Route>\n  </Route>\n</Routes>\n`,
+      `<Routes>\n  <Route file="root.tsx">\n    <Route file="routes/_auth/_layout.tsx">\n      <Route path="login" file="routes/_auth/login.tsx" />\n    </Route>\n  </Route>\n</Routes>\n`,
+    ]
+
+    let callCount = 0
+    const runner: CommandRunner = () => {
+      const stdout = snapshots[Math.min(callCount, snapshots.length - 1)]
+      callCount += 1
+      return { status: 0, stdout, stderr: '' }
+    }
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    try {
+      const exitCode = runCli(['app/routes', 'app/new-routes'], { runner })
+      expect(exitCode).toBe(0)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('Route output changed'),
+    )
+
+    const migratedFiles = fixture.listRelativeFiles(fixture.resolve('app', 'routes'))
+    expect(migratedFiles).toEqual([
+      '_auth/_layout.tsx',
+      '_auth/login.tsx',
+      'root.tsx',
+    ])
+
+    const backupFiles = fixture.listRelativeFiles(
+      fixture.resolve('app', 'old-routes'),
+    )
+    expect(backupFiles).toEqual([
+      '_auth+/_layout.tsx',
+      '_auth+/login.tsx',
+      'root.tsx',
+    ])
+  })
+
   it('reverts when route generation differs', () => {
     const fixture = createBasicRoutesFixture('run-cli-diff')
 

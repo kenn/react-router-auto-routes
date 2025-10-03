@@ -1,5 +1,39 @@
+function normalizeRouteFilePath(filePath: string): string {
+  const segments = filePath.split('/')
+
+  return segments
+    .map((segment) => {
+      if (!segment) {
+        return segment
+      }
+
+      const trailingPlusMatch = segment.match(/^(.*?)(\+)+$/)
+      if (trailingPlusMatch) {
+        return trailingPlusMatch[1]
+      }
+
+      const lastDotIndex = segment.lastIndexOf('.')
+      if (lastDotIndex <= 0) {
+        return segment
+      }
+
+      const name = segment.slice(0, lastDotIndex)
+      const ext = segment.slice(lastDotIndex)
+      if (name.endsWith('+')) {
+        return name.slice(0, -1) + ext
+      }
+
+      return segment
+    })
+    .join('/')
+}
+
 export function normalizeSnapshot(snapshot: string): string {
-  return snapshot.replace(/\r\n/g, '\n')
+  return snapshot
+    .replace(/\r\n/g, '\n')
+    .replace(/file="([^"]+)"/g, (_, filePath: string) => {
+      return `file="${normalizeRouteFilePath(filePath)}"`
+    })
 }
 
 type DiffEntry = { type: 'same' | 'remove' | 'add'; line: string }
