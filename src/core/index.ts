@@ -13,6 +13,17 @@ import { RouteConfig, autoRoutesOptions, ResolvedOptions } from './types'
 export { autoRoutes }
 export type { RouteConfig, autoRoutesOptions } from './types'
 
+const DEFAULT_ROUTE_REGEX =
+  /((\${colocateChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
+
+function resolveRouteRegex(pattern: RegExp, colocateChar: string): RegExp {
+  const escapedColocateChar = escapeRegexChar(colocateChar)
+  return new RegExp(
+    pattern.source.replace('\\${colocateChar}', `\\${escapedColocateChar}`),
+    pattern.flags,
+  )
+}
+
 export default function autoRoutes(
   options: autoRoutesOptions = {},
 ): RouteConfig[] {
@@ -28,18 +39,9 @@ export default function autoRoutes(
 
   const colocateChar = userColocateChar ?? '+'
   const visitFiles = userVisitFiles ?? defaultVisitFiles
-  const routeRegexSource =
-    userRouteRegex ??
-    /((\${colocateChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout|page)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
-
-  // Inline regex replacement logic
-  const escapedColocateChar = escapeRegexChar(colocateChar)
-  const routeRegex = new RegExp(
-    routeRegexSource.source.replace(
-      '\\${colocateChar}',
-      `\\${escapedColocateChar}`,
-    ),
-    routeRegexSource.flags,
+  const routeRegex = resolveRouteRegex(
+    userRouteRegex ?? DEFAULT_ROUTE_REGEX,
+    colocateChar,
   )
 
   const rootDir = rawRootDir.trim() === '' ? '.' : rawRootDir.trim()
@@ -50,11 +52,11 @@ export default function autoRoutes(
 
   const resolved: ResolvedOptions = {
     rootDir,
-    routeDirs: Object.freeze(normalizedRouteDirs),
+    routeDirs: normalizedRouteDirs,
     visitFiles,
     paramChar,
     colocateChar,
-    ignoredRouteFiles: Object.freeze([...ignoredRouteFiles]),
+    ignoredRouteFiles: [...ignoredRouteFiles],
     routeRegex,
   }
 

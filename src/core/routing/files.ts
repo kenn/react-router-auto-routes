@@ -167,6 +167,13 @@ export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
       }
 
       const routeInfo = getRouteInfo(currentRouteDir, file, options)
+      const existing = routeMap.get(routeInfo.id)
+      if (existing) {
+        throw new Error(
+          `Duplicate route id '${routeInfo.id}' generated from '${routeInfo.file}' conflicts with '${existing.file}'`,
+        )
+      }
+
       routeMap.set(routeInfo.id, routeInfo)
     })
   }
