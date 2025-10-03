@@ -1,0 +1,173 @@
+import picomatch from 'picomatch'
+import * as path from 'path'
+
+import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from '../constants'
+import { ResolvedOptions, RouteInfo, autoRoutesOptions } from '../types'
+import {
+  createRouteId,
+  escapeRegexChar,
+  memoizedRegex,
+  validateRouteDir,
+} from '../../utils'
+import { createRoutePath, getRouteSegments } from './segments'
+
+export const routeModuleExts = ROUTE_EXTENSIONS
+export const serverRegex = SERVER_FILE_REGEX
+
+function checkColocationViolations(
+  segments: string[],
+  colocateChar: string,
+  filename: string,
+): void {
+  if (segments.length >= 1 && segments[0].startsWith(colocateChar)) {
+    throw new Error(
+      `Colocation entries must live inside a route folder. ` +
+        `Move '${filename}' under an actual route directory.`,
+    )
+  }
+
+  let anonymousFolderCount = 0
+  for (let i = 0; i < segments.length - 1; i++) {
+    if (segments[i] === colocateChar) {
+      anonymousFolderCount++
+      if (anonymousFolderCount > 1) {
+        throw new Error(
+          `Nested anonymous colocation folders (+/+/) are not allowed. ` +
+            `Use named folders like +/components/ instead. Found in: ${filename}`,
+        )
+      }
+    }
+  }
+}
+
+function isColocated(segments: string[], colocateChar: string): boolean {
+  return segments.some((segment) => segment.startsWith(colocateChar))
+}
+
+function hasValidRouteExtension(
+  filename: string,
+  routeRegex?: RegExp,
+): boolean {
+  const isFlatFile = !filename.includes(path.sep) && !filename.includes('/')
+
+  if (serverRegex.test(filename)) {
+    return false
+  }
+
+  if (isFlatFile) {
+    return routeModuleExts.includes(path.extname(filename))
+  }
+
+  if (routeRegex) {
+    return routeRegex.test(filename)
+  }
+
+  return routeModuleExts.includes(path.extname(filename))
+}
+
+export function isRouteModuleFile(
+  filename: string,
+  colocateChar: string = '+',
+  routeRegex?: RegExp,
+): boolean {
+  const normalizedPath = filename.replace(/\\/g, '/')
+  const segments = normalizedPath.split('/')
+
+  checkColocationViolations(segments, colocateChar, filename)
+
+  if (isColocated(segments, colocateChar)) {
+    return false
+  }
+
+  return hasValidRouteExtension(filename, routeRegex)
+}
+
+export function getRouteRegex(
+  RegexRequiresNestedDirReplacement: RegExp,
+  colocateChar: string,
+): RegExp {
+  const escapedColocateChar = escapeRegexChar(colocateChar)
+  return new RegExp(
+    RegexRequiresNestedDirReplacement.source.replace(
+      '\\${colocateChar}',
+      `\\${escapedColocateChar}`,
+    ),
+    RegexRequiresNestedDirReplacement.flags,
+  )
+}
+
+export function isIndexRoute(
+  routeId: string,
+  options: autoRoutesOptions,
+): boolean {
+  const indexRouteRegex = memoizedRegex(
+    `((^|[.])(index|_index))($|\\/)|(\\/(_?index))($|\\/)`,
+  )
+  return indexRouteRegex.test(routeId)
+}
+
+export function getRouteInfo(
+  routeDir: string,
+  file: string,
+  options: autoRoutesOptions,
+): RouteInfo {
+  validateRouteDir(routeDir)
+
+  const filePath = path.join(routeDir, file).split(path.win32.sep).join('/')
+  const routeId = createRouteId(filePath)
+  const routeIdWithoutRoutes = routeId.slice(routeDir.length + 1)
+  const index = isIndexRoute(routeIdWithoutRoutes, options)
+  const routeSegments = getRouteSegments(
+    routeIdWithoutRoutes,
+    index,
+    options.paramChar,
+    options.colocateChar,
+  )
+  const routePath = createRoutePath(routeSegments, index, options)
+
+  return {
+    id: routeId,
+    path: routePath!,
+    file: filePath,
+    name: routeSegments.join('/'),
+    segments: routeSegments,
+    index,
+  }
+}
+
+export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
+  const {
+    appDir,
+    routeDirs,
+    ignoredRouteFiles,
+    visitFiles,
+    colocateChar,
+    routeRegex,
+  } = options
+
+  const routeMap = new Map<string, RouteInfo>()
+
+  for (const currentRouteDir of routeDirs) {
+    const directory = path.join(appDir, currentRouteDir)
+
+    visitFiles(directory, (file) => {
+      if (
+        ignoredRouteFiles.length > 0 &&
+        ignoredRouteFiles.some((pattern) =>
+          picomatch.isMatch(file, pattern, { dot: true }),
+        )
+      ) {
+        return
+      }
+
+      if (!isRouteModuleFile(file, colocateChar, routeRegex)) {
+        return
+      }
+
+      const routeInfo = getRouteInfo(currentRouteDir, file, options)
+      routeMap.set(routeInfo.id, routeInfo)
+    })
+  }
+
+  return Array.from(routeMap.values())
+}

@@ -8,9 +8,7 @@
 
 ## Key Modules
 
-- `src/core/route-detection.ts`: validates route files, enforces `+` colocation prefix rules, and normalizes custom regex.
-- `src/core/route-info.ts`: turns filesystem entries into `RouteInfo` structures and resolves parent/child relationships.
-- `src/core/route-path.ts`: builds URL paths, supporting params (`$`), optionals `(...)`, splats, and pathless layouts (`_`).
+- `src/core/routing/*`: detection, metadata collection, path building, normalization, and tree assembly.
 - `src/utils.ts`: shared helpers (`defaultVisitFiles`, memoized regex, route id normalization).
 - `src/migration/*`: CLI compatibility for older Remix setups via `createRoutesFromFolders`.
 

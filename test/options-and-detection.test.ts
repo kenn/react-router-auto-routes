@@ -1,4 +1,4 @@
-import { getRouteRegex, isRouteModuleFile } from '../src/core/route-detection'
+import { getRouteRegex, isRouteModuleFile } from '../src/core/routing/files'
 
 import {
   createRoutesFromFiles,

@@ -1,7 +1,9 @@
-import { collectRouteInfos } from './collector'
 import { resolveOptions } from './options'
-import { normalizeAndAssignParents } from './normalize'
-import { buildRouteTree } from './tree'
+import {
+  collectRouteInfos,
+  normalizeAndAssignParents,
+  buildRouteTree,
+} from './routing'
 import { RouteConfig, autoRoutesOptions } from './types'
 
 export { autoRoutes }

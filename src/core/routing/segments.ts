@@ -1,8 +1,7 @@
-import * as path from 'path'
-import { autoRoutesOptions } from './types'
-import { SPECIAL_ROUTE_FILES, PATHLESS_PREFIX } from './constants'
+import { autoRoutesOptions } from '../types'
+import { PATHLESS_PREFIX, SPECIAL_ROUTE_FILES } from '../constants'
 
-const pathSeparatorRegex = /[\/\\.]/
+const pathSeparatorRegex = /[\\/\\.]/
 
 function isPathSeparator(char: string) {
   return pathSeparatorRegex.test(char)
@@ -29,45 +28,40 @@ function removeSquareBrackets(segment: string): string {
   return output
 }
 
-function transformSegment(segment: string, paramChar: string, index: boolean): string | null {
-  // Skip pathless layout segments
+function transformSegment(
+  segment: string,
+  paramChar: string,
+  index: boolean,
+): string | null {
   if (segment.startsWith(PATHLESS_PREFIX)) {
     return null
   }
 
-  // Remove trailing slash marker
   if (segment.endsWith(PATHLESS_PREFIX)) {
     segment = segment.slice(0, -1)
   }
 
-  // Remove outer square brackets (escape characters)
   segment = removeSquareBrackets(segment)
 
-  // Skip explicit index segments for index routes
   if (index && segment === 'index') {
     return null
   }
 
-  // Handle param segments: $ => *, $id => :id
   if (segment.startsWith(paramChar)) {
     return segment === paramChar ? '/*' : `/:${segment.slice(1)}`
   }
 
-  // Handle optional segments with param: ($segment) => :segment?
   if (segment.startsWith(`(${paramChar}`)) {
     return `/:${segment.slice(2, segment.length - 1)}?`
   }
 
-  // Handle optional segments: (segment) => segment?
   if (segment.startsWith('(')) {
     return `/${segment.slice(1, segment.length - 1)}?`
   }
 
-  // Regular segment
   return `/${segment}`
 }
 
-// create full path starting with /
 export function createRoutePath(
   routeSegments: string[],
   index: boolean,
@@ -162,20 +156,15 @@ export function getRouteSegments(
   name: string,
   _index: boolean,
   paramChar: string = '$',
-  colocateChar: string = '+',
+  _colocateChar: string = '+',
 ): string[] {
-  // Remove special route files like index, layout, route, page
   const cleanedName = removeSpecialRouteFile(name)
-
-  // Parse segments from the path
   const segments = parseSegmentsFromPath(cleanedName)
 
-  // Validate each segment
   for (const segment of segments) {
     validateSegment(segment, paramChar)
   }
 
-  // Strip trailing .route segment if present
   if (segments.at(-1) === 'route') {
     segments.pop()
   }
