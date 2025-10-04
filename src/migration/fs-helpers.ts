@@ -1,10 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export function visitFiles(
-  dir: string,
-  visitor: (file: string) => void,
-): void {
+import { logInfo } from './logger'
+
+export function visitFiles(dir: string, visitor: (file: string) => void): void {
   const rootDir = dir
 
   const walk = (currentDir: string) => {
@@ -60,8 +59,15 @@ export function swapRoutes(
     throw new Error(`target directory '${targetDir}' was not created`)
   }
 
+  const workingDir = process.cwd()
+  const sourceRelative = pathRelative(workingDir, sourceDir)
+  const targetRelative = pathRelative(workingDir, targetDir)
+  const backupRelative = pathRelative(workingDir, backupDir)
+
   fs.renameSync(sourceDir, backupDir)
+  logInfo(`📦 Backed up '${sourceRelative}' to '${backupRelative}'.`)
   fs.renameSync(targetDir, sourceDir)
+  logInfo(`🚀 Promoted '${targetRelative}' to '${sourceRelative}'.`)
 }
 
 export function revertRoutes(
@@ -69,12 +75,23 @@ export function revertRoutes(
   targetDir: string,
   backupDir: string,
 ): void {
+  const workingDir = process.cwd()
+  const sourceRelative = pathRelative(workingDir, sourceDir)
+  const targetRelative = pathRelative(workingDir, targetDir)
+  const backupRelative = pathRelative(workingDir, backupDir)
+
   if (fs.existsSync(sourceDir)) {
     fs.renameSync(sourceDir, targetDir)
+    logInfo(
+      `↩️ Returned '${sourceRelative}' back to '${targetRelative}' for review.`,
+    )
   }
 
   if (fs.existsSync(backupDir)) {
     fs.renameSync(backupDir, sourceDir)
+    logInfo(
+      `🔄 Restored original routes from '${backupRelative}' to '${sourceRelative}'.`,
+    )
   }
 }
 

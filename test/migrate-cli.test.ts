@@ -6,10 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { migrate } from '../src/migration/migrate'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
 
+let consoleLogSpy: ReturnType<typeof vi.spyOn>
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
-  vi.spyOn(console, 'log').mockImplementation(() => {})
+  consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
   consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
@@ -222,9 +223,9 @@ describe('runCli', () => {
     const backupDir = path.join(fixture.workspace, 'app', 'old-routes')
     expect(fs.existsSync(backupDir)).toBe(false)
     expect(fs.existsSync(fixture.sourceDir)).toBe(true)
-    expect(fs.existsSync(path.join(fixture.workspace, 'app', 'new-routes'))).toBe(
-      false,
-    )
+    expect(
+      fs.existsSync(path.join(fixture.workspace, 'app', 'new-routes')),
+    ).toBe(false)
 
     const migratedFiles = fixture.listRelativeFiles(fixture.sourceDir)
     expect(migratedFiles).toEqual([
@@ -238,10 +239,42 @@ describe('runCli', () => {
     expect(backupFiles).toEqual([])
   })
 
+  it('logs directory renames during successful swaps', () => {
+    const fixture = createBasicRoutesFixture('run-cli-logs')
+
+    const snapshots = ['ROUTES\n', 'ROUTES\n']
+    const runner: CommandRunner = () => {
+      const stdout = snapshots.shift() ?? 'ROUTES\n'
+      return { status: 0, stdout, stderr: '' }
+    }
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    try {
+      const exitCode = runCli(['app/routes'], { runner })
+      expect(exitCode).toBe(0)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const messages = consoleLogSpy.mock.calls
+      .map(([message]) => message)
+      .filter((message): message is string => typeof message === 'string')
+
+    const backupIndex = messages.findIndex((message) =>
+      message.includes("Backed up 'app/routes' to 'app/old-routes'"),
+    )
+    const promotedIndex = messages.findIndex((message) =>
+      message.includes("Promoted 'app/new-routes' to 'app/routes'"),
+    )
+
+    expect(backupIndex).toBeGreaterThanOrEqual(0)
+    expect(promotedIndex).toBeGreaterThan(backupIndex)
+  })
+
   it('treats + suffix renames as equivalent in route snapshots', () => {
     const fixture = createRoutesFixture({
-      'app/routes/root.tsx':
-        'export default function Root() { return null }\n',
+      'app/routes/root.tsx': 'export default function Root() { return null }\n',
       'app/routes/_auth+/_layout.tsx':
         'import { Outlet } from "react-router"\nexport default function Layout() { return <Outlet /> }\n',
       'app/routes/_auth+/login.tsx':
@@ -273,7 +306,9 @@ describe('runCli', () => {
       expect.stringContaining('Route output changed'),
     )
 
-    const migratedFiles = fixture.listRelativeFiles(fixture.resolve('app', 'routes'))
+    const migratedFiles = fixture.listRelativeFiles(
+      fixture.resolve('app', 'routes'),
+    )
     expect(migratedFiles).toEqual([
       '_auth/_layout.tsx',
       '_auth/login.tsx',
@@ -333,7 +368,10 @@ describe('runCli', () => {
 
   it('refuses to run when not inside a git repository', () => {
     const fixture = createBasicRoutesFixture('run-cli-no-git')
-    fs.rmSync(path.join(fixture.workspace, '.git'), { recursive: true, force: true })
+    fs.rmSync(path.join(fixture.workspace, '.git'), {
+      recursive: true,
+      force: true,
+    })
 
     const previousCwd = process.cwd()
     process.chdir(fixture.workspace)
@@ -433,8 +471,10 @@ describe('runCli', () => {
       'index.tsx',
     ])
 
-    const diffCall = consoleErrorSpy.mock.calls.find(([message]) =>
-      typeof message === 'string' && message.includes('--- react-router routes (before)'),
+    const diffCall = consoleErrorSpy.mock.calls.find(
+      ([message]) =>
+        typeof message === 'string' &&
+        message.includes('--- react-router routes (before)'),
     )
     expect(diffCall).toBeDefined()
   })
