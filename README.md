@@ -216,7 +216,7 @@ npm uninstall @react-router/remix-routes-option-adapter
 - Verifies you are inside a Git repository and the route source directory (e.g. `app/routes`) has no pending changes before running the migration CLI
 - Runs `npx react-router routes` before and after rewriting files
 - Stages the migrated result in `app/new-routes` (or your custom target) before swapping it into place
-- Swaps the new routes into `app/routes`, using `app/old-routes` as a temporary backup during the run
+- If successful, renames `app/routes` to `app/old-routes`, then moves the new routes into `app/routes`
 - If the generated route output differs, prints a diff, restores the original directory, and keeps the migrated files at the target path for inspection
 - When your project still imports `createRoutesFromFolders`/`remix-flat-routes`, the CLI updates `app/routes.ts` to export `autoRoutes()` so the snapshot check runs against the migrated tree
 
