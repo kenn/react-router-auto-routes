@@ -47,6 +47,15 @@
 - Keep README examples aligned with any new conventions or options.
 - When finished, generate a one liner commit message summarizing changes.
 
+## Release Process
+
+1. Bump version in `package.json` (follow semver)
+2. Run `pnpm typecheck && pnpm test` to verify everything passes
+3. Commit with message: `release: bump version to X.Y.Z`
+4. Tag the commit: `git tag X.Y.Z`
+5. Push commit and tags: `git push && git push --tags`
+6. Publish to npm: `npm publish`
+
 ## References
 
 - README.md: end-user documentation & conventions overview.
