@@ -111,8 +111,8 @@ describe('routing options', () => {
       const routes = createRoutesFromFiles([], {
         routesDir: {
           '/': 'app/routes',
-          '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
-          '/tools/meta-preview': 'tools/meta-preview/routes',
+          '/api': 'api/routes',
+          '/docs': 'packages/docs/routes',
         },
         visitFiles: (dir, visitor) => {
           const normalized = dir.replace(/\\/g, '/')
@@ -122,12 +122,12 @@ describe('routing options', () => {
             return
           }
 
-          if (normalized.endsWith('tools/keyword-analyzer/routes')) {
+          if (normalized.endsWith('packages/docs/routes')) {
             visitor('overview.tsx')
             return
           }
 
-          if (normalized.endsWith('tools/meta-preview/routes')) {
+          if (normalized.endsWith('api/routes')) {
             visitor('index.tsx')
           }
         },
@@ -135,13 +135,11 @@ describe('routing options', () => {
 
       const manifest = flattenRoutesById(routes)
       expect(manifest['app/routes/dashboard']?.path).toBe('dashboard')
-      expect(manifest['tools/keyword-analyzer/routes/overview']?.path).toBe(
-        'tools/keyword-analyzer/overview',
+      expect(manifest['packages/docs/routes/overview']?.path).toBe(
+        'docs/overview',
       )
-      expect(manifest['tools/meta-preview/routes/index']?.path).toBe(
-        'tools/meta-preview',
-      )
-      expect(manifest['tools/meta-preview/routes/index']?.index).toBe(true)
+      expect(manifest['api/routes/index']?.path).toBe('api')
+      expect(manifest['api/routes/index']?.index).toBe(true)
     })
 
     it('validates mount path syntax', () => {
@@ -157,7 +155,6 @@ describe('routing options', () => {
         })
       }).toThrow("routesDir mount paths cannot end with '/'. Got: '/tools/'")
     })
-
   })
 })
 

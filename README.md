@@ -145,18 +145,19 @@ autoRoutes({
 `routesDir` accepts two shapes:
 
 - `string` – scan a single root. When omitted, the default `'routes'` resolves to `app/routes` so existing folder structures continue to work with zero config.
-- `Record<string, string>` – explicit URL mount → directory mapping (see [Multiple Route Roots](#multiple-route-roots)). Mapping entries resolve from the project root so you can mount packages that live outside `app/`.
+- `Record<string, string>` – explicit URL mount → folder mapping (see [Multiple Route Roots](#multiple-route-roots)). Mapping entries resolve from the project root so you can mount packages that live outside `app/`.
 
 ### Multiple Route Roots
 
-Provide a mapping when you need multiple mounts:
+Mount routes from different folders to organize sub-apps or monorepo packages:
 
 ```ts
 autoRoutes({
   routesDir: {
-    '/': 'app/routes', // Main app routes stay under app/
-    '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
-    '/tools/meta-preview': 'tools/meta-preview/routes',
+    '/': 'app/routes',
+    '/api': 'api/routes',
+    '/docs': 'packages/docs/routes',
+    '/shop': 'packages/shop/routes',
   },
 })
 ```
@@ -168,16 +169,19 @@ app/
   routes/
     dashboard.tsx                  → /dashboard
     settings/
-      _layout.tsx                  → /settings
+      _layout.tsx                  → /settings (layout)
       index.tsx                    → /settings
-tools/
-  keyword-analyzer/
+api/
+  routes/
+    users/
+      index.tsx                    → /api/users
+packages/
+  docs/
     routes/
-      index.tsx                    → /tools/keyword-analyzer
-      reports/index.tsx            → /tools/keyword-analyzer/reports
-  meta-preview/
+      index.tsx                    → /docs
+  shop/
     routes/
-      index.tsx                    → /tools/meta-preview
+      index.tsx                    → /shop
 ```
 
 Routes from each mount stay isolated when resolving parents and dot-flattening, but still merged into a single manifest.
@@ -187,7 +191,7 @@ Routes from each mount stay isolated when resolving parents and dot-flattening, 
 - Mount paths must start with `/` and may only end with `/` when they are exactly `/`.
 - Mount paths cannot repeat.
 - Directory values must be relative (no `..`, no leading `/`).
-- Manifest IDs mirror the supplied directory (e.g. `tools/keyword-analyzer/routes/index.tsx` → `id: 'tools/keyword-analyzer/routes/index'`). The default root keeps legacy IDs such as `routes/dashboard` to stay compatible with existing Remix route manifests.
+- Manifest IDs mirror the supplied folder (e.g. `packages/ecommerce/routes/index.tsx` → `id: 'packages/ecommerce/routes/index'`). The default root keeps legacy IDs such as `routes/dashboard` to stay compatible with existing Remix route manifests.
 
 ## Migration Guide
 
@@ -202,7 +206,7 @@ npx migrate-auto-routes app/routes
 npx migrate-auto-routes app/routes app/new-routes
 ```
 
-The CLI overwrites the target directory if it already exists. When `targetDir` is omitted it defaults to a sibling directory named "new-routes".
+The CLI overwrites the target folder if it already exists. When `targetDir` is omitted it defaults to a sibling folder named "new-routes".
 
 If everything looks good, you can uninstall the old packages:
 
@@ -213,11 +217,11 @@ npm uninstall @react-router/remix-routes-option-adapter
 
 **Safety checks:**
 
-- Verifies you are inside a Git repository and the route source directory (e.g. `app/routes`) has no pending changes before running the migration CLI
+- Verifies you are inside a Git repository and the route source folder (e.g. `app/routes`) has no pending changes before running the migration CLI
 - Runs `npx react-router routes` before and after rewriting files
 - Stages the migrated result in `app/new-routes` (or your custom target) before swapping it into place
 - If successful, renames `app/routes` to `app/old-routes`, then moves the new routes into `app/routes`
-- If the generated route output differs, prints a diff, restores the original directory, and keeps the migrated files at the target path for inspection
+- If the generated route output differs, prints a diff, restores the original folder, and keeps the migrated files at the target path for inspection
 - When your project still imports `createRoutesFromFolders`/`remix-flat-routes`, the CLI updates `app/routes.ts` to export `autoRoutes()` so the snapshot check runs against the migrated tree
 
 ## Requirements
