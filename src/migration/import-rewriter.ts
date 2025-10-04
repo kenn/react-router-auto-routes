@@ -43,7 +43,12 @@ export function rewriteAndCopy(
   }
 
   const original = fs.readFileSync(sourcePath, 'utf8')
-  const rewritten = rewriteImports(original, sourcePath, targetPath, normalizedMapping)
+  const rewritten = rewriteImports(
+    original,
+    sourcePath,
+    targetPath,
+    normalizedMapping,
+  )
   fs.writeFileSync(targetPath, rewritten)
 }
 
@@ -100,7 +105,10 @@ function rewriteImports(
   }
 
   const visit = (node: ts.Node) => {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteralLike(node.moduleSpecifier)
+    ) {
       handleLiteral(node.moduleSpecifier)
     } else if (
       ts.isExportDeclaration(node) &&
@@ -113,7 +121,8 @@ function rewriteImports(
       node.arguments.length === 1 &&
       ts.isStringLiteralLike(node.arguments[0]) &&
       (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-        (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
+        (ts.isIdentifier(node.expression) &&
+          node.expression.text === 'require'))
     ) {
       handleLiteral(node.arguments[0])
     }
@@ -177,7 +186,10 @@ function getUpdatedImportSpecifier(
   return null
 }
 
-function splitImportSpecifier(specifier: string): { base: string; suffix: string } {
+function splitImportSpecifier(specifier: string): {
+  base: string
+  suffix: string
+} {
   const queryIndex = specifier.indexOf('?')
   const hashIndex = specifier.indexOf('#')
 
@@ -215,29 +227,50 @@ function rewriteLegacyPlusSegments(specifier: string): string | null {
 
   const segments = specifier.split('/')
   let changed = false
+  let encounteredLegacyRoute = false
+  let colocatedIndex = -1
 
-  const next = segments.map((segment) => {
-    if (segment === '' || segment === '.' || segment === '..') {
-      return segment
+  for (let index = 0; index < segments.length; index++) {
+    const segment = segments[index]
+
+    if (!segment || segment === '.' || segment === '..') {
+      continue
     }
 
-    if (segment === '+' || segment.startsWith('+')) {
-      return segment
-    }
-
-    if (segment.endsWith('+') && segment.length > 1 && segment[segment.length - 2] !== '+') {
+    if (
+      segment.endsWith('+') &&
+      !segment.startsWith('+') &&
+      segment.length > 1 &&
+      segment[segment.length - 2] !== '+'
+    ) {
+      segments[index] = segment.slice(0, -1)
       changed = true
-      return segment.slice(0, -1)
+      encounteredLegacyRoute = true
+      continue
     }
 
-    return segment
-  })
+    const isLastSegment = index === segments.length - 1
+    if (
+      colocatedIndex === -1 &&
+      encounteredLegacyRoute &&
+      !isLastSegment &&
+      !segment.startsWith('+') &&
+      !segment.endsWith('+')
+    ) {
+      colocatedIndex = index
+    }
+  }
+
+  if (colocatedIndex !== -1) {
+    segments[colocatedIndex] = `+${segments[colocatedIndex]}`
+    changed = true
+  }
 
   if (!changed) {
     return null
   }
 
-  return next.join('/')
+  return segments.join('/')
 }
 
 function resolveRelativeSpecifier(
@@ -318,7 +351,10 @@ function computeRelativeSpecifier(
     relativePath = `./${relativePath}`
   }
 
-  if (resolution.appendedExtension && relativePath.endsWith(resolution.appendedExtension)) {
+  if (
+    resolution.appendedExtension &&
+    relativePath.endsWith(resolution.appendedExtension)
+  ) {
     relativePath = relativePath.slice(0, -resolution.appendedExtension.length)
   }
 

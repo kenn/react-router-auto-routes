@@ -220,6 +220,31 @@ describe('migrate CLI', () => {
     const contents = fs.readFileSync(layoutPath, 'utf8')
     expect(contents).toContain("import TopLayout from '~/routes/_top/_layout'")
   })
+
+  it('rewrites alias imports for colocated modules with + prefix', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/scribe+/_layout.tsx':
+        'import { Outlet } from "react-router"\nexport default function ScribeLayout() { return <Outlet /> }\n',
+      'app/routes/scribe+/_modules/transcription.tsx':
+        'export const transcribe = () => null\n',
+      'app/routes/dash+/scribe+/index.tsx':
+        "import { transcribe } from '~/routes/scribe+/_modules/transcription'\nexport default function ScribeIndex() { return transcribe() }\n",
+    })
+
+    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const routePath = path.join(targetAbsolute, 'dash', 'scribe', 'index.tsx')
+    const contents = fs.readFileSync(routePath, 'utf8')
+    expect(contents).toContain(
+      "import { transcribe } from '~/routes/scribe/+_modules/transcription'",
+    )
+  })
 })
 
 describe('runCli', () => {
