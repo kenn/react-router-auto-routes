@@ -144,34 +144,37 @@ function getUpdatedImportSpecifier(
 ): string | null {
   const { base, suffix } = splitImportSpecifier(specifier)
 
-  if (!isRelativeSpecifier(base)) {
-    return null
+  if (isRelativeSpecifier(base)) {
+    const resolution = resolveRelativeSpecifier(base, sourcePath)
+    if (resolution) {
+      const resolvedAbsolute = normalizeAbsolutePath(resolution.resolvedPath)
+      const migratedAbsolute =
+        normalizedMapping.get(resolvedAbsolute) ?? resolvedAbsolute
+      const relativeSpecifier = computeRelativeSpecifier(
+        migratedAbsolute,
+        targetPath,
+        base,
+        resolution,
+      )
+
+      if (relativeSpecifier) {
+        const nextSpecifier = relativeSpecifier + suffix
+        if (nextSpecifier !== specifier) {
+          return nextSpecifier
+        }
+      }
+    }
   }
 
-  const resolution = resolveRelativeSpecifier(base, sourcePath)
-  if (!resolution) {
-    return null
+  const legacySpecifier = rewriteLegacyPlusSegments(base)
+  if (legacySpecifier) {
+    const nextSpecifier = legacySpecifier + suffix
+    if (nextSpecifier !== specifier) {
+      return nextSpecifier
+    }
   }
 
-  const resolvedAbsolute = normalizeAbsolutePath(resolution.resolvedPath)
-  const migratedAbsolute = normalizedMapping.get(resolvedAbsolute) ?? resolvedAbsolute
-  const relativeSpecifier = computeRelativeSpecifier(
-    migratedAbsolute,
-    targetPath,
-    base,
-    resolution,
-  )
-
-  if (!relativeSpecifier) {
-    return null
-  }
-
-  const nextSpecifier = relativeSpecifier + suffix
-  if (nextSpecifier === specifier) {
-    return null
-  }
-
-  return nextSpecifier
+  return null
 }
 
 function splitImportSpecifier(specifier: string): { base: string; suffix: string } {
@@ -203,6 +206,38 @@ function isRelativeSpecifier(specifier: string): boolean {
     specifier.startsWith('./') ||
     specifier.startsWith('../')
   )
+}
+
+function rewriteLegacyPlusSegments(specifier: string): string | null {
+  if (!specifier.includes('+')) {
+    return null
+  }
+
+  const segments = specifier.split('/')
+  let changed = false
+
+  const next = segments.map((segment) => {
+    if (segment === '' || segment === '.' || segment === '..') {
+      return segment
+    }
+
+    if (segment === '+' || segment.startsWith('+')) {
+      return segment
+    }
+
+    if (segment.endsWith('+') && segment.length > 1 && segment[segment.length - 2] !== '+') {
+      changed = true
+      return segment.slice(0, -1)
+    }
+
+    return segment
+  })
+
+  if (!changed) {
+    return null
+  }
+
+  return next.join('/')
 }
 
 function resolveRelativeSpecifier(

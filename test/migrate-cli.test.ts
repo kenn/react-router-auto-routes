@@ -197,6 +197,29 @@ describe('migrate CLI', () => {
     const contents = fs.readFileSync(layoutPath, 'utf8')
     expect(contents).toContain("from '../../components/AdminShell'")
   })
+
+  it('updates legacy alias imports that reference + suffixed folders', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/_top+/_layout.tsx':
+        'export default function TopLayout() { return null }\n',
+      'app/routes/alternatives/_layout.tsx':
+        "import TopLayout from '~/routes/_top+/_layout'\nexport default TopLayout\n",
+      'app/routes/alternatives/index.tsx':
+        'export default function AlternativesIndex() { return null }\n',
+    })
+
+    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const layoutPath = path.join(targetAbsolute, 'alternatives', '_layout.tsx')
+    const contents = fs.readFileSync(layoutPath, 'utf8')
+    expect(contents).toContain("import TopLayout from '~/routes/_top/_layout'")
+  })
 })
 
 describe('runCli', () => {
