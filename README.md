@@ -191,15 +191,6 @@ Routes from each mount stay isolated when resolving parents and dot-flattening, 
 
 ## Migration Guide
 
-If you're using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes), first uninstall it:
-
-```bash
-npm uninstall remix-flat-routes
-npm uninstall @react-router/remix-routes-option-adapter
-```
-
-## CLI Migration Tool
-
 > **Note:** This tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
 
 Migrate your routes automatically:
@@ -212,6 +203,13 @@ npx migrate-auto-routes app/routes app/new-routes
 ```
 
 The CLI overwrites the target directory if it already exists. When `targetDir` is omitted it defaults to a sibling directory named "new-routes".
+
+If everything looks good, you can uninstall the old packages:
+
+```bash
+npm uninstall remix-flat-routes
+npm uninstall @react-router/remix-routes-option-adapter
+```
 
 **Safety checks:**
 
