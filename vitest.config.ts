@@ -7,7 +7,7 @@ export default defineConfig({
     include: ['test/**/*.test.ts'],
     coverage: {
       reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules', 'dist', 'test']
-    }
-  }
+      exclude: ['node_modules', 'dist', 'test'],
+    },
+  },
 })
