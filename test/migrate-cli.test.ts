@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { migrate } from '../src/migration/migrate'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
+import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
@@ -244,6 +245,25 @@ describe('migrate CLI', () => {
     expect(contents).toContain(
       "import { transcribe } from '~/routes/scribe/+_modules/transcription'",
     )
+  })
+})
+
+describe('rewriteLegacyRouteEntry', () => {
+  it('preserves ignoredRouteFiles from legacy flatRoutes config', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes.ts': `import { flatRoutes } from 'remix-flat-routes'\nimport { defineRoutes } from '@remix-run/dev'\n\nexport default flatRoutes('routes', defineRoutes, {\n  ignoredRouteFiles: ['**/.*'],\n})\n`,
+      },
+      'rewrite-entry',
+    )
+
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    const result = rewriteLegacyRouteEntry(entryPath)
+    expect(result.updated).toBe(true)
+
+    const rewritten = fs.readFileSync(entryPath, 'utf8')
+    expect(rewritten).toContain("routesDir: 'routes'")
+    expect(rewritten).toContain("ignoredRouteFiles: ['**/.*']")
   })
 })
 
