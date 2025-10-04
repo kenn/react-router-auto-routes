@@ -15,9 +15,9 @@ Keep your components, tests, utilities, and routes together. No more hunting acr
 ## Features
 
 - 🎯 **Prefix-based colocation** - Keep helpers and components alongside routes using `+` prefix
-- ⚡ **ESM-only** - Built for modern tooling
+- 📦 **Monorepo/sub-apps support** - Mount routes from different folders to organize multi-app projects
+- ⚡ **ESM-only** - No CommonJS, built for modern tooling
 - 🧹 **Clean API** - Simplified options and intuitive conventions
-- 🚫 **Zero legacy** - No CommonJS, no pre-Vite Remix support
 
 ## Installation
 
