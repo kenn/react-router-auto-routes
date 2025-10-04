@@ -53,6 +53,7 @@ type LegacyRouteOptions = {
   sourceFile: ts.SourceFile
   routesDirArg?: ts.Expression
   optionsArg?: ts.Expression
+  callKind?: 'flatRoutes' | 'createRoutesFromFolders'
 }
 
 export function rewriteLegacyRouteEntry(
@@ -114,6 +115,7 @@ function extractLegacyRouteOptions(
     if (ts.isCallExpression(node)) {
       const name = extractCalleeName(node.expression)
       if (name && legacyCalls.has(name)) {
+        result.callKind = name as LegacyRouteOptions['callKind']
         if (name === 'flatRoutes') {
           result.routesDirArg = node.arguments[0]
           result.optionsArg = node.arguments[2]
@@ -135,33 +137,48 @@ function createAutoRoutesOptionsText(
   printer: ts.Printer,
   legacy: LegacyRouteOptions,
 ): string | undefined {
-  const { routesDirArg, optionsArg, sourceFile } = legacy
+  const { routesDirArg, optionsArg, sourceFile, callKind } = legacy
 
   const hasRoutesDirProperty =
     optionsArg &&
     ts.isObjectLiteralExpression(optionsArg) &&
     optionsArg.properties.some(isRoutesDirProperty)
 
-  const parts: string[] = []
+  const routesDirText =
+    routesDirArg && !hasRoutesDirProperty
+      ? printExpression(printer, sourceFile, routesDirArg)
+      : undefined
 
-  if (routesDirArg && !hasRoutesDirProperty) {
-    parts.push(
-      `routesDir: ${printExpression(printer, sourceFile, routesDirArg)}`,
+  if (!optionsArg) {
+    if (!routesDirText) {
+      return undefined
+    }
+    return `{ routesDir: ${routesDirText} }`
+  }
+
+  const optionsText = printExpression(printer, sourceFile, optionsArg)
+
+  if (callKind === 'createRoutesFromFolders') {
+    const lines: string[] = []
+    if (routesDirText) {
+      lines.push(`routesDir: ${routesDirText},`)
+    }
+    lines.push(
+      'ignoredRouteFiles: legacyOptions?.ignoredRouteFiles ?? legacyOptions?.ignoredFilePatterns ?? [],',
+      '...legacyOptions,',
     )
+
+    const body = lines.map((line) => `    ${line}`).join('\n')
+    return `(() => {\n  const legacyOptions = ${optionsText};\n  return {\n${body}\n  };\n})()`
   }
 
-  if (optionsArg) {
-    const spreadExpression = printExpression(printer, sourceFile, optionsArg)
-    parts.push(`...${spreadExpression}`)
+  const parts: string[] = []
+  if (routesDirText) {
+    parts.push(`routesDir: ${routesDirText}`)
   }
+  parts.push(`...${optionsText}`)
 
-  if (parts.length === 0) {
-    return undefined
-  }
-
-  const multiline =
-    parts.length > 1 || parts.some((part) => part.includes('\n'))
-  if (!multiline) {
+  if (parts.length === 1 && !parts[0].includes('\n')) {
     return `{ ${parts[0]} }`
   }
 

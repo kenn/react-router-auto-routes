@@ -3,9 +3,13 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { autoRoutes } from '../src/core/index'
+import type { RouteConfig } from '../src/core/types'
+import { createRoutesFromFolders } from '../src/migration/create-routes-from-folders'
 import { migrate } from '../src/migration/migrate'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
 import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
+import { defineRoutes } from '../src/migration/route-definition'
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
@@ -264,6 +268,25 @@ describe('rewriteLegacyRouteEntry', () => {
     const rewritten = fs.readFileSync(entryPath, 'utf8')
     expect(rewritten).toContain("routesDir: 'routes'")
     expect(rewritten).toContain("ignoredRouteFiles: ['**/.*']")
+  })
+
+  it('maps ignoredFilePatterns from createRoutesFromFolders to ignoredRouteFiles', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes.ts': `import { createRoutesFromFolders } from 'remix-flat-routes'\nimport { defineRoutes } from '@remix-run/dev'\n\nexport default createRoutesFromFolders(defineRoutes, {\n  ignoredFilePatterns: ['**/*.test.{ts,tsx}'],\n  future: { unstable: true },\n})\n`,
+      },
+      'rewrite-entry-file-patterns',
+    )
+
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    const result = rewriteLegacyRouteEntry(entryPath)
+    expect(result.updated).toBe(true)
+
+    const rewritten = fs.readFileSync(entryPath, 'utf8')
+    expect(rewritten).toContain(
+      'legacyOptions?.ignoredRouteFiles ?? legacyOptions?.ignoredFilePatterns ?? []',
+    )
+    expect(rewritten).toContain('...legacyOptions')
   })
 })
 
@@ -576,5 +599,126 @@ describe('runCli', () => {
 
     const entryContents = fs.readFileSync(entryPath, 'utf8')
     expect(entryContents).toBe(legacyEntry)
+  })
+})
+
+describe('autoRoutes migration parity', () => {
+  function normalizeRouteSnapshot(entries: string[]): string[] {
+    return [...entries].sort()
+  }
+
+  function normalizeFilePath(filePath: string): string {
+    const segments = filePath.split('/')
+
+    return segments
+      .map((segment) => {
+        if (!segment) {
+          return segment
+        }
+
+        const trailingPlusMatch = segment.match(/^(.*?)(\+)+$/)
+        if (trailingPlusMatch) {
+          return trailingPlusMatch[1]
+        }
+
+        const lastDotIndex = segment.lastIndexOf('.')
+        if (lastDotIndex <= 0) {
+          return segment
+        }
+
+        const name = segment.slice(0, lastDotIndex)
+        const ext = segment.slice(lastDotIndex)
+        if (name.endsWith('+')) {
+          return `${name.slice(0, -1)}${ext}`
+        }
+
+        return segment
+      })
+      .join('/')
+  }
+
+  function manifestSnapshot(
+    manifest: ReturnType<typeof createRoutesFromFolders>,
+  ): string[] {
+    return Object.values(manifest).map((route) => {
+      const indexFlag = route.index ? 1 : 0
+      const caseFlag = route.caseSensitive ? 1 : 0
+      const normalizedFile = normalizeFilePath(route.file)
+      return `file=${normalizedFile}|index=${indexFlag}|caseSensitive=${caseFlag}`
+    })
+  }
+
+  function autoRoutesSnapshot(routes: RouteConfig[]): string[] {
+    const result: string[] = []
+    const visit = (route: RouteConfig) => {
+      const indexFlag = route.index ? 1 : 0
+      const caseFlag = route.caseSensitive ? 1 : 0
+      const normalizedFile = normalizeFilePath(route.file)
+      result.push(
+        `file=${normalizedFile}|index=${indexFlag}|caseSensitive=${caseFlag}`,
+      )
+      if (route.children) {
+        route.children.forEach(visit)
+      }
+    }
+
+    routes.forEach(visit)
+    return result
+  }
+
+  it('preserves nested numeric session routes during migration', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes/root.tsx':
+          'export default function Root() { return null }\n',
+        'app/routes/dash+/brainstorming+/sessions+/_layout.tsx':
+          "import { Outlet } from 'react-router'\nexport default function SessionsLayout() { return <Outlet /> }\n",
+        'app/routes/dash+/brainstorming+/sessions+/index.tsx':
+          'export default function SessionsIndex() { return null }\n',
+        'app/routes/dash+/brainstorming+/sessions+/4+/_layout.tsx':
+          "import { Outlet } from 'react-router'\nexport default function SessionFourLayout() { return <Outlet /> }\n",
+        'app/routes/dash+/brainstorming+/sessions+/4+/1.tsx':
+          'export default function SessionFourStepOne() { return null }\n',
+        'app/routes/dash+/brainstorming+/sessions+/4+/2.tsx':
+          'export default function SessionFourStepTwo() { return null }\n',
+        'app/routes/dash+/brainstorming+/sessions+/4+/3.tsx':
+          'export default function SessionFourStepThree() { return null }\n',
+        'app/routes/dash+/brainstorming+/sessions+/4+/4.tsx':
+          'export default function SessionFourStepFour() { return null }\n',
+        'app/routes/dash+/brainstorming+/sessions+/4+/5.tsx':
+          'export default function SessionFourStepFive() { return null }\n',
+      },
+      'numeric-sessions',
+    )
+
+    const manifest = createRoutesFromFolders(defineRoutes, {
+      appDirectory: fixture.resolve('app'),
+    })
+
+    const sourceDir = fixture.resolve('app', 'routes')
+    const targetDir = fixture.resolve('app', 'new-routes')
+    const sourceArg = fixture.toCwdRelativePath(sourceDir)
+    const targetArg = fixture.toCwdRelativePath(targetDir)
+    migrate(sourceArg, targetArg, { force: true })
+
+    const backupDir = fixture.resolve('app', 'old-routes')
+    fs.renameSync(sourceDir, backupDir)
+    fs.renameSync(targetDir, sourceDir)
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    let migratedRoutes
+    try {
+      migratedRoutes = autoRoutes()
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const beforeSnapshot = normalizeRouteSnapshot(manifestSnapshot(manifest))
+    const afterSnapshot = normalizeRouteSnapshot(
+      autoRoutesSnapshot(migratedRoutes),
+    )
+
+    expect(afterSnapshot).toEqual(beforeSnapshot)
   })
 })
