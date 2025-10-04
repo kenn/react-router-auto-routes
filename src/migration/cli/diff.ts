@@ -46,7 +46,8 @@ export function normalizeSnapshot(snapshot: string): string {
 
     const normalizedFile = normalizeRouteFilePath(fileMatch[1])
     const isIndex = /(^|\s)index(\s|$)/.test(attributes)
-    const caseSensitive = /caseSensitive="?(true|false)"?/.test(attributes)
+    const caseSensitiveMatch = attributes.match(/caseSensitive="?(true|false)"?/)
+    const caseSensitive = caseSensitiveMatch?.[1] === 'true'
     const parts = [
       `file=${normalizedFile}`,
       `index=${isIndex ? '1' : '0'}`,
