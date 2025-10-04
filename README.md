@@ -191,7 +191,7 @@ Routes from each mount stay isolated when resolving parents and dot-flattening, 
 
 ## Migration Guide
 
-> **Note:** This tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
+> **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
 
 Migrate your routes automatically:
 
