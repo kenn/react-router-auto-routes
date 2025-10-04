@@ -129,11 +129,7 @@ routes/
 
 ```ts
 autoRoutes({
-  routesDir: {
-    '/': 'app/routes',
-    '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
-    '/tools/meta-preview': 'tools/meta-preview/routes',
-  },
+  routesDir: ['routes'],
   ignoredRouteFiles: [
     '**/.*', // Ignore dotfiles
     '**/*.test.{ts,tsx}', // Ignore tests
@@ -146,18 +142,11 @@ autoRoutes({
 
 `.DS_Store` is always ignored automatically, even when you provide custom `ignoredRouteFiles`, and the migration CLI inherits the same default.
 
-`routesDir` is flexible:
+`routesDir` accepts multiple formats. Entries are resolved relative to `baseDir` (defaults to `'app'`):
 
-- `string` – single root (default: `'app/routes'`).
-- `Array<string | Record<string, string>>` – mix-and-match convenience (e.g. `['app/routes', { '/docs': 'docs/routes' }]`).
-- `Record<string, string>` – explicit URL mount → directory mapping.
-
-Validation highlights:
-
-- Mount paths must start with `/` and may only end with `/` when they are exactly `/`.
-- Mount paths cannot repeat.
-- Directory values must be relative (no `..`, no leading `/`).
-- Manifest IDs mirror the supplied directory (e.g. `tools/keyword-analyzer/routes/index.tsx` → `id: 'tools/keyword-analyzer/routes/index'`).
+- `string` – single root (default: `'routes'`).
+- `Array<string | Record<string, string>>` – mix-and-match convenience (e.g. `['routes', { '/docs': 'docs/routes' }]`).
+- `Record<string, string>` – explicit URL mount → directory mapping (see [Multiple Route Roots](#multiple-route-roots)).
 
 ### Multiple Route Roots
 
@@ -166,10 +155,11 @@ Map different URL mounts to separate folders without redundant nesting:
 ```ts
 autoRoutes({
   routesDir: {
-    '/': 'app/routes',
+    '/': 'routes',
     '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
     '/tools/meta-preview': 'tools/meta-preview/routes',
   },
+  baseDir: '.',
 })
 ```
 
@@ -192,9 +182,14 @@ tools/
       index.tsx                    → /tools/meta-preview
 ```
 
-Routes from each mount stay isolated when resolving parents and dot-flattening, but still produce a single manifest. You can include additional directories under the root mount by mixing array entries, e.g. `routesDir: ['app/routes', { '/docs': 'docs/routes' }]`.
+Routes from each mount stay isolated when resolving parents and dot-flattening, but still produce a single manifest. You can include additional directories under the root mount by mixing array entries, e.g. `routesDir: ['routes', { '/docs': 'docs/routes' }]`.
 
-Dot notation remains supported but optional—the filesystem shape above produces clean URLs without duplicating segment folders. IDs retain the configured prefix, so the example above yields entries such as `app/routes/dashboard` and `tools/keyword-analyzer/routes/reports/index`.
+**Validation rules:**
+
+- Mount paths must start with `/` and may only end with `/` when they are exactly `/`.
+- Mount paths cannot repeat.
+- Directory values must be relative (no `..`, no leading `/`).
+- Manifest IDs mirror the supplied directory (e.g. `tools/keyword-analyzer/routes/index.tsx` → `id: 'tools/keyword-analyzer/routes/index'`). The default root keeps legacy IDs such as `routes/dashboard` to stay compatible with existing Remix route manifests.
 
 ## Migration Guide
 

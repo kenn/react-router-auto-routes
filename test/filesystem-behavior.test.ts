@@ -18,12 +18,12 @@ describe('flat file routes', () => {
       }),
       route('$lang.$ref._index.tsx', {
         id: '$lang.$ref._index',
-        parentId: 'app/routes/$lang.$ref',
+        parentId: 'routes/$lang.$ref',
         index: true,
       }),
       route('$lang.$ref.$.tsx', {
         id: '$lang.$ref.$',
-        parentId: 'app/routes/$lang.$ref',
+        parentId: 'routes/$lang.$ref',
         path: '*',
       }),
       route('_index.tsx', {
@@ -48,7 +48,7 @@ describe('flat file routes', () => {
       }),
       route('docs.readme.md', {
         id: 'docs.readme',
-        parentId: 'app/routes/docs',
+        parentId: 'routes/docs',
         path: 'readme',
       }),
     ])
@@ -65,12 +65,12 @@ describe('flat folder routes', () => {
       }),
       route('$lang.$ref._index/route.tsx', {
         id: '$lang.$ref._index/route',
-        parentId: 'app/routes/$lang.$ref/route',
+        parentId: 'routes/$lang.$ref/route',
         index: true,
       }),
       route('$lang.$ref.$/route.tsx', {
         id: '$lang.$ref.$/route',
-        parentId: 'app/routes/$lang.$ref/route',
+        parentId: 'routes/$lang.$ref/route',
         path: '*',
       }),
       route('_index/route.tsx', {
@@ -95,12 +95,12 @@ describe('flat folder routes', () => {
       }),
       route('$lang.$ref._index\\route.tsx', {
         id: '$lang.$ref._index/route',
-        parentId: 'app/routes/$lang.$ref/route',
+        parentId: 'routes/$lang.$ref/route',
         index: true,
       }),
       route('$lang.$ref.$\\route.tsx', {
         id: '$lang.$ref.$/route',
-        parentId: 'app/routes/$lang.$ref/route',
+        parentId: 'routes/$lang.$ref/route',
         path: '*',
       }),
       route('_index\\route.tsx', {
@@ -117,12 +117,12 @@ describe('flat folder routes', () => {
 
     const routes = createRoutesFromFiles(files)
     const lookup = flattenRoutesById(routes)
-    expect(lookup['app/routes/$lang.$ref._index/route']).toBeDefined()
-    expect(lookup['app/routes/$lang.$ref._index/route']?.parentId).toBe(
-      'app/routes/$lang.$ref/route',
+    expect(lookup['routes/$lang.$ref._index/route']).toBeDefined()
+    expect(lookup['routes/$lang.$ref._index/route']?.parentId).toBe(
+      'routes/$lang.$ref/route',
     )
-    expect(lookup['app/routes/$lang.$ref._index/route']?.file).toBe(
-      'app/routes/$lang.$ref._index/route.tsx',
+    expect(lookup['routes/$lang.$ref._index/route']?.file).toBe(
+      'routes/$lang.$ref._index/route.tsx',
     )
     expectRoutesToMatch(routes, expected)
   })
@@ -136,12 +136,12 @@ describe('flat folder routes', () => {
       }),
       route('$lang.$ref/component.tsx', {
         id: '$lang.$ref/component',
-        parentId: 'app/routes/$lang.$ref/_layout',
+        parentId: 'routes/$lang.$ref/_layout',
         path: 'component',
       }),
       route('$lang.$ref._index/route.tsx', {
         id: '$lang.$ref._index/route',
-        parentId: 'app/routes/$lang.$ref/_layout',
+        parentId: 'routes/$lang.$ref/_layout',
         index: true,
       }),
       fileOnly('$lang.$ref._index/style.css'),
@@ -168,7 +168,7 @@ describe('flat folder routes', () => {
       }),
       route('docs/readme.route.mdx', {
         id: 'docs/readme.route',
-        parentId: 'app/routes/docs/_layout',
+        parentId: 'routes/docs/_layout',
         path: 'readme',
       }),
     ])
@@ -183,7 +183,7 @@ describe('flat folder routes', () => {
       }),
       route('oauth/google.tsx', {
         id: 'oauth/google',
-        parentId: 'app/routes/oauth',
+        parentId: 'routes/oauth',
         path: 'google',
       }),
     ])
@@ -197,15 +197,15 @@ describe('folder normalization', () => {
 
     expect(routes).toHaveLength(2)
 
-    const googleRoute = routes.find((r) => r.id === 'app/routes/oauth/google')
+    const googleRoute = routes.find((r) => r.id === 'routes/oauth/google')
     expect(googleRoute).toBeDefined()
-    expect(googleRoute?.file).toBe('app/routes/oauth/google.ts')
+    expect(googleRoute?.file).toBe('routes/oauth/google.ts')
     expect(googleRoute?.path).toBe('oauth/google')
     expect(googleRoute?.children).toBeUndefined()
 
-    const logoutRoute = routes.find((r) => r.id === 'app/routes/oauth/logout')
+    const logoutRoute = routes.find((r) => r.id === 'routes/oauth/logout')
     expect(logoutRoute).toBeDefined()
-    expect(logoutRoute?.file).toBe('app/routes/oauth/logout.ts')
+    expect(logoutRoute?.file).toBe('routes/oauth/logout.ts')
     expect(logoutRoute?.path).toBe('oauth/logout')
   })
 
@@ -214,8 +214,8 @@ describe('folder normalization', () => {
     const routes = createRoutesFromFiles(files)
 
     expect(routes).toHaveLength(1)
-    expect(routes[0].id).toBe('app/routes/oauth')
-    expect(routes[0].file).toBe('app/routes/oauth.tsx')
+    expect(routes[0].id).toBe('routes/oauth')
+    expect(routes[0].file).toBe('routes/oauth.tsx')
     expect(routes[0].children).toHaveLength(1)
     expect(routes[0].children?.[0].path).toBe('google')
   })
@@ -226,11 +226,11 @@ describe('folder normalization', () => {
 
     expect(routes).toHaveLength(2)
 
-    const usersRoute = routes.find((r) => r.id === 'app/routes/api/v1/users')
+    const usersRoute = routes.find((r) => r.id === 'routes/api/v1/users')
     expect(usersRoute).toBeDefined()
     expect(usersRoute?.path).toBe('api/v1/users')
 
-    const postsRoute = routes.find((r) => r.id === 'app/routes/api/v1/posts')
+    const postsRoute = routes.find((r) => r.id === 'routes/api/v1/posts')
     expect(postsRoute).toBeDefined()
     expect(postsRoute?.path).toBe('api/v1/posts')
   })
@@ -248,7 +248,7 @@ describe('folder normalization', () => {
     const routes = createRoutesFromFiles(files)
 
     expect(routes).toHaveLength(1)
-    expect(routes[0].id).toBe('app/routes/dashboard/_layout')
+    expect(routes[0].id).toBe('routes/dashboard/_layout')
     expect(routes[0].children).toHaveLength(1)
     expect(routes[0].children?.[0].index).toBe(true)
   })
@@ -267,12 +267,12 @@ describe('ignored routes', () => {
         }),
         route('$lang.$ref._index.tsx', {
           id: '$lang.$ref._index',
-          parentId: 'app/routes/$lang.$ref',
+          parentId: 'routes/$lang.$ref',
           index: true,
         }),
         route('$lang.$ref.$.tsx', {
           id: '$lang.$ref.$',
-          parentId: 'app/routes/$lang.$ref',
+          parentId: 'routes/$lang.$ref',
           path: '*',
         }),
         route('_index.tsx', {
@@ -435,7 +435,7 @@ describe('prefix colocation integration tests', () => {
       fileOnly('users.$userId/+components/form.tsx'),
       route('users.$userId.edit.tsx', {
         id: 'users.$userId.edit',
-        parentId: 'app/routes/users.$userId',
+        parentId: 'routes/users.$userId',
         path: 'edit',
       }),
     ])

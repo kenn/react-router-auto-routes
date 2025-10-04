@@ -107,14 +107,12 @@ function normalizeMountPath(mountPath: string): string {
   return normalized
 }
 
-function resolveBaseDir(configDir?: string): string {
-  if (!configDir) {
-    return process.cwd()
-  }
+function resolveBaseDir(baseDir?: string): string {
+  const base = baseDir ?? 'app'
 
-  return path.isAbsolute(configDir)
-    ? configDir
-    : path.resolve(process.cwd(), configDir)
+  return path.isAbsolute(base)
+    ? base
+    : path.resolve(process.cwd(), base)
 }
 
 type RoutesDirEntry = {
@@ -126,7 +124,7 @@ function toRoutesDirEntries(
   routesDir: RoutesDirInput | undefined,
 ): RoutesDirEntry[] {
   if (routesDir === undefined) {
-    return [{ mountPath: '/', dir: 'app/routes' }]
+    return [{ mountPath: '/', dir: 'routes' }]
   }
 
   if (typeof routesDir === 'string') {
@@ -174,9 +172,9 @@ function toRoutesDirEntries(
 
 export function normalizeRoutesDirOption(
   routesDir: RoutesDirInput | undefined,
-  configDir?: string,
+  baseDir?: string,
 ): NormalizedRoutesDir[] {
-  const baseDir = resolveBaseDir(configDir)
+  const resolvedBase = resolveBaseDir(baseDir)
   const seenMountPaths = new Set<string>()
 
   return toRoutesDirEntries(routesDir).map(({ mountPath, dir }) => {
@@ -189,7 +187,7 @@ export function normalizeRoutesDirOption(
     seenMountPaths.add(normalizedMount)
 
     const normalizedDir = normalizeRoutesDir(dir)
-    const fsDir = path.resolve(baseDir, normalizedDir)
+    const fsDir = path.resolve(resolvedBase, normalizedDir)
 
     return {
       mountPath: normalizedMount,

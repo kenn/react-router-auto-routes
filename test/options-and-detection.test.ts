@@ -13,8 +13,8 @@ describe('routing options', () => {
       const flatFiles = ['^userId.tsx', '^.tsx']
       const routes = createRoutesFromFiles(flatFiles, { paramChar: '^' })
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/^userId']!.path!).toBe(':userId')
-      expect(manifest['app/routes/^']!.path!).toBe('*')
+      expect(manifest['routes/^userId']!.path!).toBe(':userId')
+      expect(manifest['routes/^']!.path!).toBe('*')
     })
   })
 
@@ -23,14 +23,14 @@ describe('routing options', () => {
       const files = ['parent.(child).tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/parent.(child)']!.path!).toBe('parent/child?')
+      expect(manifest['routes/parent.(child)']!.path!).toBe('parent/child?')
     })
 
     it('should generate correct paths with folders', () => {
       const files = ['_folder.parent.(child)/index.tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/_folder.parent.(child)/index']!.path!).toBe(
+      expect(manifest['routes/_folder.parent.(child)/index']!.path!).toBe(
         'parent/child?',
       )
     })
@@ -39,7 +39,7 @@ describe('routing options', () => {
       const files = ['parent/(child)/route.tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/parent/(child)/route']!.path!).toBe(
+      expect(manifest['routes/parent/(child)/route']!.path!).toBe(
         'parent/child?',
       )
     })
@@ -48,7 +48,7 @@ describe('routing options', () => {
       const files = ['parent.($child).tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/parent.($child)']!.path!).toBe(
+      expect(manifest['routes/parent.($child)']!.path!).toBe(
         'parent/:child?',
       )
     })
@@ -112,7 +112,7 @@ describe('routing options', () => {
     it('supports object form with multiple mounts', () => {
       const routes = createRoutesFromFiles([], {
         routesDir: {
-          '/': 'app/routes',
+          '/': 'routes',
           '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
           '/tools/meta-preview': 'tools/meta-preview/routes',
         },
@@ -132,7 +132,7 @@ describe('routing options', () => {
       })
 
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/dashboard']?.path).toBe('dashboard')
+      expect(manifest['routes/dashboard']?.path).toBe('dashboard')
       expect(manifest['tools/keyword-analyzer/routes/overview']?.path).toBe(
         'tools/keyword-analyzer/overview',
       )
@@ -159,14 +159,14 @@ describe('routing options', () => {
     it('throws on duplicate mount paths', () => {
       expect(() => {
         createRoutesFromFiles(['index.tsx'], {
-          routesDir: ['app/routes', { '/': 'app/marketing' }],
+          routesDir: ['routes', { '/': 'app/marketing' }],
         })
       }).toThrow("Duplicate routesDir mount path detected: '/'.")
     })
 
     it('supports mixed array and object usage', () => {
       const routes = createRoutesFromFiles([], {
-        routesDir: ['app/routes', { '/tools': 'tools/routes' }],
+        routesDir: ['routes', { '/tools': 'tools/routes' }],
         visitFiles: (dir, visitor) => {
           if (dir.endsWith('app/routes')) {
             visitor('about.tsx')
@@ -179,7 +179,7 @@ describe('routing options', () => {
       })
 
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/about']?.path).toBe('about')
+      expect(manifest['routes/about']?.path).toBe('about')
       expect(manifest['tools/routes/settings']?.path).toBe('tools/settings')
       expect(manifest['tools/routes/settings']?.parentId).toBe('root')
     })
@@ -188,28 +188,28 @@ describe('routing options', () => {
 
 describe('special character escaping', () => {
   it('should escape underscore', () => {
-    const routesWithExpectedValues: Record<string, ExpectedValues> = {
-      '[__].tsx': {
-        id: 'app/routes/[__]',
-        path: '__',
-        parentId: 'root',
-      },
-      '[_].tsx': {
-        id: 'app/routes/[_]',
-        path: '_',
-        parentId: 'root',
-      },
-      '_layout.[___]/index.tsx': {
-        id: 'app/routes/_layout.[___]/index',
-        path: '___',
-        parentId: 'root',
-      },
-      '_layout.parent.[__]/index.tsx': {
-        id: 'app/routes/_layout.parent.[__]/index',
-        path: 'parent/__',
-        parentId: 'root',
-      },
-    }
+      const routesWithExpectedValues: Record<string, ExpectedValues> = {
+        '[__].tsx': {
+          id: 'routes/[__]',
+          path: '__',
+          parentId: 'root',
+        },
+        '[_].tsx': {
+          id: 'routes/[_]',
+          path: '_',
+          parentId: 'root',
+        },
+        '_layout.[___]/index.tsx': {
+          id: 'routes/_layout.[___]/index',
+          path: '___',
+          parentId: 'root',
+        },
+        '_layout.parent.[__]/index.tsx': {
+          id: 'routes/_layout.parent.[__]/index',
+          path: 'parent/__',
+          parentId: 'root',
+        },
+      }
 
     generateFlexRoutesAndVerifyResultWithExpected(routesWithExpectedValues)
   })

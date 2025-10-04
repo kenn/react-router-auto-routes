@@ -40,7 +40,7 @@ export type RoutesDirInput =
 
 export type autoRoutesOptions = {
   routesDir?: RoutesDirInput
-  configDir?: string
+  baseDir?: string
   visitFiles?: VisitFilesFunction
   paramChar?: string
   colocationChar?: string

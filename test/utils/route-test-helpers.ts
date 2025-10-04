@@ -144,8 +144,8 @@ export function createRouteFixtures(fixtures: RouteFixture[]) {
       return value
     }
 
-    const defaultPrefix = 'app/routes'
-    if (value.startsWith(defaultPrefix) || value.startsWith('/')) {
+    const defaultPrefix = 'routes'
+    if (value.startsWith(`${defaultPrefix}/`) || value.startsWith('/')) {
       return value
     }
 
@@ -157,7 +157,8 @@ export function createRouteFixtures(fixtures: RouteFixture[]) {
 
     const { id, file: overrideFile, parentId, ...rest } = expectation
     const normalizedFile =
-      overrideFile ?? `app/routes/${file.replace(/\\/g, '/')}`
+      overrideFile ?? `routes/${file.replace(/\\/g, '/')}`
+
     const resolvedId = addDefaultPrefix(id)
     const resolvedParentId = addDefaultPrefix(parentId)
 
@@ -165,11 +166,16 @@ export function createRouteFixtures(fixtures: RouteFixture[]) {
       throw new Error('Expected route fixture id to be defined')
     }
 
-    expected[resolvedId] = {
+    const snapshotEntry: Partial<FlattenedRouteEntry> = {
       file: normalizedFile,
-      parentId: resolvedParentId,
       ...rest,
     }
+
+    if (resolvedParentId) {
+      snapshotEntry.parentId = resolvedParentId
+    }
+
+    expected[resolvedId] = snapshotEntry
   }
 
   return { files, expected }
