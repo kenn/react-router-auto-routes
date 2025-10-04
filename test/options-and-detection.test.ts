@@ -114,7 +114,6 @@ describe('routing options', () => {
           '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
           '/tools/meta-preview': 'tools/meta-preview/routes',
         },
-        baseDir: '.',
         visitFiles: (dir, visitor) => {
           const normalized = dir.replace(/\\/g, '/')
 
@@ -159,37 +158,6 @@ describe('routing options', () => {
       }).toThrow("routesDir mount paths cannot end with '/'. Got: '/tools/'")
     })
 
-    it('throws on duplicate mount paths', () => {
-      expect(() => {
-        createRoutesFromFiles(['index.tsx'], {
-          routesDir: ['routes', { '/': 'app/marketing' }],
-        })
-      }).toThrow("Duplicate routesDir mount path detected: '/'.")
-    })
-
-    it('supports mixed array and object usage', () => {
-      const routes = createRoutesFromFiles([], {
-        routesDir: ['app/routes', { '/tools': 'tools/routes' }],
-        baseDir: '.',
-        visitFiles: (dir, visitor) => {
-          const normalized = dir.replace(/\\/g, '/')
-
-          if (normalized.endsWith('app/routes')) {
-            visitor('about.tsx')
-            return
-          }
-
-          if (normalized.endsWith('tools/routes')) {
-            visitor('settings.tsx')
-          }
-        },
-      })
-
-      const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/about']?.path).toBe('about')
-      expect(manifest['tools/routes/settings']?.path).toBe('tools/settings')
-      expect(manifest['tools/routes/settings']?.parentId).toBe('root')
-    })
   })
 })
 

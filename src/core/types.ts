@@ -33,14 +33,10 @@ export type NormalizedRoutesDir = {
   idPrefix: string
 }
 
-export type RoutesDirInput =
-  | string
-  | readonly (string | Record<string, string>)[]
-  | Record<string, string>
+export type RoutesDirInput = string | Record<string, string>
 
 export type autoRoutesOptions = {
   routesDir?: RoutesDirInput
-  baseDir?: string
   visitFiles?: VisitFilesFunction
   paramChar?: string
   colocationChar?: string

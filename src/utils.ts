@@ -107,14 +107,6 @@ function normalizeMountPath(mountPath: string): string {
   return normalized
 }
 
-function resolveBaseDir(baseDir?: string): string {
-  const base = baseDir ?? 'app'
-
-  return path.isAbsolute(base)
-    ? base
-    : path.resolve(process.cwd(), base)
-}
-
 type RoutesDirEntry = {
   mountPath: string
   dir: string
@@ -131,35 +123,8 @@ function toRoutesDirEntries(
     return [{ mountPath: '/', dir: routesDir }]
   }
 
-  if (Array.isArray(routesDir)) {
-    const entries: RoutesDirEntry[] = []
-    for (const value of routesDir) {
-      if (typeof value === 'string') {
-        entries.push({ mountPath: '/', dir: value })
-        continue
-      }
-
-      if (value && typeof value === 'object') {
-        const record = value as Record<string, string>
-        for (const [mountPath, dir] of Object.entries(record)) {
-          entries.push({ mountPath, dir })
-        }
-        continue
-      }
-
-      throw new Error(
-        `routesDir array entries must be strings or objects. Got: '${value}'`,
-      )
-    }
-    if (entries.length === 0) {
-      throw new Error('routesDir array must contain at least one entry.')
-    }
-    return entries
-  }
-
   const entries: RoutesDirEntry[] = []
-  const record = routesDir as Record<string, string>
-  for (const [mountPath, dir] of Object.entries(record)) {
+  for (const [mountPath, dir] of Object.entries(routesDir)) {
     entries.push({ mountPath, dir })
   }
 
@@ -170,11 +135,21 @@ function toRoutesDirEntries(
   return entries
 }
 
+function resolveBaseDirFor(
+  routesDir: RoutesDirInput | undefined,
+): string {
+  const base =
+    routesDir === undefined || typeof routesDir === 'string' ? 'app' : '.'
+
+  return path.isAbsolute(base)
+    ? base
+    : path.resolve(process.cwd(), base)
+}
+
 export function normalizeRoutesDirOption(
   routesDir: RoutesDirInput | undefined,
-  baseDir?: string,
 ): NormalizedRoutesDir[] {
-  const resolvedBase = resolveBaseDir(baseDir)
+  const resolvedBase = resolveBaseDirFor(routesDir)
   const seenMountPaths = new Set<string>()
 
   return toRoutesDirEntries(routesDir).map(({ mountPath, dir }) => {

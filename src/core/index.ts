@@ -29,7 +29,6 @@ export default function autoRoutes(
 ): RouteConfig[] {
   const {
     routesDir,
-    baseDir,
     paramChar = '$',
     colocationChar: userColocationChar,
     routeRegex: userRouteRegex,
@@ -44,7 +43,7 @@ export default function autoRoutes(
     colocationChar,
   )
 
-  const routes = normalizeRoutesDirOption(routesDir, baseDir)
+  const routes = normalizeRoutesDirOption(routesDir)
 
   const resolved: ResolvedOptions = {
     routes,

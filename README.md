@@ -129,7 +129,7 @@ routes/
 
 ```ts
 autoRoutes({
-  routesDir: ['routes'],
+  routesDir: 'routes',
   ignoredRouteFiles: [
     '**/.*', // Ignore dotfiles
     '**/*.test.{ts,tsx}', // Ignore tests
@@ -142,24 +142,22 @@ autoRoutes({
 
 `.DS_Store` is always ignored automatically, even when you provide custom `ignoredRouteFiles`, and the migration CLI inherits the same default.
 
-`routesDir` accepts multiple formats. Entries are resolved relative to `baseDir` (defaults to `'app'`):
+`routesDir` accepts two shapes:
 
-- `string` – single root (default: `'routes'`).
-- `Array<string | Record<string, string>>` – mix-and-match convenience (e.g. `['routes', { '/docs': 'docs/routes' }]`).
-- `Record<string, string>` – explicit URL mount → directory mapping (see [Multiple Route Roots](#multiple-route-roots)).
+- `string` – scan a single root. When omitted, the default `'routes'` resolves to `app/routes` so existing folder structures continue to work with zero config.
+- `Record<string, string>` – explicit URL mount → directory mapping (see [Multiple Route Roots](#multiple-route-roots)). Mapping entries resolve from the project root so you can mount packages that live outside `app/`.
 
 ### Multiple Route Roots
 
-Map different URL mounts to separate folders without redundant nesting:
+Provide a mapping when you need multiple mounts:
 
 ```ts
 autoRoutes({
   routesDir: {
-    '/': 'routes',
+    '/': 'app/routes', // Main app routes stay under app/
     '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
     '/tools/meta-preview': 'tools/meta-preview/routes',
   },
-  baseDir: '.',
 })
 ```
 
@@ -182,7 +180,7 @@ tools/
       index.tsx                    → /tools/meta-preview
 ```
 
-Routes from each mount stay isolated when resolving parents and dot-flattening, but still produce a single manifest. You can include additional directories under the root mount by mixing array entries, e.g. `routesDir: ['routes', { '/docs': 'docs/routes' }]`.
+Routes from each mount stay isolated when resolving parents and dot-flattening, but still merged into a single manifest.
 
 **Validation rules:**
 
