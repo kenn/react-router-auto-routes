@@ -11,8 +11,13 @@ import {
 } from '../fs-helpers'
 import { logError, logInfo, logWarn } from '../logger'
 import { diffSnapshots, normalizeSnapshot } from './diff'
-import { captureRoutesSnapshot, defaultRunner, type CommandRunner } from './runner'
+import {
+  captureRoutesSnapshot,
+  defaultRunner,
+  type CommandRunner,
+} from './runner'
 import { detectLegacyRouteEntry, rewriteLegacyRouteEntry } from './route-entry'
+import type { RewriteLegacyRouteEntryResult } from './route-entry'
 
 export type RunOptions = {
   runner?: CommandRunner
@@ -76,6 +81,30 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     return 1
   }
 
+  let entryRewrite: RewriteLegacyRouteEntryResult | null = null
+  const restoreLegacyEntryIfNeeded = () => {
+    if (!entryRewrite?.updated) {
+      return
+    }
+
+    if (!entryPath || typeof entryRewrite.previousContents !== 'string') {
+      entryRewrite = null
+      return
+    }
+
+    try {
+      fs.writeFileSync(entryPath, entryRewrite.previousContents)
+    } catch (restoreError) {
+      const entryRelative = pathRelative(process.cwd(), entryPath)
+      logWarn(
+        `⚠️ Failed to restore route entry '${entryRelative}'. Restore it manually if needed.`,
+      )
+      logWarn(String(restoreError))
+    } finally {
+      entryRewrite = null
+    }
+  }
+
   try {
     if (fs.existsSync(resolvedTarget)) {
       fs.rmSync(resolvedTarget, { recursive: true, force: true })
@@ -94,10 +123,12 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     swapped = true
 
     if (isLegacy && entryPath) {
-      const updated = rewriteLegacyRouteEntry(entryPath)
+      const rewriteResult = rewriteLegacyRouteEntry(entryPath)
+      entryRewrite = rewriteResult.updated ? rewriteResult : null
+
       const entryRelative = pathRelative(process.cwd(), entryPath)
       logInfo(
-        updated
+        rewriteResult.updated
           ? `✏️ Updated route entry '${entryRelative}' to use autoRoutes().`
           : `✏️ Route entry '${entryRelative}' already references autoRoutes().`,
       )
@@ -105,6 +136,7 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
 
     const afterSnapshot = captureRoutesSnapshot(runner, 'after migration')
     if (afterSnapshot === null) {
+      restoreLegacyEntryIfNeeded()
       revertRoutes(resolvedSource, resolvedTarget, resolvedBackup)
       return 1
     }
@@ -127,9 +159,11 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     logError('❌ Route output changed. Reverting migration.')
     const diff = diffSnapshots(beforeNormalized, afterNormalized)
     logError(diff)
+    restoreLegacyEntryIfNeeded()
     revertRoutes(resolvedSource, resolvedTarget, resolvedBackup)
     return 1
   } catch (error) {
+    restoreLegacyEntryIfNeeded()
     if (swapped) {
       revertRoutes(resolvedSource, resolvedTarget, resolvedBackup)
     } else if (fs.existsSync(resolvedTarget)) {
@@ -160,7 +194,9 @@ function ensureCleanGitWorktree(resolvedSource: string): boolean {
   })
 
   if (topLevelResult.status !== 0) {
-    logError('Unable to determine git repository root. Ensure git is installed and accessible.')
+    logError(
+      'Unable to determine git repository root. Ensure git is installed and accessible.',
+    )
     return false
   }
 
@@ -178,7 +214,9 @@ function ensureCleanGitWorktree(resolvedSource: string): boolean {
   })
 
   if (status.status !== 0) {
-    logError('Unable to read git status. Ensure git is installed and accessible.')
+    logError(
+      'Unable to read git status. Ensure git is installed and accessible.',
+    )
     return false
   }
 

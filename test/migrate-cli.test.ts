@@ -526,4 +526,35 @@ describe('runCli', () => {
     )
     expect(diffCall).toBeDefined()
   })
+
+  it('restores legacy route entry when route diff does not match', () => {
+    const fixture = createBasicRoutesFixture('run-cli-diff-entry')
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    const legacyEntry = `import { createRoutesFromFolders } from 'remix-flat-routes'\nexport default function routes() {\n  return createRoutesFromFolders(() => {})\n}\n`
+    fs.writeFileSync(entryPath, legacyEntry)
+
+    const snapshots = [
+      `<Routes>\n  <Route file="routes/foo.tsx" />\n</Routes>\n`,
+      `<Routes>\n  <Route file="routes/bar.tsx" />\n</Routes>\n`,
+    ]
+
+    const runner: CommandRunner = () => {
+      const stdout = snapshots.shift() ?? ''
+      return { status: 0, stdout, stderr: '' }
+    }
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    let exitCode = -1
+    try {
+      exitCode = runCli(['app/routes'], { runner })
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    expect(exitCode).toBe(1)
+
+    const entryContents = fs.readFileSync(entryPath, 'utf8')
+    expect(entryContents).toBe(legacyEntry)
+  })
 })

@@ -43,20 +43,30 @@ export function detectLegacyRouteEntry(sourceDir: string): {
   return { entryPath: null, isLegacy: false }
 }
 
-export function rewriteLegacyRouteEntry(entryPath: string): boolean {
+export type RewriteLegacyRouteEntryResult = {
+  updated: boolean
+  previousContents?: string
+}
+
+export function rewriteLegacyRouteEntry(
+  entryPath: string,
+): RewriteLegacyRouteEntryResult {
   let contents: string
   try {
     contents = fs.readFileSync(entryPath, 'utf8')
   } catch {
-    return false
+    return { updated: false }
   }
 
   if (contents.includes('react-router-auto-routes')) {
-    return false
+    return { updated: false }
   }
 
   const normalized = `import { autoRoutes } from 'react-router-auto-routes'\n\nexport default autoRoutes()\n`
   fs.writeFileSync(entryPath, normalized)
 
-  return true
+  return {
+    updated: true,
+    previousContents: contents,
+  }
 }
