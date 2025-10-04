@@ -48,9 +48,7 @@ describe('routing options', () => {
       const files = ['parent.($child).tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/parent.($child)']!.path!).toBe(
-        'parent/:child?',
-      )
+      expect(manifest['routes/parent.($child)']!.path!).toBe('parent/:child?')
     })
   })
 
@@ -112,27 +110,32 @@ describe('routing options', () => {
     it('supports object form with multiple mounts', () => {
       const routes = createRoutesFromFiles([], {
         routesDir: {
-          '/': 'routes',
+          '/': 'app/routes',
           '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
           '/tools/meta-preview': 'tools/meta-preview/routes',
         },
+        baseDir: '.',
         visitFiles: (dir, visitor) => {
-          if (dir.endsWith('app/routes')) {
+          const normalized = dir.replace(/\\/g, '/')
+
+          if (normalized.endsWith('app/routes')) {
             visitor('dashboard.tsx')
+            return
           }
 
-          if (dir.endsWith('tools/keyword-analyzer/routes')) {
+          if (normalized.endsWith('tools/keyword-analyzer/routes')) {
             visitor('overview.tsx')
+            return
           }
 
-          if (dir.endsWith('tools/meta-preview/routes')) {
+          if (normalized.endsWith('tools/meta-preview/routes')) {
             visitor('index.tsx')
           }
         },
       })
 
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/dashboard']?.path).toBe('dashboard')
+      expect(manifest['app/routes/dashboard']?.path).toBe('dashboard')
       expect(manifest['tools/keyword-analyzer/routes/overview']?.path).toBe(
         'tools/keyword-analyzer/overview',
       )
@@ -166,20 +169,24 @@ describe('routing options', () => {
 
     it('supports mixed array and object usage', () => {
       const routes = createRoutesFromFiles([], {
-        routesDir: ['routes', { '/tools': 'tools/routes' }],
+        routesDir: ['app/routes', { '/tools': 'tools/routes' }],
+        baseDir: '.',
         visitFiles: (dir, visitor) => {
-          if (dir.endsWith('app/routes')) {
+          const normalized = dir.replace(/\\/g, '/')
+
+          if (normalized.endsWith('app/routes')) {
             visitor('about.tsx')
+            return
           }
 
-          if (dir.endsWith('tools/routes')) {
+          if (normalized.endsWith('tools/routes')) {
             visitor('settings.tsx')
           }
         },
       })
 
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/about']?.path).toBe('about')
+      expect(manifest['app/routes/about']?.path).toBe('about')
       expect(manifest['tools/routes/settings']?.path).toBe('tools/settings')
       expect(manifest['tools/routes/settings']?.parentId).toBe('root')
     })
@@ -188,28 +195,28 @@ describe('routing options', () => {
 
 describe('special character escaping', () => {
   it('should escape underscore', () => {
-      const routesWithExpectedValues: Record<string, ExpectedValues> = {
-        '[__].tsx': {
-          id: 'routes/[__]',
-          path: '__',
-          parentId: 'root',
-        },
-        '[_].tsx': {
-          id: 'routes/[_]',
-          path: '_',
-          parentId: 'root',
-        },
-        '_layout.[___]/index.tsx': {
-          id: 'routes/_layout.[___]/index',
-          path: '___',
-          parentId: 'root',
-        },
-        '_layout.parent.[__]/index.tsx': {
-          id: 'routes/_layout.parent.[__]/index',
-          path: 'parent/__',
-          parentId: 'root',
-        },
-      }
+    const routesWithExpectedValues: Record<string, ExpectedValues> = {
+      '[__].tsx': {
+        id: 'routes/[__]',
+        path: '__',
+        parentId: 'root',
+      },
+      '[_].tsx': {
+        id: 'routes/[_]',
+        path: '_',
+        parentId: 'root',
+      },
+      '_layout.[___]/index.tsx': {
+        id: 'routes/_layout.[___]/index',
+        path: '___',
+        parentId: 'root',
+      },
+      '_layout.parent.[__]/index.tsx': {
+        id: 'routes/_layout.parent.[__]/index',
+        path: 'parent/__',
+        parentId: 'root',
+      },
+    }
 
     generateFlexRoutesAndVerifyResultWithExpected(routesWithExpectedValues)
   })
