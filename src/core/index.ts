@@ -1,7 +1,7 @@
 import {
   defaultVisitFiles,
   escapeRegexChar,
-  normalizeRoutesDir,
+  normalizeRoutesDirOption,
 } from '../utils'
 import {
   collectRouteInfos,
@@ -28,8 +28,8 @@ export default function autoRoutes(
   options: autoRoutesOptions = {},
 ): RouteConfig[] {
   const {
-    rootDir: rawRootDir = 'app',
-    routesDir = 'routes',
+    routesDir,
+    configDir,
     paramChar = '$',
     colocationChar: userColocationChar,
     routeRegex: userRouteRegex,
@@ -44,15 +44,10 @@ export default function autoRoutes(
     colocationChar,
   )
 
-  const rootDir = rawRootDir.trim() === '' ? '.' : rawRootDir.trim()
-  const routeDirsArray = Array.isArray(routesDir) ? [...routesDir] : [routesDir]
-  const normalizedRouteDirs = routeDirsArray.map((dir) =>
-    normalizeRoutesDir(dir),
-  )
+  const routes = normalizeRoutesDirOption(routesDir, configDir)
 
   const resolved: ResolvedOptions = {
-    rootDir,
-    routeDirs: normalizedRouteDirs,
+    routes,
     visitFiles,
     paramChar,
     colocationChar,

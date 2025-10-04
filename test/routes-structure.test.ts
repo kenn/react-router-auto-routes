@@ -22,10 +22,10 @@ describe('route structures', () => {
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
 
-      expect(manifest['routes/_index']?.index).toBe(true)
-      expect(manifest['routes/$lang.$ref._index']?.index).toBe(true)
-      expect(manifest['routes/index']?.index).toBe(true)
-      expect(manifest['routes/index']?.path).toBeUndefined()
+      expect(manifest['app/routes/_index']?.index).toBe(true)
+      expect(manifest['app/routes/$lang.$ref._index']?.index).toBe(true)
+      expect(manifest['app/routes/index']?.index).toBe(true)
+      expect(manifest['app/routes/index']?.path).toBeUndefined()
     })
 
     it('generates correct ids for flat folders', () => {
@@ -38,8 +38,8 @@ describe('route structures', () => {
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
 
-      expect(manifest['routes/_index/route']?.index).toBe(true)
-      expect(manifest['routes/$lang.$ref._index/route']?.index).toBe(true)
+      expect(manifest['app/routes/_index/route']?.index).toBe(true)
+      expect(manifest['app/routes/$lang.$ref._index/route']?.index).toBe(true)
     })
   })
 
@@ -53,7 +53,7 @@ describe('route structures', () => {
         }),
         route('dashboard/index.tsx', {
           id: 'dashboard/index',
-          parentId: 'routes/dashboard/_layout',
+          parentId: 'app/routes/dashboard/_layout',
           index: true,
         }),
         route('settings/_layout.tsx', {
@@ -63,7 +63,7 @@ describe('route structures', () => {
         }),
         route('settings/index.tsx', {
           id: 'settings/index',
-          parentId: 'routes/settings/_layout',
+          parentId: 'app/routes/settings/_layout',
           index: true,
         }),
       ])
@@ -78,18 +78,18 @@ describe('route structures', () => {
         }),
         route('dashboard/projects/_layout.tsx', {
           id: 'dashboard/projects/_layout',
-          parentId: 'routes/dashboard/_layout',
+          parentId: 'app/routes/dashboard/_layout',
           path: 'projects',
         }),
         route('dashboard/projects/$id/index.tsx', {
           id: 'dashboard/projects/$id/index',
-          parentId: 'routes/dashboard/projects/_layout',
+          parentId: 'app/routes/dashboard/projects/_layout',
           index: true,
           path: ':id',
         }),
         route('dashboard/projects/$id/$section/index.tsx', {
           id: 'dashboard/projects/$id/$section/index',
-          parentId: 'routes/dashboard/projects/_layout',
+          parentId: 'app/routes/dashboard/projects/_layout',
           index: true,
           path: ':id/:section',
         }),
@@ -111,12 +111,12 @@ describe('route structures', () => {
         }),
         route('_public/about/route.tsx', {
           id: '_public/about/route',
-          parentId: 'routes/_public/_layout',
+          parentId: 'app/routes/_public/_layout',
           path: 'about',
         }),
         route('_public/contact[.jpg]/route.tsx', {
           id: '_public/contact[.jpg]/route',
-          parentId: 'routes/_public/_layout',
+          parentId: 'app/routes/_public/_layout',
           path: 'contact.jpg',
         }),
         route('test.$/route.tsx', {
@@ -137,13 +137,13 @@ describe('route structures', () => {
         }),
         route('users/$userId/route.tsx', {
           id: 'users/$userId/route',
-          parentId: 'routes/users/route/route',
+          parentId: 'app/routes/users/route/route',
           path: ':userId',
         }),
         fileOnly('users/$userId/avatar.png'),
         route('users/$userId_.edit/route.tsx', {
           id: 'users/$userId_.edit/route',
-          parentId: 'routes/users/route/route',
+          parentId: 'app/routes/users/route/route',
           path: ':userId/edit',
         }),
       ])
@@ -155,22 +155,22 @@ describe('route structures', () => {
       'supports complex auth and app routes': [
         route('_auth.forgot-password.tsx', {
           id: '_auth.forgot-password',
-          parentId: 'routes/_auth',
+          parentId: 'app/routes/_auth',
           path: 'forgot-password',
         }),
         route('_auth.login.tsx', {
           id: '_auth.login',
-          parentId: 'routes/_auth',
+          parentId: 'app/routes/_auth',
           path: 'login',
         }),
         route('_auth.reset-password.tsx', {
           id: '_auth.reset-password',
-          parentId: 'routes/_auth',
+          parentId: 'app/routes/_auth',
           path: 'reset-password',
         }),
         route('_auth.signup.tsx', {
           id: '_auth.signup',
-          parentId: 'routes/_auth',
+          parentId: 'app/routes/_auth',
           path: 'signup',
         }),
         route('_auth.tsx', {
@@ -179,12 +179,12 @@ describe('route structures', () => {
         }),
         route('_landing.about.tsx', {
           id: '_landing.about',
-          parentId: 'routes/_landing',
+          parentId: 'app/routes/_landing',
           path: 'about',
         }),
         route('_landing.index.tsx', {
           id: '_landing.index',
-          parentId: 'routes/_landing',
+          parentId: 'app/routes/_landing',
           index: true,
         }),
         route('_landing.tsx', {
@@ -193,27 +193,27 @@ describe('route structures', () => {
         }),
         route('app.calendar.$day.tsx', {
           id: 'app.calendar.$day',
-          parentId: 'routes/app.calendar',
+          parentId: 'app/routes/app.calendar',
           path: ':day',
         }),
         route('app.calendar.index.tsx', {
           id: 'app.calendar.index',
-          parentId: 'routes/app.calendar',
+          parentId: 'app/routes/app.calendar',
           index: true,
         }),
         route('app.calendar.tsx', {
           id: 'app.calendar',
-          parentId: 'routes/app',
+          parentId: 'app/routes/app',
           path: 'calendar',
         }),
         route('app.projects.$id.tsx', {
           id: 'app.projects.$id',
-          parentId: 'routes/app.projects',
+          parentId: 'app/routes/app.projects',
           path: ':id',
         }),
         route('app.projects.tsx', {
           id: 'app.projects',
-          parentId: 'routes/app',
+          parentId: 'app/routes/app',
           path: 'projects',
         }),
         route('app.tsx', {
@@ -240,27 +240,27 @@ describe('route structures', () => {
         }),
         route('app.$organizationSlug.edit.tsx', {
           id: 'app.$organizationSlug.edit',
-          parentId: 'routes/app.$organizationSlug',
+          parentId: 'app/routes/app.$organizationSlug',
           path: 'edit',
         }),
         route('app.$organizationSlug.projects.tsx', {
           id: 'app.$organizationSlug.projects',
-          parentId: 'routes/app.$organizationSlug',
+          parentId: 'app/routes/app.$organizationSlug',
           path: 'projects',
         }),
         route('app.$organizationSlug.projects.$projectId.tsx', {
           id: 'app.$organizationSlug.projects.$projectId',
-          parentId: 'routes/app.$organizationSlug.projects',
+          parentId: 'app/routes/app.$organizationSlug.projects',
           path: ':projectId',
         }),
         route('app.$organizationSlug.projects.$projectId.edit.tsx', {
           id: 'app.$organizationSlug.projects.$projectId.edit',
-          parentId: 'routes/app.$organizationSlug.projects.$projectId',
+          parentId: 'app/routes/app.$organizationSlug.projects.$projectId',
           path: 'edit',
         }),
         route('app.$organizationSlug.projects.new.tsx', {
           id: 'app.$organizationSlug.projects.new',
-          parentId: 'routes/app.$organizationSlug.projects',
+          parentId: 'app/routes/app.$organizationSlug.projects',
           path: 'new',
         }),
       ],
@@ -272,12 +272,12 @@ describe('route structures', () => {
         }),
         route('parent.some.nested.tsx', {
           id: 'parent.some.nested',
-          parentId: 'routes/parent',
+          parentId: 'app/routes/parent',
           path: 'some/nested',
         }),
         route('parent.some_.nested.settings.tsx', {
           id: 'parent.some_.nested.settings',
-          parentId: 'routes/parent',
+          parentId: 'app/routes/parent',
           path: 'some/nested/settings',
         }),
       ],
@@ -289,18 +289,18 @@ describe('route structures', () => {
         }),
         route('app.$organizationSlug_._projects.projects.new.tsx', {
           id: 'app.$organizationSlug_._projects.projects.new',
-          parentId: 'routes/app.$organizationSlug_._projects',
+          parentId: 'app/routes/app.$organizationSlug_._projects',
           path: 'projects/new',
         }),
         route('app.$organizationSlug_._projects.projects.$projectId.tsx', {
           id: 'app.$organizationSlug_._projects.projects.$projectId',
-          parentId: 'routes/app.$organizationSlug_._projects',
+          parentId: 'app/routes/app.$organizationSlug_._projects',
           path: 'projects/:projectId',
         }),
         route('app.$organizationSlug_._projects.projects.$projectId.edit.tsx', {
           id: 'app.$organizationSlug_._projects.projects.$projectId.edit',
           parentId:
-            'routes/app.$organizationSlug_._projects.projects.$projectId',
+            'app/routes/app.$organizationSlug_._projects.projects.$projectId',
           path: 'edit',
         }),
       ],
@@ -312,12 +312,12 @@ describe('route structures', () => {
         }),
         route('home/index.tsx', {
           id: 'home/index',
-          parentId: 'routes/home/_layout',
+          parentId: 'app/routes/home/_layout',
           index: true,
         }),
         route('home/profile/route.tsx', {
           id: 'home/profile/route',
-          parentId: 'routes/home/_layout',
+          parentId: 'app/routes/home/_layout',
           path: 'profile',
         }),
       ],
@@ -329,18 +329,18 @@ describe('route structures', () => {
         }),
         route('home/kickoffs/_layout.tsx', {
           id: 'home/kickoffs/_layout',
-          parentId: 'routes/home/_layout',
+          parentId: 'app/routes/home/_layout',
           path: 'kickoffs',
         }),
         route('home/kickoffs/$id/index.tsx', {
           id: 'home/kickoffs/$id/index',
-          parentId: 'routes/home/kickoffs/_layout',
+          parentId: 'app/routes/home/kickoffs/_layout',
           index: true,
           path: ':id',
         }),
         route('home/kickoffs/$id/$key/details.route.tsx', {
           id: 'home/kickoffs/$id/$key/details.route',
-          parentId: 'routes/home/kickoffs/_layout',
+          parentId: 'app/routes/home/kickoffs/_layout',
           path: ':id/:key/details',
         }),
       ],
@@ -348,19 +348,19 @@ describe('route structures', () => {
 
     const trailingSlashScenario: Record<string, ExpectedValues> = {
       '_login/_layout.tsx': {
-        id: 'routes/_login/_layout',
+        id: 'app/routes/_login/_layout',
         path: undefined,
         parentId: 'root',
       },
       '_login.login/index.tsx': {
-        id: 'routes/_login.login/index',
+        id: 'app/routes/_login.login/index',
         path: 'login',
-        parentId: 'routes/_login/_layout',
+        parentId: 'app/routes/_login/_layout',
       },
       '_login.register/index.tsx': {
-        id: 'routes/_login.register/index',
+        id: 'app/routes/_login.register/index',
         path: 'register',
-        parentId: 'routes/_login/_layout',
+        parentId: 'app/routes/_login/_layout',
       },
     }
 

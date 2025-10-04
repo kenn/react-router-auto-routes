@@ -2,7 +2,7 @@ import picomatch from 'picomatch'
 import * as path from 'path'
 
 import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from '../constants'
-import { ResolvedOptions, RouteInfo } from '../types'
+import { NormalizedRoutesDir, ResolvedOptions, RouteInfo } from '../types'
 import { createRouteId, escapeRegexChar, memoizedRegex } from '../../utils'
 import { createRoutePath, getRouteSegments } from './segments'
 
@@ -98,14 +98,38 @@ export function isIndexRoute(routeId: string): boolean {
   return indexRouteRegex.test(routeId)
 }
 
+function applyMountPath(
+  routePath: string | undefined,
+  mountPath: string,
+): string | undefined {
+  if (mountPath === '/') {
+    return routePath
+  }
+
+  const normalizedMount = mountPath.endsWith('/')
+    ? mountPath.slice(0, -1)
+    : mountPath
+
+  if (!routePath) {
+    return normalizedMount
+  }
+
+  const normalizedPath = routePath.startsWith('/') ? routePath : `/${routePath}`
+
+  return `${normalizedMount}${normalizedPath}`
+}
+
 export function getRouteInfo(
-  routeDir: string,
+  routeDir: NormalizedRoutesDir,
   file: string,
   options: ResolvedOptions,
 ): RouteInfo {
-  const filePath = path.join(routeDir, file).split(path.win32.sep).join('/')
+  const filePath = path
+    .join(routeDir.idPrefix, file)
+    .split(path.win32.sep)
+    .join('/')
   const routeId = createRouteId(filePath)
-  const routePrefix = `${routeDir}/`
+  const routePrefix = `${routeDir.idPrefix}/`
   if (!routeId.startsWith(routePrefix)) {
     throw new Error(
       `Route id '${routeId}' does not start with expected prefix '${routePrefix}'`,
@@ -120,35 +144,31 @@ export function getRouteInfo(
     options.colocationChar,
   )
   const routePath = createRoutePath(routeSegments, index, options)
+  const pathWithMount = applyMountPath(routePath, routeDir.mountPath)
+  const sourceKey = `${routeDir.mountPath}::${routeDir.idPrefix}`
 
   return {
     id: routeId,
-    root: routeDir,
+    idPrefix: routeDir.idPrefix,
     relativeId: routeIdWithoutRoutes,
-    path: routePath!,
+    path: pathWithMount,
     file: filePath,
     name: routeSegments.join('/'),
     segments: routeSegments,
+    mountPath: routeDir.mountPath,
+    sourceKey,
     index,
   }
 }
 
 export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
-  const {
-    rootDir,
-    routeDirs,
-    ignoredRouteFiles,
-    visitFiles,
-    colocationChar,
-    routeRegex,
-  } = options
+  const { routes, ignoredRouteFiles, visitFiles, colocationChar, routeRegex } =
+    options
 
   const routeMap = new Map<string, RouteInfo>()
 
-  for (const currentRouteDir of routeDirs) {
-    const directory = path.join(rootDir, currentRouteDir)
-
-    visitFiles(directory, (file) => {
+  for (const currentRouteDir of routes) {
+    visitFiles(currentRouteDir.fsDir, (file) => {
       if (
         ignoredRouteFiles.length > 0 &&
         ignoredRouteFiles.some((pattern) =>

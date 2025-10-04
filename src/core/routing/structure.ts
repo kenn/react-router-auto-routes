@@ -1,8 +1,8 @@
 import { ROOT_PARENT } from '../constants'
 import { RouteConfig, RouteInfo } from '../types'
 
-function nameKey(root: string, name: string): string {
-  return `${root}::${name}`
+function nameKey(sourceKey: string, name: string): string {
+  return `${sourceKey}::${name}`
 }
 
 function isLayoutRoute(route: RouteInfo): boolean {
@@ -51,7 +51,7 @@ export function findParentRouteId(
     : routeInfo.segments.slice(0, -1).join('/')
 
   while (parentName) {
-    const candidates = nameMap.get(nameKey(routeInfo.root, parentName))
+    const candidates = nameMap.get(nameKey(routeInfo.sourceKey, parentName))
     if (candidates && candidates.length > 0) {
       const parent = findBestParent(routeInfo, candidates)
       if (parent) {
@@ -73,7 +73,7 @@ function createNameMap(routes: readonly RouteInfo[]): Map<string, RouteInfo[]> {
   const nameMap = new Map<string, RouteInfo[]>()
 
   for (const route of routes) {
-    const key = nameKey(route.root, route.name)
+    const key = nameKey(route.sourceKey, route.name)
     const existing = nameMap.get(key)
     if (existing) {
       existing.push(route)
@@ -112,7 +112,7 @@ function normalizeName(
     return route.name
   }
 
-  const existingParents = nameMap.get(nameKey(route.root, parentName))
+  const existingParents = nameMap.get(nameKey(route.sourceKey, parentName))
   const hasNonIndexParent = existingParents?.some((parent) => !parent.index)
 
   if (!hasNonIndexParent) {

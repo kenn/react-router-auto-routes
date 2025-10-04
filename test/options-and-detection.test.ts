@@ -13,8 +13,8 @@ describe('routing options', () => {
       const flatFiles = ['^userId.tsx', '^.tsx']
       const routes = createRoutesFromFiles(flatFiles, { paramChar: '^' })
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/^userId']!.path!).toBe(':userId')
-      expect(manifest['routes/^']!.path!).toBe('*')
+      expect(manifest['app/routes/^userId']!.path!).toBe(':userId')
+      expect(manifest['app/routes/^']!.path!).toBe('*')
     })
   })
 
@@ -23,14 +23,14 @@ describe('routing options', () => {
       const files = ['parent.(child).tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/parent.(child)']!.path!).toBe('parent/child?')
+      expect(manifest['app/routes/parent.(child)']!.path!).toBe('parent/child?')
     })
 
     it('should generate correct paths with folders', () => {
       const files = ['_folder.parent.(child)/index.tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/_folder.parent.(child)/index']!.path!).toBe(
+      expect(manifest['app/routes/_folder.parent.(child)/index']!.path!).toBe(
         'parent/child?',
       )
     })
@@ -39,7 +39,7 @@ describe('routing options', () => {
       const files = ['parent/(child)/route.tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/parent/(child)/route']!.path!).toBe(
+      expect(manifest['app/routes/parent/(child)/route']!.path!).toBe(
         'parent/child?',
       )
     })
@@ -48,7 +48,9 @@ describe('routing options', () => {
       const files = ['parent.($child).tsx']
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/parent.($child)']!.path!).toBe('parent/:child?')
+      expect(manifest['app/routes/parent.($child)']!.path!).toBe(
+        'parent/:child?',
+      )
     })
   })
 
@@ -106,82 +108,80 @@ describe('routing options', () => {
     })
   })
 
-  describe('multiple routesDir', () => {
-    it('should merge routes from multiple directories with correct paths', () => {
-      const visitFiles = (dir: string, visitor: (file: string) => void) => {
-        if (dir.endsWith('routes')) {
-          visitor('index.tsx')
-          visitor('about.tsx')
-        }
-
-        if (dir.endsWith('admin')) {
-          visitor('admin.dashboard.tsx')
-          visitor('admin.settings.tsx')
-        }
-
-        if (dir.endsWith('api')) {
-          visitor('api.users.tsx')
-        }
-      }
-
+  describe('routesDir mappings', () => {
+    it('supports object form with multiple mounts', () => {
       const routes = createRoutesFromFiles([], {
-        routesDir: ['routes', 'admin', 'api'],
-        visitFiles,
-      })
-      const manifest = flattenRoutesById(routes)
-
-      expect(manifest['routes/index']).toBeDefined()
-      expect(manifest['routes/about']?.path).toBe('about')
-      expect(manifest['admin/admin.dashboard']).toBeDefined()
-      expect(manifest['admin/admin.settings']?.path).toBe('admin/settings')
-      expect(manifest['api/api.users']).toBeDefined()
-    })
-
-    it('should handle nesting across multiple directories', () => {
-      const routes = createRoutesFromFiles(
-        [
-          '_index.tsx',
-          'admin._layout.tsx',
-          'admin.dashboard.tsx',
-          'api.users.tsx',
-        ],
-        {
-          routesDir: ['routes', 'admin', 'api'],
-          visitFiles: (dir, visitor) => {
-            if (dir.includes('routes')) visitor('_index.tsx')
-            if (dir.includes('admin')) {
-              visitor('admin._layout.tsx')
-              visitor('admin.dashboard.tsx')
-            }
-            if (dir.includes('api')) visitor('api.users.tsx')
-          },
+        routesDir: {
+          '/': 'app/routes',
+          '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
+          '/tools/meta-preview': 'tools/meta-preview/routes',
         },
-      )
-      const manifest = flattenRoutesById(routes)
-
-      expect(manifest['routes/_index']?.index).toBe(true)
-      expect(manifest['admin/admin._layout']?.path).toBe('admin')
-      // Dashboard is not nested under layout when in different route directories
-      expect(manifest['admin/admin.dashboard']?.path).toBe('admin/dashboard')
-      expect(manifest['api/api.users']?.path).toBe('api/users')
-    })
-
-    it('should not overwrite routes with different directory prefixes', () => {
-      const routes = createRoutesFromFiles(['shared.tsx'], {
-        routesDir: ['routes', 'admin'],
         visitFiles: (dir, visitor) => {
-          // Both directories have shared.tsx
-          visitor('shared.tsx')
+          if (dir.endsWith('app/routes')) {
+            visitor('dashboard.tsx')
+          }
+
+          if (dir.endsWith('tools/keyword-analyzer/routes')) {
+            visitor('overview.tsx')
+          }
+
+          if (dir.endsWith('tools/meta-preview/routes')) {
+            visitor('index.tsx')
+          }
         },
       })
-      const manifest = flattenRoutesById(routes)
 
-      // Both should exist with different IDs
-      const sharedRoutes = Object.keys(manifest).filter((id) =>
-        id.includes('shared'),
+      const manifest = flattenRoutesById(routes)
+      expect(manifest['app/routes/dashboard']?.path).toBe('dashboard')
+      expect(manifest['tools/keyword-analyzer/routes/overview']?.path).toBe(
+        'tools/keyword-analyzer/overview',
       )
-      expect(sharedRoutes).toContain('routes/shared')
-      expect(sharedRoutes).toContain('admin/shared')
+      expect(manifest['tools/meta-preview/routes/index']?.path).toBe(
+        'tools/meta-preview',
+      )
+      expect(manifest['tools/meta-preview/routes/index']?.index).toBe(true)
+    })
+
+    it('validates mount path syntax', () => {
+      expect(() => {
+        createRoutesFromFiles(['index.tsx'], {
+          routesDir: { tools: 'tools/routes' },
+        })
+      }).toThrow("routesDir mount paths must start with '/'. Got: 'tools'")
+
+      expect(() => {
+        createRoutesFromFiles(['index.tsx'], {
+          routesDir: { '/tools/': 'tools/routes' },
+        })
+      }).toThrow("routesDir mount paths cannot end with '/'. Got: '/tools/'")
+    })
+
+    it('throws on duplicate mount paths', () => {
+      expect(() => {
+        createRoutesFromFiles(['index.tsx'], {
+          routesDir: ['app/routes', { '/': 'app/marketing' }],
+        })
+      }).toThrow("Duplicate routesDir mount path detected: '/'.")
+    })
+
+    it('supports mixed array and object usage', () => {
+      const routes = createRoutesFromFiles([], {
+        routesDir: ['app/routes', { '/tools': 'tools/routes' }],
+        visitFiles: (dir, visitor) => {
+          if (dir.endsWith('app/routes')) {
+            visitor('about.tsx')
+          }
+
+          if (dir.endsWith('tools/routes')) {
+            visitor('settings.tsx')
+          }
+        },
+      })
+
+      const manifest = flattenRoutesById(routes)
+      expect(manifest['app/routes/about']?.path).toBe('about')
+      expect(manifest['tools/routes/settings']?.path).toBe('tools/settings')
+      expect(manifest['tools/routes/settings']?.parentId).toBe('root')
     })
   })
 })
@@ -190,22 +190,22 @@ describe('special character escaping', () => {
   it('should escape underscore', () => {
     const routesWithExpectedValues: Record<string, ExpectedValues> = {
       '[__].tsx': {
-        id: 'routes/[__]',
+        id: 'app/routes/[__]',
         path: '__',
         parentId: 'root',
       },
       '[_].tsx': {
-        id: 'routes/[_]',
+        id: 'app/routes/[_]',
         path: '_',
         parentId: 'root',
       },
       '_layout.[___]/index.tsx': {
-        id: 'routes/_layout.[___]/index',
+        id: 'app/routes/_layout.[___]/index',
         path: '___',
         parentId: 'root',
       },
       '_layout.parent.[__]/index.tsx': {
-        id: 'routes/_layout.parent.[__]/index',
+        id: 'app/routes/_layout.parent.[__]/index',
         path: 'parent/__',
         parentId: 'root',
       },

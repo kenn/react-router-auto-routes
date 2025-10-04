@@ -1,11 +1,13 @@
 export type RouteInfo = {
   id: string
-  root: string
+  idPrefix: string
   relativeId: string
   path: string | undefined
   file: string
   name: string
   segments: string[]
+  mountPath: string
+  sourceKey: string
   parentId?: string
   index?: boolean
   caseSensitive?: boolean
@@ -25,9 +27,20 @@ export type VisitFilesFunction = (
   visitor: (file: string) => void,
 ) => void
 
+export type NormalizedRoutesDir = {
+  mountPath: string
+  fsDir: string
+  idPrefix: string
+}
+
+export type RoutesDirInput =
+  | string
+  | readonly (string | Record<string, string>)[]
+  | Record<string, string>
+
 export type autoRoutesOptions = {
-  rootDir?: string
-  routesDir?: string | string[]
+  routesDir?: RoutesDirInput
+  configDir?: string
   visitFiles?: VisitFilesFunction
   paramChar?: string
   colocationChar?: string
@@ -36,8 +49,7 @@ export type autoRoutesOptions = {
 }
 
 export type ResolvedOptions = {
-  rootDir: string
-  routeDirs: readonly string[]
+  routes: readonly NormalizedRoutesDir[]
   visitFiles: VisitFilesFunction
   paramChar: string
   colocationChar: string

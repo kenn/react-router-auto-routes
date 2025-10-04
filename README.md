@@ -129,34 +129,47 @@ routes/
 
 ```ts
 autoRoutes({
-  // Files to ignore (supports glob patterns)
+  routesDir: {
+    '/': 'app/routes',
+    '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
+    '/tools/meta-preview': 'tools/meta-preview/routes',
+  },
   ignoredRouteFiles: [
     '**/.*', // Ignore dotfiles
-    '**/*.test.{ts,tsx}', // Ignore test files
+    '**/*.test.{ts,tsx}', // Ignore tests
   ],
-  // Base directory to resolve route roots from (default: 'app')
-  rootDir: 'app',
-  // Route roots (default: 'routes')
-  routesDir: ['routes/public', 'routes/admin'],
-  // Character for route params (default: '$')
   paramChar: '$',
-  // Character marking colocated entries (default: '+')
   colocationChar: '+',
-  // Custom route file regex (advanced)
   routeRegex: /\.(ts|tsx|js|jsx|md|mdx)$/,
 })
 ```
 
 `.DS_Store` is always ignored automatically, even when you provide custom `ignoredRouteFiles`, and the migration CLI inherits the same default.
 
-### Multiple Route Folders
+`routesDir` is flexible:
 
-Organize routes across multiple folders for better separation of concerns:
+- `string` – single root (default: `'app/routes'`).
+- `Array<string | Record<string, string>>` – mix-and-match convenience (e.g. `['app/routes', { '/docs': 'docs/routes' }]`).
+- `Record<string, string>` – explicit URL mount → directory mapping.
+
+Validation highlights:
+
+- Mount paths must start with `/` and may only end with `/` when they are exactly `/`.
+- Mount paths cannot repeat.
+- Directory values must be relative (no `..`, no leading `/`).
+- Manifest IDs mirror the supplied directory (e.g. `tools/keyword-analyzer/routes/index.tsx` → `id: 'tools/keyword-analyzer/routes/index'`).
+
+### Multiple Route Roots
+
+Map different URL mounts to separate folders without redundant nesting:
 
 ```ts
 autoRoutes({
-  rootDir: 'app',
-  routesDir: ['routes/public', 'routes/admin', 'routes/api'],
+  routesDir: {
+    '/': 'app/routes',
+    '/tools/keyword-analyzer': 'tools/keyword-analyzer/routes',
+    '/tools/meta-preview': 'tools/meta-preview/routes',
+  },
 })
 ```
 
@@ -164,35 +177,24 @@ autoRoutes({
 
 ```
 app/
-└── routes/
-    ├── public/                       → Public routes mounted at /
-    │   ├── _layout.tsx               → shared layout for /
-    │   ├── index.tsx                 → /
-    │   └── about.tsx                 → /about
-    ├── admin/                        → Admin routes mounted at /admin
-    │   └── admin/
-    │       ├── _layout.tsx           → /admin layout
-    │       └── dashboard.tsx         → /admin/dashboard
-    └── api/                          → API routes mounted at /api
-        └── api/
-            ├── _layout.tsx           → /api layout
-            └── users/index.tsx       → /api/users
+  routes/
+    dashboard.tsx                  → /dashboard
+    settings/
+      _layout.tsx                  → /settings
+      index.tsx                    → /settings
+tools/
+  keyword-analyzer/
+    routes/
+      index.tsx                    → /tools/keyword-analyzer
+      reports/index.tsx            → /tools/keyword-analyzer/reports
+  meta-preview/
+    routes/
+      index.tsx                    → /tools/meta-preview
 ```
 
-The first folder inside each non-root route root repeats the desired URL prefix. For example, `routes/admin/admin/_layout.tsx` contributes the `/admin` segment, and siblings like `routes/admin/admin/dashboard.tsx` nest beneath it.
+Routes from each mount stay isolated when resolving parents and dot-flattening, but still produce a single manifest. You can include additional directories under the root mount by mixing array entries, e.g. `routesDir: ['app/routes', { '/docs': 'docs/routes' }]`.
 
-**Important:** Prefer real folders and layouts when wiring nested URLs. For example:
-
-- `routes/admin/admin/_layout.tsx` + `routes/admin/admin/dashboard.tsx` → `/admin/dashboard` ✅
-- `routes/admin/settings.tsx` without a parent layout → `/settings` ❌
-
-Dot notation (e.g. `routes/admin.settings.tsx`) still works as a last resort when you want to keep everything flat, but folder-based organization keeps segment boundaries obvious. All routes are merged into a single tree and their IDs retain the originating root (e.g. `routes/admin/admin/dashboard`).
-
-**Use cases:**
-
-- Separate authenticated vs. public routes
-- Isolate API endpoints from UI routes
-- Feature-based organization (blog, shop, dashboard)
+Dot notation remains supported but optional—the filesystem shape above produces clean URLs without duplicating segment folders. IDs retain the configured prefix, so the example above yields entries such as `app/routes/dashboard` and `tools/keyword-analyzer/routes/reports/index`.
 
 ## Migration Guide
 

@@ -1,7 +1,4 @@
-import autoRoutes, {
-  autoRoutesOptions,
-  RouteConfig,
-} from '../../src/index'
+import autoRoutes, { autoRoutesOptions, RouteConfig } from '../../src/index'
 
 type RecordWithUnknownValues = Record<string, unknown>
 
@@ -15,10 +12,7 @@ type FlattenedRouteEntry = {
   caseSensitive?: boolean
 }
 
-export type ExpectedRouteSnapshot = Record<
-  string,
-  Partial<FlattenedRouteEntry>
->
+export type ExpectedRouteSnapshot = Record<string, Partial<FlattenedRouteEntry>>
 
 export type RouteFixtureExpectation = {
   id: string
@@ -52,11 +46,7 @@ function flattenRoutes(
   acc: Record<string, Partial<FlattenedRouteEntry>> = {},
 ) {
   for (const route of routes) {
-    const key = route.id.startsWith('routes/')
-      ? route.id.slice('routes/'.length)
-      : route.id
-
-    acc[key] = stripUndefined({
+    acc[route.id] = stripUndefined({
       file: route.file,
       parentId,
       path: route.path,
@@ -149,14 +139,35 @@ export function createRouteFixtures(fixtures: RouteFixture[]) {
   const files = fixtures.map(({ file }) => file)
   const expected: ExpectedRouteSnapshot = {}
 
+  const addDefaultPrefix = (value: string | undefined): string | undefined => {
+    if (!value || value === 'root') {
+      return value
+    }
+
+    const defaultPrefix = 'app/routes'
+    if (value.startsWith(defaultPrefix) || value.startsWith('/')) {
+      return value
+    }
+
+    return `${defaultPrefix}/${value}`
+  }
+
   for (const { file, expectation } of fixtures) {
     if (!expectation) continue
 
-    const { id, file: overrideFile, ...rest } = expectation
-    const normalizedFile = overrideFile ?? `routes/${file.replace(/\\/g, '/')}`
+    const { id, file: overrideFile, parentId, ...rest } = expectation
+    const normalizedFile =
+      overrideFile ?? `app/routes/${file.replace(/\\/g, '/')}`
+    const resolvedId = addDefaultPrefix(id)
+    const resolvedParentId = addDefaultPrefix(parentId)
 
-    expected[id] = {
+    if (!resolvedId) {
+      throw new Error('Expected route fixture id to be defined')
+    }
+
+    expected[resolvedId] = {
       file: normalizedFile,
+      parentId: resolvedParentId,
       ...rest,
     }
   }
@@ -187,10 +198,7 @@ export function generateFlexRoutesAndVerifyResultWithExpected(
 
   routesArrayInput.forEach((key) => {
     const route = routesWithExpectedValues[key]
-    const trimmedId = route.id.startsWith('routes/')
-      ? route.id.slice('routes/'.length)
-      : route.id
-    const generated = flattened[trimmedId]
+    const generated = flattened[route.id]
 
     expect(generated).toBeDefined()
     expect(generated?.path).toBe(route.path)
