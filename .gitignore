@@ -24,3 +24,5 @@ tsconfig.tsbuildinfo
 
 # Sample app (testing)
 tmp/
+test-routes-tmp/
+package-lock.json
