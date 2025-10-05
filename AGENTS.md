@@ -43,18 +43,14 @@
 
 - Favor pure functions; avoid side effects beyond filesystem scanning in utilities.
 - Update or add Vitest coverage when changing route parsing/detection.
-- Run `pnpm typecheck` and `pnpm test` before committing, and show ✅ for each.
+- Rely on `prepublishOnly` (typecheck → build → test) for release safety, but run any of those commands locally when working on routing internals.
 - Keep README examples aligned with any new conventions or options.
 - When finished, generate a one liner commit message summarizing changes.
 
 ## Release Process
 
 1. Bump version in `package.json` (follow semver)
-2. Run `pnpm typecheck && pnpm test` to verify everything passes
-3. Commit with message: `release: bump version to X.Y.Z`
-4. Tag the commit: `git tag X.Y.Z`
-5. Push commit and tags: `git push && git push --tags`
-6. Publish to npm: `npm publish`
+2. Run `pnpm run release:patch` or `pnpm run release:minor` to handle versioning, tagging, pushing, and publishing (these trigger `prepublishOnly` for typecheck/build/test).
 
 ## References
 

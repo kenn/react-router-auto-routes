@@ -15,8 +15,9 @@
     "build": "tsup",
     "test": "NODE_OPTIONS=\"--no-warnings=DEP0040\" vitest",
     "typecheck": "tsc -b",
-    "migrate": "rm -rf ./app/new-routes && npm run build && node ./dist/cli.cjs",
-    "prepublishOnly": "npm run typecheck && npm run build"
+    "prepublishOnly": "npm run typecheck && npm run build && npm run test",
+    "release:minor": "npm version minor && git push && git push --tags && npm publish",
+    "release:patch": "npm version patch && git push && git push --tags && npm publish"
   },
   "keywords": [
     "react-router",
