@@ -15,7 +15,7 @@ Keep your components, tests, utilities, and routes together. No more hunting acr
 ## Features
 
 - 🎯 **Prefix-based colocation** - Keep helpers and components alongside routes using `+` prefix
-- 📦 **Monorepo/sub-apps support** - Mount routes from different folders to organize multi-app projects
+- 📦 **Monorepo / sub-apps support** - Mount routes from different folders to organize multi-app projects
 - ⚡ **ESM-only** - No CommonJS, built for modern tooling
 - 🧹 **Clean API** - Simplified options and intuitive conventions
 
@@ -167,7 +167,7 @@ autoRoutes({
 - `string` – scan a single root. When omitted, the default `'routes'` resolves to `app/routes` so existing folder structures continue to work with zero config.
 - `Record<string, string>` – explicit URL mount → folder mapping (see [Multiple Route Roots](#multiple-route-roots)). Mapping entries resolve from the project root so you can mount packages that live outside `app/`.
 
-### Multiple Route Roots
+### Monorepo / Sub-apps (Multiple Route Roots)
 
 Mount routes from different folders to organize sub-apps or monorepo packages:
 
