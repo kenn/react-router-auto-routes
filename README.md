@@ -42,7 +42,7 @@ export default autoRoutes()
 
 ```
 routes/
-├── index.tsx           → / (index route)
+├── index.tsx            → / (index route)
 ├── about.tsx            → /about
 ├── _auth/               → Pathless layout (no /auth in URL)
 │   ├── _layout.tsx      → Auth layout
@@ -50,12 +50,12 @@ routes/
 │   └── signup.tsx       → /signup
 ├── blog/
 │   ├── _layout.tsx      → Layout for /blog/* routes
-│   ├── index.tsx       → /blog
+│   ├── index.tsx        → /blog
 │   ├── $slug.tsx        → /blog/:slug (dynamic param)
 │   └── archive.tsx      → /blog/archive
 ├── dashboard/
 │   ├── _layout.tsx      → Layout for dashboard routes
-│   ├── index.tsx       → /dashboard
+│   ├── index.tsx        → /dashboard
 │   ├── analytics.tsx    → /dashboard/analytics
 │   └── settings.tsx     → /dashboard/settings
 └── files/
@@ -66,17 +66,17 @@ routes/
 
 ```
 routes/
-├── index.tsx                  → / (index route)
+├── index.tsx                   → / (index route)
 ├── about.tsx                   → /about
 ├── _auth._layout.tsx           → Auth layout
 ├── _auth.login.tsx             → /login
 ├── _auth.signup.tsx            → /signup
 ├── blog._layout.tsx            → Layout for /blog/* routes
-├── blog.index.tsx             → /blog
+├── blog.index.tsx              → /blog
 ├── blog.$slug.tsx              → /blog/:slug (dynamic param)
 ├── blog.archive.tsx            → /blog/archive
 ├── dashboard._layout.tsx       → Layout for dashboard routes
-├── dashboard.index.tsx        → /dashboard
+├── dashboard.index.tsx         → /dashboard
 ├── dashboard.analytics.tsx     → /dashboard/analytics
 ├── dashboard.settings.tsx      → /dashboard/settings
 └── files.$.tsx                 → /files/* (splat - catch-all)
@@ -86,26 +86,14 @@ Both structures produce identical routes. Use folders for organization, flat fil
 
 **Route patterns:**
 
-- `_index.tsx` or `index.tsx` - Index routes (match parent's exact path)
+- `index.tsx` or `_index.tsx` - Index routes (match parent folder's path).
+  - Index routes automatically nest under layouts with matching path segments—for example, `admin/index.tsx` nests under `admin/_layout.tsx`.
 - `_layout.tsx` - Layout with `<Outlet />` for child routes
-- Other `_` names (like `_auth/`) create pathless layout groups
+- Other `_` prefixes (like `_auth/`) create pathless layout groups
 - `$param` - Dynamic segments (e.g., `$slug` → `:slug`)
 - `$.tsx` - Splat routes (catch-all)
 - `(segment)` - Optional segments (e.g., `(en)` → `en?`)
 - `($param)` - Optional dynamic params (e.g., `($lang)` → `:lang?`)
-
-### Index Route Nesting
-
-Index routes automatically nest under layouts with matching path segments:
-
-```
-routes/
-├── admin/
-│   ├── _layout.tsx    → /admin layout
-│   └── index.tsx      → /admin (nested under layout)
-```
-
-This generates a nested RouteConfig structure where `admin/index.tsx` becomes a child index route under `admin/_layout.tsx`.
 
 **Key insight:** Folders are just a convenience for organization. Without a parent file, `api/users.ts` behaves exactly like `api.users.ts` - both create the same `/api/users` route.
 
