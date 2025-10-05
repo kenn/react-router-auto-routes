@@ -221,7 +221,7 @@ npx migrate-auto-routes app/routes app/new-routes
 
 The CLI overwrites the target folder if it already exists. When `targetDir` is omitted it defaults to a sibling folder named "new-routes".
 
-**Safety checks:**
+**Built-in safety checks:** The CLI performs these automatically so you don’t have to.
 
 - Verifies you are inside a Git repository and the route source folder (e.g. `app/routes`) has no pending changes before running the migration CLI
 - Runs `npx react-router routes` before and after rewriting files
