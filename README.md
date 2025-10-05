@@ -124,6 +124,12 @@ routes/
             └── validation.ts
 ```
 
+Import colocated files using relative paths:
+
+```ts
+import { formatDate } from './+/helpers'
+```
+
 ## Colocation Rules
 
 **Allowed:**
