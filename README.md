@@ -38,9 +38,11 @@ export default autoRoutes()
 
 ## Routing Convention
 
+**Folder-based structure:**
+
 ```
 routes/
-├── _index.tsx           → / (index route)
+├── index.tsx           → / (index route)
 ├── about.tsx            → /about
 ├── _auth/               → Pathless layout (no /auth in URL)
 │   ├── _layout.tsx      → Auth layout
@@ -48,17 +50,39 @@ routes/
 │   └── signup.tsx       → /signup
 ├── blog/
 │   ├── _layout.tsx      → Layout for /blog/* routes
-│   ├── _index.tsx       → /blog
+│   ├── index.tsx       → /blog
 │   ├── $slug.tsx        → /blog/:slug (dynamic param)
 │   └── archive.tsx      → /blog/archive
 ├── dashboard/
 │   ├── _layout.tsx      → Layout for dashboard routes
-│   ├── _index.tsx       → /dashboard
+│   ├── index.tsx       → /dashboard
 │   ├── analytics.tsx    → /dashboard/analytics
 │   └── settings.tsx     → /dashboard/settings
 └── files/
     └── $.tsx            → /files/* (splat - catch-all)
 ```
+
+**Equivalent flat (dot-delimited) structure:**
+
+```
+routes/
+├── index.tsx                  → / (index route)
+├── about.tsx                   → /about
+├── _auth._layout.tsx           → Auth layout
+├── _auth.login.tsx             → /login
+├── _auth.signup.tsx            → /signup
+├── blog._layout.tsx            → Layout for /blog/* routes
+├── blog.index.tsx             → /blog
+├── blog.$slug.tsx              → /blog/:slug (dynamic param)
+├── blog.archive.tsx            → /blog/archive
+├── dashboard._layout.tsx       → Layout for dashboard routes
+├── dashboard.index.tsx        → /dashboard
+├── dashboard.analytics.tsx     → /dashboard/analytics
+├── dashboard.settings.tsx      → /dashboard/settings
+└── files.$.tsx                 → /files/* (splat - catch-all)
+```
+
+Both structures produce identical routes. Use folders for organization, flat files for simplicity, or mix both approaches as needed.
 
 **Route patterns:**
 
