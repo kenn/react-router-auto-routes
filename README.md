@@ -151,9 +151,7 @@ import { formatDate } from './+/helpers'
 ```ts
 autoRoutes({
   routesDir: 'routes',
-  ignoredRouteFiles: [
-    '**/.*', // Ignore dotfiles like .gitkeep
-  ],
+  ignoredRouteFiles: ['**/.*'], // Ignore dotfiles like .gitkeep
   paramChar: '$',
   colocationChar: '+',
   routeRegex: /\.(ts|tsx|js|jsx|md|mdx)$/,
