@@ -199,13 +199,6 @@ packages/
 
 Routes from each mount stay isolated when resolving parents and dot-flattening, but still merged into a single manifest.
 
-**Validation rules:**
-
-- Mount paths must start with `/` and may only end with `/` when they are exactly `/`.
-- Mount paths cannot repeat.
-- Directory values must be relative (no `..`, no leading `/`).
-- Manifest IDs mirror the supplied folder (e.g. `packages/ecommerce/routes/index.tsx` → `id: 'packages/ecommerce/routes/index'`). The default root keeps legacy IDs such as `routes/dashboard` to stay compatible with existing Remix route manifests.
-
 ## Migration Guide
 
 > **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
