@@ -31,6 +31,7 @@ export type NormalizedRoutesDir = {
   mountPath: string
   fsDir: string
   idPrefix: string
+  importPrefix: string
 }
 
 export type RoutesDirInput = string | Record<string, string>

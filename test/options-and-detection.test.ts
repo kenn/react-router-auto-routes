@@ -171,7 +171,9 @@ describe('routing options', () => {
       expect(manifest['routes/_auth/login']?.file).toBe(
         'routes/_auth/login.tsx',
       )
-      expect(manifest['shop/routes/index']?.file).toBe('shop/routes/index.tsx')
+      expect(manifest['shop/routes/index']?.file).toBe(
+        '../shop/routes/index.tsx',
+      )
     })
 
     it('validates mount path syntax', () => {

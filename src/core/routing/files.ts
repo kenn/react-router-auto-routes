@@ -124,11 +124,15 @@ export function getRouteInfo(
   file: string,
   options: ResolvedOptions,
 ): RouteInfo {
-  const filePath = path
+  const idFilePath = path
     .join(routeDir.idPrefix, file)
     .split(path.win32.sep)
     .join('/')
-  const routeId = createRouteId(filePath)
+  const importFilePath = path
+    .join(routeDir.importPrefix, file)
+    .split(path.win32.sep)
+    .join('/')
+  const routeId = createRouteId(idFilePath)
   const routePrefix = `${routeDir.idPrefix}/`
   if (!routeId.startsWith(routePrefix)) {
     throw new Error(
@@ -152,7 +156,7 @@ export function getRouteInfo(
     idPrefix: routeDir.idPrefix,
     relativeId: routeIdWithoutRoutes,
     path: pathWithMount,
-    file: filePath,
+    file: importFilePath,
     name: routeSegments.join('/'),
     segments: routeSegments,
     mountPath: routeDir.mountPath,

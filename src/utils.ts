@@ -152,7 +152,7 @@ export function normalizeRoutesDirOption(
   const resolvedBase = resolveBaseDirFor(routesDir)
   const seenMountPaths = new Set<string>()
 
-  return toRoutesDirEntries(routesDir).map(({ mountPath, dir }) => {
+  const entries = toRoutesDirEntries(routesDir).map(({ mountPath, dir }) => {
     const normalizedMount = normalizeMountPath(mountPath)
     if (seenMountPaths.has(normalizedMount)) {
       throw new Error(
@@ -173,6 +173,22 @@ export function normalizeRoutesDirOption(
       mountPath: normalizedMount,
       fsDir,
       idPrefix,
+      importPrefix: normalizedDir,
+    }
+  })
+
+  const rootEntry = entries.find((entry) => entry.mountPath === '/')
+  const appDir = rootEntry
+    ? path.dirname(rootEntry.fsDir)
+    : path.resolve(process.cwd(), 'app')
+
+  return entries.map((entry) => {
+    const relativeImport = path.relative(appDir, entry.fsDir) || '.'
+    const normalizedImport = relativeImport.split(path.sep).join('/')
+
+    return {
+      ...entry,
+      importPrefix: normalizedImport === '.' ? '' : normalizedImport,
     }
   })
 }
