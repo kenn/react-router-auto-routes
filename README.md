@@ -221,6 +221,15 @@ npx migrate-auto-routes app/routes app/new-routes
 
 The CLI overwrites the target folder if it already exists. When `targetDir` is omitted it defaults to a sibling folder named "new-routes".
 
+**Safety checks:**
+
+- Verifies you are inside a Git repository and the route source folder (e.g. `app/routes`) has no pending changes before running the migration CLI
+- Runs `npx react-router routes` before and after rewriting files
+- Stages the migrated result in `app/new-routes` (or your custom target) before swapping it into place
+- If successful, renames `app/routes` to `app/old-routes`, then moves the new routes into `app/routes`
+- If the generated route output differs, prints a diff, restores the original folder, and keeps the migrated files at the target path for inspection
+- When your project still imports `createRoutesFromFolders`/`remix-flat-routes`, the CLI updates `app/routes.ts` to export `autoRoutes()` so the snapshot check runs against the migrated tree
+
 If everything looks good, you can uninstall the old packages:
 
 ```bash
@@ -239,15 +248,6 @@ If you used `route.tsx` as the entry point for colocated helpers, follow these s
 3. Run `npx react-router routes` to confirm the manifest compiles cleanly and no lingering `route.tsx` entries remain. Double-check that colocated helpers stayed inside `+/` folders so they are not accidentally exposed as routes.
 
 The migration CLI still recognizes `route.tsx` right now for backwards compatibility, but future releases will warn (and eventually drop support) once projects have had a full cycle to adopt the `index.tsx` pattern.
-
-**Safety checks:**
-
-- Verifies you are inside a Git repository and the route source folder (e.g. `app/routes`) has no pending changes before running the migration CLI
-- Runs `npx react-router routes` before and after rewriting files
-- Stages the migrated result in `app/new-routes` (or your custom target) before swapping it into place
-- If successful, renames `app/routes` to `app/old-routes`, then moves the new routes into `app/routes`
-- If the generated route output differs, prints a diff, restores the original folder, and keeps the migrated files at the target path for inspection
-- When your project still imports `createRoutesFromFolders`/`remix-flat-routes`, the CLI updates `app/routes.ts` to export `autoRoutes()` so the snapshot check runs against the migrated tree
 
 ## Requirements
 
