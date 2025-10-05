@@ -43,14 +43,14 @@
 
 - Favor pure functions; avoid side effects beyond filesystem scanning in utilities.
 - Update or add Vitest coverage when changing route parsing/detection.
-- Rely on `prepublishOnly` (typecheck → build → test) for release safety, but run any of those commands locally when working on routing internals.
+- Rely on `prepublishOnly` (typecheck → build → test --run) for release safety, but run any of those commands locally when working on routing internals.
 - Keep README examples aligned with any new conventions or options.
 - When finished, generate a one liner commit message summarizing changes.
 
 ## Release Process
 
 1. Bump version in `package.json` (follow semver)
-2. Run `pnpm run release:patch` or `pnpm run release:minor` to handle versioning, tagging, pushing, and publishing (these trigger `prepublishOnly` for typecheck/build/test).
+2. Run `pnpm run release:patch` or `pnpm run release:minor` to handle versioning, publishing, and then pushing (publish runs before `git push`/`git push --tags` and triggers `prepublishOnly` for typecheck/build/test --run).
 
 ## References
 

@@ -16,8 +16,8 @@
     "test": "NODE_OPTIONS=\"--no-warnings=DEP0040\" vitest",
     "typecheck": "tsc -b",
     "prepublishOnly": "npm run typecheck && npm run build && npm run test -- --run",
-    "release:minor": "npm version minor && git push && git push --tags && npm publish",
-    "release:patch": "npm version patch && git push && git push --tags && npm publish"
+    "release:minor": "npm version minor && npm publish && git push && git push --tags",
+    "release:patch": "npm version patch && npm publish && git push && git push --tags"
   },
   "keywords": [
     "react-router",
