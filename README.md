@@ -134,10 +134,10 @@ Import colocated files using relative paths:
 import { formatDate } from './+/helpers'
 ```
 
-### Rules
+**Rules:**
 
-- Allowed: Use `+` prefixed files and folders anywhere inside route directories (including anonymous `+.tsx` files and `+/` folders)
-- Disallowed: Don't place `+` entries at the routes root level
+- **Allowed:** Use `+` prefixed files and folders anywhere inside route directories (including anonymous `+.tsx` files and `+/` folders)
+- **Disallowed:** Don't place `+` entries at the routes root level
 
 ## Configuration Options
 
