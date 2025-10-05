@@ -163,12 +163,12 @@ autoRoutes({
 
 **Note:** Prefer using the `+` colocation prefix over `ignoredRouteFiles` when possible. Ignored files skip all processing including conflict detection, while colocated files still benefit from validation checks like ensuring proper placement. For example, place tests in `+test/` folders rather than using `**/*.test.{ts,tsx}` in `ignoredRouteFiles`.
 
+### Monorepo / Sub-apps (Multiple Route Roots)
+
 `routesDir` accepts two shapes:
 
 - `string` – scan a single root. When omitted, the default `'routes'` resolves to `app/routes` so existing folder structures continue to work with zero config.
 - `Record<string, string>` – mount filesystem folders to URL paths (key = URL path, value = filesystem folder). Folder paths resolve from the project root so you can mount packages that live outside `app/`.
-
-### Monorepo / Sub-apps (Multiple Route Roots)
 
 Mount routes from different folders to organize sub-apps or monorepo packages:
 
