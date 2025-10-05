@@ -134,18 +134,10 @@ Import colocated files using relative paths:
 import { formatDate } from './+/helpers'
 ```
 
-## Colocation Rules
+### Rules
 
-**Allowed:**
-
-- `+` prefixed files and folders
-- Anonymous folder: `+/`
-- Nested folders inside `+` folders
-
-**Disallowed:**
-
-- Root-level `+` entries
-- Nested `+/+/` folders
+- Allowed: Use `+` prefixed files and folders anywhere inside route directories (including anonymous `+.tsx` files and `+/` folders)
+- Disallowed: Don't place `+` entries at the routes root level
 
 ## Configuration Options
 
