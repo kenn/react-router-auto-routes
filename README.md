@@ -152,8 +152,7 @@ import { formatDate } from './+/helpers'
 autoRoutes({
   routesDir: 'routes',
   ignoredRouteFiles: [
-    '**/.*', // Ignore dotfiles
-    '**/*.test.{ts,tsx}', // Ignore tests
+    '**/.*', // Ignore dotfiles like .gitkeep
   ],
   paramChar: '$',
   colocationChar: '+',
@@ -162,6 +161,8 @@ autoRoutes({
 ```
 
 `.DS_Store` is always ignored automatically, even when you provide custom `ignoredRouteFiles`, and the migration CLI inherits the same default.
+
+**Note:** Prefer using the `+` colocation prefix over `ignoredRouteFiles` when possible. Ignored files skip all processing including conflict detection, while colocated files still benefit from validation checks like ensuring proper placement. For example, place tests in `+test/` folders rather than using `**/*.test.{ts,tsx}` in `ignoredRouteFiles`.
 
 `routesDir` accepts two shapes:
 
