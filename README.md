@@ -228,6 +228,18 @@ npm uninstall remix-flat-routes
 npm uninstall @react-router/remix-routes-option-adapter
 ```
 
+### Deprecating `route.tsx`
+
+Deprecating legacy `route.tsx` files in favor of `index.tsx` plus `+` colocation. Support remains for now, after which the matcher will be removed.
+
+If you used `route.tsx` as the entry point for colocated helpers, follow these steps:
+
+1. Move any colocated assets (loaders, helpers, tests) into a `+/` folder so they stay adjacent without being treated as routes.
+2. Rename each `route.tsx` to `index.tsx` inside its directory so the folder name becomes the route segment.
+3. Run `npx react-router routes` to confirm the manifest compiles cleanly and no lingering `route.tsx` entries remain. Double-check that colocated helpers stayed inside `+/` folders so they are not accidentally exposed as routes.
+
+The migration CLI still recognizes `route.tsx` right now for backwards compatibility, but future releases will warn (and eventually drop support) once projects have had a full cycle to adopt the `index.tsx` pattern.
+
 **Safety checks:**
 
 - Verifies you are inside a Git repository and the route source folder (e.g. `app/routes`) has no pending changes before running the migration CLI
