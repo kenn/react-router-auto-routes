@@ -57,7 +57,10 @@ routes/
 │   ├── _layout.tsx      → Layout for dashboard routes
 │   ├── index.tsx        → /dashboard
 │   ├── analytics.tsx    → /dashboard/analytics
-│   └── settings.tsx     → /dashboard/settings
+│   └── settings/
+│       ├── _layout.tsx  → Layout for settings routes
+│       ├── index.tsx    → /dashboard/settings
+│       └── profile.tsx  → /dashboard/settings/profile
 └── files/
     └── $.tsx            → /files/* (splat - catch-all)
 ```
@@ -66,20 +69,22 @@ routes/
 
 ```
 routes/
-├── index.tsx                   → / (index route)
-├── about.tsx                   → /about
-├── _auth._layout.tsx           → Auth layout
-├── _auth.login.tsx             → /login
-├── _auth.signup.tsx            → /signup
-├── blog._layout.tsx            → Layout for /blog/* routes
-├── blog.index.tsx              → /blog
-├── blog.$slug.tsx              → /blog/:slug (dynamic param)
-├── blog.archive.tsx            → /blog/archive
-├── dashboard._layout.tsx       → Layout for dashboard routes
-├── dashboard.index.tsx         → /dashboard
-├── dashboard.analytics.tsx     → /dashboard/analytics
-├── dashboard.settings.tsx      → /dashboard/settings
-└── files.$.tsx                 → /files/* (splat - catch-all)
+├── index.tsx                          → / (index route)
+├── about.tsx                          → /about
+├── _auth._layout.tsx                  → Auth layout
+├── _auth.login.tsx                    → /login
+├── _auth.signup.tsx                   → /signup
+├── blog._layout.tsx                   → Layout for /blog/* routes
+├── blog.index.tsx                     → /blog
+├── blog.$slug.tsx                     → /blog/:slug (dynamic param)
+├── blog.archive.tsx                   → /blog/archive
+├── dashboard._layout.tsx              → Layout for dashboard routes
+├── dashboard.index.tsx                → /dashboard
+├── dashboard.analytics.tsx            → /dashboard/analytics
+├── dashboard.settings._layout.tsx     → Layout for settings routes
+├── dashboard.settings.index.tsx       → /dashboard/settings
+├── dashboard.settings.profile.tsx     → /dashboard/settings/profile
+└── files.$.tsx                        → /files/* (splat - catch-all)
 ```
 
 Both structures produce identical routes. Use folders for organization, flat files for simplicity, or mix both approaches as needed.
