@@ -117,7 +117,7 @@ routes/
     └── $id/
         ├── index.tsx      → Route: /users/:id
         ├── edit.tsx       → Route: /users/:id/edit
-        ├── index.tsx      → Route: /users/:id/edit
+
         └── +/
             ├── query.ts
             └── validation.ts
