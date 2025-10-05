@@ -134,12 +134,44 @@ describe('routing options', () => {
       })
 
       const manifest = flattenRoutesById(routes)
-      expect(manifest['app/routes/dashboard']?.path).toBe('dashboard')
+      expect(manifest['routes/dashboard']?.path).toBe('dashboard')
       expect(manifest['packages/docs/routes/overview']?.path).toBe(
         'docs/overview',
       )
       expect(manifest['api/routes/index']?.path).toBe('api')
       expect(manifest['api/routes/index']?.index).toBe(true)
+    })
+
+    it('keeps root app routes relative to the main app directory when using object mounts', () => {
+      const routes = createRoutesFromFiles([], {
+        routesDir: {
+          '/': 'app/routes',
+          '/shop': 'shop/routes',
+        },
+        visitFiles: (dir, visitor) => {
+          const normalized = dir.replace(/\\/g, '/')
+
+          if (normalized.endsWith('app/routes')) {
+            visitor('_auth/_layout.tsx')
+            visitor('_auth/login.tsx')
+            return
+          }
+
+          if (normalized.endsWith('shop/routes')) {
+            visitor('index.tsx')
+          }
+        },
+      })
+
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/_auth/_layout']?.file).toBe(
+        'routes/_auth/_layout.tsx',
+      )
+      expect(manifest['routes/_auth/login']?.file).toBe(
+        'routes/_auth/login.tsx',
+      )
+      expect(manifest['shop/routes/index']?.file).toBe('shop/routes/index.tsx')
     })
 
     it('validates mount path syntax', () => {

@@ -4,7 +4,7 @@
 
 - Library: `react-router-auto-routes` generates React Router v7 route configs from file-system structure.
 - Core entry: `src/core/index.ts` exports `autoRoutes(options)`; default export is same.
-- Legacy migration helpers live under `src/migration` for backwards compatibility with Remix flat routes.
+- Legacy migration helpers live under `src/migration` for backwards compatibility with `remix-flat-routes`.
 
 ## Key Modules
 

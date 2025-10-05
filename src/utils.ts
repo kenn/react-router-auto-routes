@@ -164,10 +164,15 @@ export function normalizeRoutesDirOption(
     const normalizedDir = normalizeRoutesDir(dir)
     const fsDir = path.resolve(resolvedBase, normalizedDir)
 
+    const idPrefix =
+      normalizedMount === '/' && normalizedDir === 'app/routes'
+        ? 'routes'
+        : normalizedDir
+
     return {
       mountPath: normalizedMount,
       fsDir,
-      idPrefix: normalizedDir,
+      idPrefix,
     }
   })
 }
