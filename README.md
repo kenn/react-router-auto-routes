@@ -166,7 +166,7 @@ autoRoutes({
 `routesDir` accepts two shapes:
 
 - `string` – scan a single root. When omitted, the default `'routes'` resolves to `app/routes` so existing folder structures continue to work with zero config.
-- `Record<string, string>` – explicit URL mount → folder mapping (see [Multiple Route Roots](#multiple-route-roots)). Mapping entries resolve from the project root so you can mount packages that live outside `app/`.
+- `Record<string, string>` – mount filesystem folders to URL paths (key = URL path, value = filesystem folder). Folder paths resolve from the project root so you can mount packages that live outside `app/`.
 
 ### Monorepo / Sub-apps (Multiple Route Roots)
 
