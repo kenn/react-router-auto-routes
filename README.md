@@ -137,7 +137,7 @@ import { formatDate } from './+/helpers'
 **Rules:**
 
 - **Allowed:** Use `+` prefixed files and folders anywhere inside route directories (including anonymous `+.tsx` files and `+/` folders)
-- **Disallowed:** Don't place `+` entries at the routes root level
+- **Disallowed:** Don't place `+` entries at the routes root level like `routes/+helpers.ts` (but `routes/_top/+helpers.ts` is fine)
 
 ## Configuration Options
 
