@@ -15,6 +15,22 @@ function isLayoutRoute(route: RouteInfo): boolean {
   return normalized === '_layout' || normalized === 'layout'
 }
 
+function getParentScore(route: RouteInfo): number {
+  // Check for route/route.tsx pattern (explicit nested route structure)
+  const normalizedFile = route.file.replace(/\\/g, '/')
+  if (normalizedFile.includes('/route/route.')) {
+    return 4 // Highest priority - explicit route structure
+  }
+
+  // Check for layout files (_layout.tsx or layout.tsx)
+  if (isLayoutRoute(route)) {
+    return 3 // High priority - explicit layout
+  }
+
+  // Regular route files
+  return 2 // Lower priority
+}
+
 function findBestParent(
   child: RouteInfo,
   candidates: RouteInfo[],
@@ -28,11 +44,11 @@ function findBestParent(
   }
 
   let best = eligible[0]
-  let bestScore = isLayoutRoute(best) ? 2 : 3
+  let bestScore = getParentScore(best)
 
   for (let i = 1; i < eligible.length; i++) {
     const candidate = eligible[i]
-    const score = isLayoutRoute(candidate) ? 2 : 3
+    const score = getParentScore(candidate)
     if (score > bestScore) {
       best = candidate
       bestScore = score

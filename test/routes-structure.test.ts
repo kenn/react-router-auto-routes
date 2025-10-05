@@ -344,6 +344,28 @@ describe('route structures', () => {
           path: ':id/:key/details',
         }),
       ],
+      'layout takes precedence over sibling route.tsx': [
+        route('test-2/_layout.tsx', {
+          id: 'test-2/_layout',
+          parentId: 'root',
+          path: 'test-2',
+        }),
+        route('test-2/about.tsx', {
+          id: 'test-2/about',
+          parentId: 'routes/test-2/_layout',
+          path: 'about',
+        }),
+        route('test-2/index.tsx', {
+          id: 'test-2/index',
+          parentId: 'routes/test-2/_layout',
+          index: true,
+        }),
+        route('test-2/route.tsx', {
+          id: 'test-2/route',
+          parentId: 'root',
+          path: 'test-2',
+        }),
+      ],
     }
 
     const trailingSlashScenario: Record<string, ExpectedValues> = {
