@@ -14,6 +14,7 @@ Keep your components, tests, utilities, and routes together. No more hunting acr
 
 ## Features
 
+- 📁 **Flexible file organization** - Mix and match folder-based and dot-delimited notation
 - 🎯 **Prefix-based colocation** - Keep helpers and components alongside routes using `+` prefix
 - 📦 **Monorepo / sub-apps support** - Mount routes from different folders to organize multi-app projects
 - ⚡ **ESM-only** - No CommonJS, built for modern tooling
