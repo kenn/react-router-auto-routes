@@ -10,7 +10,7 @@ Built on [convention-over-configuration](https://en.wikipedia.org/wiki/Conventio
 
 > "Place code as close to where it's relevant as possible" — Kent C. Dodds
 
-Keep your components, tests, utilities, and routes together. No more hunting across folders or artificial separation of concerns. The `+` prefix lets you organize naturally while the router stays out of your way.
+Keep your components, tests, utilities, and routes together. No more hunting across folders or artificial separation of concerns. The `+` prefix marks non-route files for cohesive, feature-based organization.
 
 ## Features
 
