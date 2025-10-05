@@ -104,21 +104,20 @@ Keep helpers, components, and utilities alongside routes using the `+` prefix. A
 ```
 routes/
 ├── dashboard/
-│   ├── index.tsx          → Route: /dashboard
 │   ├── +types.ts
+│   ├── index.tsx          → Route: /dashboard
 │   ├── +/
 │   │   └── helpers.ts
 │   └── +components/
 │       ├── chart.tsx
-│       ├── kpi-card.tsx
 │       └── data-table.tsx
 └── users/
-    ├── index.tsx          → Route: /users
     ├── +user-list.tsx
+    ├── index.tsx          → Route: /users
     └── $id/
         ├── index.tsx      → Route: /users/:id
         ├── edit.tsx       → Route: /users/:id/edit
-        ├── +avatar.tsx
+        ├── index.tsx      → Route: /users/:id/edit
         └── +/
             ├── query.ts
             └── validation.ts
