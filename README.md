@@ -20,13 +20,15 @@ Keep your components, tests, utilities, and routes together. No more hunting acr
 - ⚡ **ESM-only** - No CommonJS, built for modern tooling
 - 🧹 **Clean API** - Simplified options and intuitive conventions
 
-## Installation
+## Quick Start
+
+Install:
 
 ```bash
 npm install -D react-router-auto-routes
 ```
 
-## Quick Start
+Use in your app:
 
 ```ts
 // app/routes.ts
