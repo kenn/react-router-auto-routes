@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoutesFromFolders } from '../src/migration/create-routes-from-folders'
 import { defineRoutes } from '../src/migration/route-definition'
+import { diffSnapshots, normalizeSnapshot } from '../src/migration/cli/diff'
 import { migrate } from '../src/migration/migrate'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
 import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
@@ -389,8 +390,22 @@ describe('runCli', () => {
     const previousCwd = process.cwd()
     process.chdir(fixture.workspace)
     try {
+      const beforeNormalized = normalizeSnapshot(snapshots[0])
+      const afterNormalized = normalizeSnapshot(snapshots[1])
+      if (beforeNormalized !== afterNormalized) {
+        const diff = diffSnapshots(beforeNormalized, afterNormalized)
+        throw new Error(`normalized snapshots differ:\n${diff}`)
+      }
+
       const exitCode = runCli(['app/routes', 'app/new-routes'], { runner })
-      expect(exitCode).toBe(0)
+      if (exitCode !== 0) {
+        const messages = consoleErrorSpy.mock.calls
+          .map(([message]) => message)
+          .filter((message): message is string => typeof message === 'string')
+        throw new Error(
+          `CLI failed with exit ${exitCode}:\n${messages.join('\n')}`,
+        )
+      }
     } finally {
       process.chdir(previousCwd)
     }
@@ -412,6 +427,69 @@ describe('runCli', () => {
       fixture.resolve('app', 'old-routes'),
     )
     expect(backupFiles).toEqual([])
+  })
+
+  it('treats parent route -> _layout renames as equivalent in route snapshots', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/root.tsx': 'export default function Root() { return null }\n',
+    })
+
+    const snapshots = [
+      `<Routes>
+  <Route file="root.tsx">
+    <Route file="routes/settings/profile.tsx">
+      <Route file="routes/settings/profile.index.tsx" index />
+      <Route file="routes/settings/profile.two-factor.tsx" />
+      <Route file="routes/settings/profile.two-factor.index.tsx" index />
+    </Route>
+  </Route>
+</Routes>
+`,
+      `<Routes>
+  <Route file="root.tsx">
+    <Route file="routes/settings/profile/_layout.tsx">
+      <Route file="routes/settings/profile/index.tsx" index />
+      <Route file="routes/settings/profile.two-factor/_layout.tsx">
+        <Route file="routes/settings/profile.two-factor/index.tsx" index />
+      </Route>
+    </Route>
+  </Route>
+</Routes>
+`,
+    ]
+
+    let callCount = 0
+    const runner: CommandRunner = () => {
+      const stdout = snapshots[Math.min(callCount, snapshots.length - 1)]
+      callCount += 1
+      return { status: 0, stdout, stderr: '' }
+    }
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    try {
+      const beforeNormalized = normalizeSnapshot(snapshots[0])
+      const afterNormalized = normalizeSnapshot(snapshots[1])
+      if (beforeNormalized !== afterNormalized) {
+        const diff = diffSnapshots(beforeNormalized, afterNormalized)
+        throw new Error(`normalized snapshots differ:\n${diff}`)
+      }
+
+      const exitCode = runCli(['app/routes', 'app/new-routes'], { runner })
+      if (exitCode !== 0) {
+        const messages = consoleErrorSpy.mock.calls
+          .map(([message]) => message)
+          .filter((message): message is string => typeof message === 'string')
+        throw new Error(
+          `CLI failed with exit ${exitCode}:\n${messages.join('\n')}`,
+        )
+      }
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const backupDir = fixture.resolve('app', 'old-routes')
+    expect(fs.existsSync(backupDir)).toBe(false)
   })
 
   it('rewrites legacy remix-flat-routes entry to autoRoutes()', () => {
@@ -457,6 +535,28 @@ describe('runCli', () => {
       'admin/index.tsx',
       'index.tsx',
     ])
+  })
+
+  it('treats trailing underscore folder with leading underscore file as dot notation rename', () => {
+    const before = normalizeSnapshot(
+      `<Routes>
+  <Route file="root.tsx">
+    <Route file="routes/users/$username_.note-editor.tsx" />
+  </Route>
+</Routes>
+`,
+    )
+
+    const after = normalizeSnapshot(
+      `<Routes>
+  <Route file="root.tsx">
+    <Route file="routes/users/$username_/_note-editor.tsx" />
+  </Route>
+</Routes>
+`,
+    )
+
+    expect(before).toBe(after)
   })
 
   it('refuses to run when not inside a git repository', () => {

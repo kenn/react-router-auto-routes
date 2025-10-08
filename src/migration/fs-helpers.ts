@@ -14,11 +14,16 @@ export function isColocatedFile(filename: string): boolean {
   if (segments.length <= 1) return false
 
   const directorySegments = segments.slice(0, -1)
+  const basename = segments[segments.length - 1]
   const usesFlatFilesConvention = directorySegments.some((segment) =>
     segment.endsWith('+'),
   )
 
   if (!usesFlatFilesConvention) return false
+
+  if (basename.startsWith('__')) {
+    return true
+  }
 
   return directorySegments.some((segment) => {
     if (segment === '' || segment === '.') return false
