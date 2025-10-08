@@ -66,4 +66,36 @@ export function AdminShell() {
     )
     expect(rewritten).toContain(`from '../../routes/fixture.json?raw'`)
   })
+
+  it('strips legacy + segments from import paths', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-legacy-'))
+
+    const sourceDir = path.join(workspace, 'app', 'routes+')
+    const targetDir = path.join(workspace, 'app', 'routes')
+
+    const sourceFile = path.join(sourceDir, 'admin.tsx')
+    const targetFile = path.join(targetDir, 'admin', '_layout.tsx')
+
+    fs.mkdirSync(path.dirname(sourceFile), { recursive: true })
+    fs.writeFileSync(
+      sourceFile,
+      `import { validate } from '../utils+/auth+/index'
+
+export default function Admin() {
+  return null
+}
+`,
+    )
+
+    const normalizedMapping = new Map<string, string>([
+      [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
+    ])
+
+    rewriteAndCopy({ source: sourceFile, target: targetFile }, normalizedMapping)
+
+    const rewritten = fs.readFileSync(targetFile, 'utf8')
+    // Relative path changes: ../utils+ → ../../utils (moved deeper + parent up)
+    // Legacy + stripped: utils+ → utils, auth+ → auth
+    expect(rewritten).toContain(`from '../utils/auth/index'`)
+  })
 })
