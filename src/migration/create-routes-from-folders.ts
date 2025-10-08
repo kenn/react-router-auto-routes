@@ -14,6 +14,7 @@ const escapeStart = '[' as const
 const escapeEnd = ']' as const
 const optionalStart = '(' as const
 const optionalEnd = ')' as const
+const dotIndexSuffix = '.index'
 
 let routeModuleExts = ['.js', '.jsx', '.ts', '.tsx', '.md', '.mdx']
 const ignoredFilenames = new Set(['.DS_Store'])
@@ -116,7 +117,7 @@ export function createRoutesFromFolders(
         routeId.slice((parentId || routesDirectory).length + 1),
       )
 
-      let isIndexRoute = routeId.endsWith('/index')
+      let isIndexRoute = isIndexRouteId(routeId)
       let fullPath = createRoutePath(routeId.slice(routesDirectory.length + 1))
       let uniqueRouteId = (fullPath || '') + (isIndexRoute ? '?index' : '')
       let isPathlessLayoutRoute =
