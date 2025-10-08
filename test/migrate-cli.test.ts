@@ -293,7 +293,7 @@ describe('rewriteLegacyRouteEntry', () => {
 })
 
 describe('runCli', () => {
-  it('migrates routes using default target and cleans up backup on success', () => {
+  it('migrates routes using default source and target and cleans up backup on success', () => {
     const fixture = createBasicRoutesFixture('run-cli-success')
 
     const snapshots = ['ROUTES\n', 'ROUTES\n']
@@ -305,7 +305,7 @@ describe('runCli', () => {
     const previousCwd = process.cwd()
     process.chdir(fixture.workspace)
     try {
-      const exitCode = runCli(['app/routes'], { runner })
+      const exitCode = runCli([], { runner })
       expect(exitCode).toBe(0)
     } finally {
       process.chdir(previousCwd)

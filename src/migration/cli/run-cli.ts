@@ -25,13 +25,15 @@ export type RunOptions = {
 
 export type { CommandRunner }
 
+const defaultSourceDir = 'app/routes'
+
 export function runCli(argv: string[], options: RunOptions = {}): number {
-  if (argv.length === 0 || argv.length > 2) {
+  if (argv.length > 2) {
     usage()
     return 1
   }
 
-  const sourceDir = argv[0]
+  const sourceDir = argv[0] ?? defaultSourceDir
   const targetDir = argv[1] ?? defaultTargetDir(sourceDir)
 
   if (sourceDir === targetDir) {
@@ -262,10 +264,11 @@ function matchesSource(pathname: string, sourceRelative: string): boolean {
 
 function usage(): void {
   logInfo(
-    'Usage: migrate-auto-routes <sourceDir> [targetDir]\n\n' +
+    'Usage: migrate-auto-routes [sourceDir] [targetDir]\n\n' +
       'The CLI overwrites the target directory if it exists.\n\n' +
       'The CLI rewrites routes using the folder + colocation convention promoted by\n' +
       'react-router-auto-routes.\n\n' +
+      'When sourceDir is omitted, it defaults to "app/routes".\n' +
       'When targetDir is omitted, it defaults to a sibling named "new-routes".',
   )
 }

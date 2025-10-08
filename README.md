@@ -208,13 +208,13 @@ Routes from each mount stay isolated when resolving parents and dot-flattening, 
 Migrate your routes automatically:
 
 ```bash
-npx migrate-auto-routes app/routes
+npx migrate-auto-routes
 
-# or provide an explicit destination
+# or provide an explicit [source] [target]
 npx migrate-auto-routes app/routes app/new-routes
 ```
 
-The CLI overwrites the target folder if it already exists. When `targetDir` is omitted it defaults to a sibling folder named "new-routes".
+The CLI overwrites the target folder if it already exists. With no arguments it reads from `app/routes` and writes to `app/new-routes`. When you pass both arguments, the CLI uses the exact `sourceDir` and `targetDir` paths you provide.
 
 **Built-in safety checks:** The CLI performs these automatically so you don’t have to.
 
