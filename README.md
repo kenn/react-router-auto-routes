@@ -112,16 +112,16 @@ Keep helpers, components, and utilities alongside routes using the `+` prefix. A
 ```
 routes/
 ├── dashboard/
-│   ├── +types.ts
 │   ├── index.tsx          → Route: /dashboard
+│   ├── +types.ts
 │   ├── +/
 │   │   └── helpers.ts
 │   └── +components/
 │       ├── chart.tsx
 │       └── data-table.tsx
 └── users/
-    ├── +user-list.tsx
     ├── index.tsx          → Route: /users
+    ├── +user-list.tsx
     └── $id/
         ├── index.tsx      → Route: /users/:id
         ├── edit.tsx       → Route: /users/:id/edit
@@ -210,7 +210,7 @@ Migrate your routes automatically:
 ```bash
 npx migrate-auto-routes
 
-# or provide an explicit [source] [target]
+# or provide an explicit [source] [destination]
 npx migrate-auto-routes app/routes app/new-routes
 ```
 
