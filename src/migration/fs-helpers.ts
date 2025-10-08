@@ -1,25 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { visitFiles as walkFiles } from '../fs/visit-files'
 import { logInfo } from './logger'
 
 export function visitFiles(dir: string, visitor: (file: string) => void): void {
-  const rootDir = dir
-
-  const walk = (currentDir: string) => {
-    for (const filename of fs.readdirSync(currentDir)) {
-      const file = path.resolve(currentDir, filename)
-      const stat = fs.lstatSync(file)
-
-      if (stat.isDirectory()) {
-        walk(file)
-      } else if (stat.isFile()) {
-        visitor(path.relative(rootDir, file))
-      }
-    }
-  }
-
-  walk(dir)
+  walkFiles(dir, visitor, { followSymlinks: false })
 }
 
 export function isColocatedFile(filename: string): boolean {

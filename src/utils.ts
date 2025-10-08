@@ -1,7 +1,7 @@
-import * as fs from 'fs'
 import * as path from 'path'
 
 import { NormalizedRoutesDir, RoutesDirInput } from './core/types'
+import { visitFiles as walkFiles } from './fs/visit-files'
 
 const regexCache: { [key: string]: RegExp } = {}
 
@@ -20,22 +20,7 @@ export function defaultVisitFiles(
   dir: string,
   visitor: (file: string) => void,
 ) {
-  const rootDir = dir
-
-  const walk = (currentDir: string) => {
-    for (const filename of fs.readdirSync(currentDir)) {
-      const file = path.resolve(currentDir, filename)
-      const stat = fs.statSync(file)
-
-      if (stat.isDirectory()) {
-        walk(file)
-      } else if (stat.isFile()) {
-        visitor(path.relative(rootDir, file))
-      }
-    }
-  }
-
-  walk(dir)
+  walkFiles(dir, visitor)
 }
 
 export function createRouteId(file: string): string {
@@ -135,15 +120,11 @@ function toRoutesDirEntries(
   return entries
 }
 
-function resolveBaseDirFor(
-  routesDir: RoutesDirInput | undefined,
-): string {
+function resolveBaseDirFor(routesDir: RoutesDirInput | undefined): string {
   const base =
     routesDir === undefined || typeof routesDir === 'string' ? 'app' : '.'
 
-  return path.isAbsolute(base)
-    ? base
-    : path.resolve(process.cwd(), base)
+  return path.isAbsolute(base) ? base : path.resolve(process.cwd(), base)
 }
 
 export function normalizeRoutesDirOption(
