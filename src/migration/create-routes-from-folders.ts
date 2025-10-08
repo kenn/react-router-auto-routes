@@ -227,8 +227,7 @@ function tokenizeRoutePattern(partialRouteId: string): RouteToken[] {
 
   for (let index = 0; index < partialRouteId.length; index++) {
     const char = partialRouteId.charAt(index)
-    const prevChar =
-      index > 0 ? partialRouteId.charAt(index - 1) : undefined
+    const prevChar = index > 0 ? partialRouteId.charAt(index - 1) : undefined
     const nextChar =
       index < partialRouteId.length - 1
         ? partialRouteId.charAt(index + 1)
@@ -295,7 +294,10 @@ function tokenizeRoutePattern(partialRouteId: string): RouteToken[] {
     }
 
     const isLayoutPrefix =
-      char === '_' && nextChar === '_' && !segmentStarted && literalBuffer === ''
+      char === '_' &&
+      nextChar === '_' &&
+      !segmentStarted &&
+      literalBuffer === ''
     if (isLayoutPrefix) {
       skipSegment = true
       segmentStarted = false
@@ -407,6 +409,10 @@ export function createRoutePath(partialRouteId: string): string | undefined {
   return buildRouteFromTokens(tokens, partialRouteId)
 }
 
+function isIndexRouteId(routeId: string): boolean {
+  return routeId.endsWith('/index') || routeId.endsWith(dotIndexSuffix)
+}
+
 function getParentRouteIds(
   routeIds: string[],
 ): Record<string, string | undefined> {
@@ -425,6 +431,13 @@ function getParentRouteIds(
       if (childRouteId.startsWith(`${potentialParentId}/`)) {
         parentRouteId = potentialParentId
         break
+      }
+    }
+
+    if (!parentRouteId && childRouteId.endsWith(dotIndexSuffix)) {
+      const dotNotationParentId = childRouteId.slice(0, -dotIndexSuffix.length)
+      if (routeIdMap.has(dotNotationParentId)) {
+        parentRouteId = dotNotationParentId
       }
     }
 

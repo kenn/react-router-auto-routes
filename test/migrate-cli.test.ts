@@ -3,6 +3,8 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createRoutesFromFolders } from '../src/migration/create-routes-from-folders'
+import { defineRoutes } from '../src/migration/route-definition'
 import { migrate } from '../src/migration/migrate'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
 import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
@@ -245,6 +247,29 @@ describe('migrate CLI', () => {
     expect(contents).toContain(
       "import { transcribe } from '~/routes/scribe/+_modules/transcription'",
     )
+  })
+
+  it('treats dot notation index files as index routes', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/settings+/profile.two-factor.tsx':
+        'export default function TwoFactor() { return null }\n',
+      'app/routes/settings+/profile.two-factor.index.tsx':
+        'export default function TwoFactorIndex() { return null }\n',
+    })
+
+    const routes = createRoutesFromFolders(defineRoutes, {
+      appDirectory: fixture.resolve('app'),
+      routesDirectory: 'routes',
+    })
+
+    const parentRouteId = 'routes/settings+/profile.two-factor'
+    const indexRouteId = 'routes/settings+/profile.two-factor.index'
+
+    expect(routes[parentRouteId]).toBeDefined()
+    expect(routes[indexRouteId]).toBeDefined()
+    expect(routes[indexRouteId].index).toBe(true)
+    expect(routes[indexRouteId].path).toBeUndefined()
+    expect(routes[indexRouteId].parentId).toBe(parentRouteId)
   })
 })
 
