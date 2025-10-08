@@ -28,12 +28,23 @@ type ResolvedImport = {
   usedIndex: boolean
 }
 
+type ImportRewriteContext = {
+  sourcePath: string
+  targetPath: string
+  normalizedMapping: Map<string, string>
+}
+
 export function rewriteAndCopy(
   mapping: FileMapping,
   normalizedMapping: Map<string, string>,
 ): void {
   const sourcePath = normalizeAbsolutePath(mapping.source)
   const targetPath = normalizeAbsolutePath(mapping.target)
+  const context: ImportRewriteContext = {
+    sourcePath,
+    targetPath,
+    normalizedMapping,
+  }
 
   fs.mkdirSync(path.dirname(targetPath), { recursive: true })
 
@@ -43,12 +54,7 @@ export function rewriteAndCopy(
   }
 
   const original = fs.readFileSync(sourcePath, 'utf8')
-  const rewritten = rewriteImports(
-    original,
-    sourcePath,
-    targetPath,
-    normalizedMapping,
-  )
+  const rewritten = rewriteModuleImports(original, context)
   fs.writeFileSync(targetPath, rewritten)
 }
 
@@ -61,15 +67,13 @@ function shouldRewriteImports(filePath: string): boolean {
   return transformableExtensions.has(ext)
 }
 
-function rewriteImports(
+function rewriteModuleImports(
   contents: string,
-  sourcePath: string,
-  targetPath: string,
-  normalizedMapping: Map<string, string>,
+  context: ImportRewriteContext,
 ): string {
-  const scriptKind = getScriptKindForFile(sourcePath)
+  const scriptKind = getScriptKindForFile(context.sourcePath)
   const sourceFile = ts.createSourceFile(
-    sourcePath,
+    context.sourcePath,
     contents,
     ts.ScriptTarget.Latest,
     true,
@@ -80,14 +84,9 @@ function rewriteImports(
   const edits: Edit[] = []
 
   const handleLiteral = (literal: ts.StringLiteralLike) => {
-    const updatedSpecifier = getUpdatedImportSpecifier(
-      literal.text,
-      sourcePath,
-      targetPath,
-      normalizedMapping,
-    )
+    const replacement = computeSpecifierReplacement(literal.text, context)
 
-    if (!updatedSpecifier) {
+    if (!replacement) {
       return
     }
 
@@ -100,7 +99,7 @@ function rewriteImports(
     edits.push({
       start: literal.getStart(sourceFile),
       end: literal.getEnd(),
-      text: `${quote}${updatedSpecifier}${quote}`,
+      text: `${quote}${replacement}${quote}`,
     })
   }
 
@@ -145,39 +144,23 @@ function rewriteImports(
   return result
 }
 
-function getUpdatedImportSpecifier(
+function computeSpecifierReplacement(
   specifier: string,
-  sourcePath: string,
-  targetPath: string,
-  normalizedMapping: Map<string, string>,
+  context: ImportRewriteContext,
 ): string | null {
   const { base, suffix } = splitImportSpecifier(specifier)
 
-  if (isRelativeSpecifier(base)) {
-    const resolution = resolveRelativeSpecifier(base, sourcePath)
-    if (resolution) {
-      const resolvedAbsolute = normalizeAbsolutePath(resolution.resolvedPath)
-      const migratedAbsolute =
-        normalizedMapping.get(resolvedAbsolute) ?? resolvedAbsolute
-      const relativeSpecifier = computeRelativeSpecifier(
-        migratedAbsolute,
-        targetPath,
-        base,
-        resolution,
-      )
-
-      if (relativeSpecifier) {
-        const nextSpecifier = relativeSpecifier + suffix
-        if (nextSpecifier !== specifier) {
-          return nextSpecifier
-        }
-      }
+  const relativeReplacement = rewriteRelativeSpecifier(base, context)
+  if (relativeReplacement) {
+    const nextSpecifier = relativeReplacement + suffix
+    if (nextSpecifier !== specifier) {
+      return nextSpecifier
     }
   }
 
-  const legacySpecifier = rewriteLegacyPlusSegments(base)
-  if (legacySpecifier) {
-    const nextSpecifier = legacySpecifier + suffix
+  const legacyReplacement = rewriteLegacyPlusSegments(base)
+  if (legacyReplacement) {
+    const nextSpecifier = legacyReplacement + suffix
     if (nextSpecifier !== specifier) {
       return nextSpecifier
     }
@@ -218,6 +201,32 @@ function isRelativeSpecifier(specifier: string): boolean {
     specifier.startsWith('./') ||
     specifier.startsWith('../')
   )
+}
+
+function rewriteRelativeSpecifier(
+  specifier: string,
+  context: ImportRewriteContext,
+): string | null {
+  if (!isRelativeSpecifier(specifier)) {
+    return null
+  }
+
+  const resolution = resolveRelativeSpecifier(specifier, context.sourcePath)
+  if (!resolution) {
+    return null
+  }
+
+  const resolvedAbsolute = normalizeAbsolutePath(resolution.resolvedPath)
+  const migratedAbsolute =
+    context.normalizedMapping.get(resolvedAbsolute) ?? resolvedAbsolute
+  const relativeSpecifier = computeRelativeSpecifier(
+    migratedAbsolute,
+    context.targetPath,
+    specifier,
+    resolution,
+  )
+
+  return relativeSpecifier
 }
 
 function rewriteLegacyPlusSegments(specifier: string): string | null {
