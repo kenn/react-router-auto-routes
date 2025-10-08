@@ -194,54 +194,44 @@ export function createRoutesFromFolders(
   return defineRoutes(defineNestedRoutes)
 }
 
-// TODO: Cleanup and write some tests for this function
-export function createRoutePath(partialRouteId: string): string | undefined {
-  let result = ''
-  let rawSegmentBuffer = ''
+const segmentSeparators = new Set(['/', '.', path.win32.sep])
+
+type RouteToken =
+  | { kind: 'literal'; value: string }
+  | { kind: 'separator' }
+  | { kind: 'param'; isSplat: boolean }
+  | { kind: 'optionalStart' }
+  | { kind: 'optionalEnd' }
+
+function isSegmentSeparator(checkChar: string | undefined): boolean {
+  return checkChar !== undefined && segmentSeparators.has(checkChar)
+}
+
+function tokenizeRoutePattern(partialRouteId: string): RouteToken[] {
+  const tokens: RouteToken[] = []
+  let literalBuffer = ''
+  let segmentStarted = false
+
+  const flushLiteral = () => {
+    if (literalBuffer) {
+      tokens.push({ kind: 'literal', value: literalBuffer })
+      literalBuffer = ''
+      segmentStarted = true
+    }
+  }
 
   let inEscapeSequence = 0
-  let inOptionalSegment = 0
-  let optionalSegmentIndex = null
   let skipSegment = false
-  for (let i = 0; i < partialRouteId.length; i++) {
-    let char = partialRouteId.charAt(i)
-    let prevChar = i > 0 ? partialRouteId.charAt(i - 1) : undefined
-    let nextChar =
-      i < partialRouteId.length - 1 ? partialRouteId.charAt(i + 1) : undefined
+  let optionalActive = false
 
-    function isNewEscapeSequence() {
-      return (
-        !inEscapeSequence && char === escapeStart && prevChar !== escapeStart
-      )
-    }
-
-    function isCloseEscapeSequence() {
-      return inEscapeSequence && char === escapeEnd && nextChar !== escapeEnd
-    }
-
-    function isStartOfLayoutSegment() {
-      return char === '_' && nextChar === '_' && !rawSegmentBuffer
-    }
-
-    function isNewOptionalSegment() {
-      return (
-        char === optionalStart &&
-        prevChar !== optionalStart &&
-        (isSegmentSeparator(prevChar) || prevChar === undefined) &&
-        !inOptionalSegment &&
-        !inEscapeSequence
-      )
-    }
-
-    function isCloseOptionalSegment() {
-      return (
-        char === optionalEnd &&
-        nextChar !== optionalEnd &&
-        (isSegmentSeparator(nextChar) || nextChar === undefined) &&
-        inOptionalSegment &&
-        !inEscapeSequence
-      )
-    }
+  for (let index = 0; index < partialRouteId.length; index++) {
+    const char = partialRouteId.charAt(index)
+    const prevChar =
+      index > 0 ? partialRouteId.charAt(index - 1) : undefined
+    const nextChar =
+      index < partialRouteId.length - 1
+        ? partialRouteId.charAt(index + 1)
+        : undefined
 
     if (skipSegment) {
       if (isSegmentSeparator(char)) {
@@ -250,59 +240,66 @@ export function createRoutePath(partialRouteId: string): string | undefined {
       continue
     }
 
-    if (isNewEscapeSequence()) {
+    const isEscapeStart =
+      !inEscapeSequence && char === escapeStart && prevChar !== escapeStart
+    if (isEscapeStart) {
       inEscapeSequence++
       continue
     }
 
-    if (isCloseEscapeSequence()) {
+    const isEscapeEnd =
+      inEscapeSequence > 0 && char === escapeEnd && nextChar !== escapeEnd
+    if (isEscapeEnd) {
       inEscapeSequence--
       continue
     }
 
-    if (isNewOptionalSegment()) {
-      inOptionalSegment++
-      optionalSegmentIndex = result.length
-      result += optionalStart
+    const canOpenOptional =
+      !inEscapeSequence &&
+      char === optionalStart &&
+      prevChar !== optionalStart &&
+      (prevChar === undefined || isSegmentSeparator(prevChar)) &&
+      !optionalActive
+    if (canOpenOptional) {
+      flushLiteral()
+      tokens.push({ kind: 'optionalStart' })
+      optionalActive = true
       continue
     }
 
-    if (isCloseOptionalSegment()) {
-      if (optionalSegmentIndex !== null) {
-        result =
-          result.slice(0, optionalSegmentIndex) +
-          result.slice(optionalSegmentIndex + 1)
-      }
-      optionalSegmentIndex = null
-      inOptionalSegment--
-      result += '?'
+    const canCloseOptional =
+      !inEscapeSequence &&
+      optionalActive &&
+      char === optionalEnd &&
+      nextChar !== optionalEnd &&
+      (nextChar === undefined || isSegmentSeparator(nextChar))
+    if (canCloseOptional) {
+      flushLiteral()
+      tokens.push({ kind: 'optionalEnd' })
+      optionalActive = false
       continue
     }
 
     if (inEscapeSequence) {
-      result += char
+      literalBuffer += char
       continue
     }
 
     if (isSegmentSeparator(char)) {
-      if (rawSegmentBuffer === 'index' && result.endsWith('index')) {
-        result = result.replace(/\/?index$/, '')
-      } else {
-        result += '/'
-      }
-
-      rawSegmentBuffer = ''
-      inOptionalSegment = 0
-      optionalSegmentIndex = null
+      flushLiteral()
+      tokens.push({ kind: 'separator' })
+      optionalActive = false
+      segmentStarted = false
       continue
     }
 
-    if (isStartOfLayoutSegment()) {
+    const isLayoutPrefix =
+      char === '_' && nextChar === '_' && !segmentStarted && literalBuffer === ''
+    if (isLayoutPrefix) {
       skipSegment = true
+      segmentStarted = false
       continue
     }
-
-    rawSegmentBuffer += char
 
     if (char === paramChar) {
       if (nextChar === optionalEnd) {
@@ -310,31 +307,103 @@ export function createRoutePath(partialRouteId: string): string | undefined {
           `Invalid route path: ${partialRouteId}. Splat route $ is already optional`,
         )
       }
-      result += typeof nextChar === 'undefined' ? '*' : ':'
+      flushLiteral()
+      tokens.push({ kind: 'param', isSplat: nextChar === undefined })
+      segmentStarted = true
       continue
     }
 
-    result += char
+    literalBuffer += char
   }
 
-  if (rawSegmentBuffer === 'index' && result.endsWith('index')) {
-    result = result.replace(/\/?index$/, '')
-  } else {
-    result = result.replace(/\/$/, '')
+  if (literalBuffer) {
+    tokens.push({ kind: 'literal', value: literalBuffer })
   }
 
-  if (rawSegmentBuffer === 'index' && result.endsWith('index?')) {
-    throw new Error(
-      `Invalid route path: ${partialRouteId}. Make index route optional by using (index)`,
-    )
+  return tokens
+}
+
+function buildRouteFromTokens(
+  tokens: RouteToken[],
+  partialRouteId: string,
+): string | undefined {
+  let result = ''
+  let currentSegment = ''
+  let optionalSegmentIndex: number | null = null
+
+  const appendLiteral = (value: string) => {
+    result += value
+    currentSegment += value
   }
 
+  const appendParam = (token: Extract<RouteToken, { kind: 'param' }>) => {
+    result += token.isSplat ? '*' : ':'
+    currentSegment += paramChar
+  }
+
+  const applySegmentBoundary = () => {
+    if (currentSegment === 'index' && result.endsWith('index')) {
+      result = result.replace(/\/?index$/, '')
+    } else {
+      result += '/'
+    }
+    currentSegment = ''
+    optionalSegmentIndex = null
+  }
+
+  const finalizeResult = () => {
+    if (currentSegment === 'index' && result.endsWith('index')) {
+      result = result.replace(/\/?index$/, '')
+    } else {
+      result = result.replace(/\/$/, '')
+    }
+
+    if (currentSegment === 'index' && result.endsWith('index?')) {
+      throw new Error(
+        `Invalid route path: ${partialRouteId}. Make index route optional by using (index)`,
+      )
+    }
+  }
+
+  for (const token of tokens) {
+    switch (token.kind) {
+      case 'literal': {
+        appendLiteral(token.value)
+        break
+      }
+      case 'param': {
+        appendParam(token)
+        break
+      }
+      case 'separator': {
+        applySegmentBoundary()
+        break
+      }
+      case 'optionalStart': {
+        optionalSegmentIndex = result.length
+        result += optionalStart
+        break
+      }
+      case 'optionalEnd': {
+        if (optionalSegmentIndex !== null) {
+          result =
+            result.slice(0, optionalSegmentIndex) +
+            result.slice(optionalSegmentIndex + 1)
+        }
+        optionalSegmentIndex = null
+        result += '?'
+        break
+      }
+    }
+  }
+
+  finalizeResult()
   return result || undefined
 }
 
-function isSegmentSeparator(checkChar: string | undefined) {
-  if (!checkChar) return false
-  return ['/', '.', path.win32.sep].includes(checkChar)
+export function createRoutePath(partialRouteId: string): string | undefined {
+  const tokens = tokenizeRoutePattern(partialRouteId)
+  return buildRouteFromTokens(tokens, partialRouteId)
 }
 
 function getParentRouteIds(
