@@ -211,3 +211,71 @@ export function generateFlexRoutesAndVerifyResultWithExpected(
     expect(generated?.parentId).toBe(route.parentId)
   })
 }
+
+export const flatFileRouteFixtures = (): RouteFixture[] => [
+  route('$lang.$ref.tsx', {
+    id: '$lang.$ref',
+    parentId: 'root',
+    path: ':lang/:ref',
+  }),
+  route('$lang.$ref._index.tsx', {
+    id: '$lang.$ref._index',
+    parentId: 'routes/$lang.$ref',
+    index: true,
+  }),
+  route('$lang.$ref.$.tsx', {
+    id: '$lang.$ref.$',
+    parentId: 'routes/$lang.$ref',
+    path: '*',
+  }),
+  route('_index.tsx', {
+    id: '_index',
+    parentId: 'root',
+    index: true,
+  }),
+  route('healthcheck.tsx', {
+    id: 'healthcheck',
+    parentId: 'root',
+    path: 'healthcheck',
+  }),
+]
+
+export const flatFolderRouteFixtures = (): RouteFixture[] => [
+  route('$lang.$ref/route.tsx', {
+    id: '$lang.$ref/route',
+    parentId: 'root',
+    path: ':lang/:ref',
+  }),
+  route('$lang.$ref._index/route.tsx', {
+    id: '$lang.$ref._index/route',
+    parentId: 'routes/$lang.$ref/route',
+    index: true,
+  }),
+  route('$lang.$ref.$/route.tsx', {
+    id: '$lang.$ref.$/route',
+    parentId: 'routes/$lang.$ref/route',
+    path: '*',
+  }),
+  route('_index/route.tsx', {
+    id: '_index/route',
+    parentId: 'root',
+    index: true,
+  }),
+  route('healthcheck/route.tsx', {
+    id: 'healthcheck/route',
+    parentId: 'root',
+    path: 'healthcheck',
+  }),
+]
+
+export const withDashboardIndex = (
+  ...fixtures: RouteFixture[]
+): RouteFixture[] => [
+  route('dashboard/index.tsx', {
+    id: 'dashboard/index',
+    parentId: 'root',
+    path: 'dashboard',
+    index: true,
+  }),
+  ...fixtures,
+]

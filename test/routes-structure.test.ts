@@ -3,6 +3,8 @@ import {
   expectRouteFixturesToMatchSnapshot,
   ExpectedValues,
   fileOnly,
+  flatFileRouteFixtures,
+  flatFolderRouteFixtures,
   flattenRoutesById,
   generateFlexRoutesAndVerifyResultWithExpected,
   route,
@@ -12,13 +14,8 @@ import type { RouteFixture } from './utils/route-test-helpers'
 describe('route structures', () => {
   describe('index routes', () => {
     it('generates correct ids for flat files', () => {
-      const files = [
-        '$lang.$ref.tsx',
-        '$lang.$ref._index.tsx',
-        '$lang.$ref.$.tsx',
-        '_index.tsx',
-        'index.tsx',
-      ]
+      const files = flatFileRouteFixtures().map(({ file }) => file)
+      files.push('index.tsx')
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
 
@@ -29,12 +26,7 @@ describe('route structures', () => {
     })
 
     it('generates correct ids for flat folders', () => {
-      const files = [
-        '$lang.$ref/route.tsx',
-        '$lang.$ref._index/route.tsx',
-        '$lang.$ref.$/route.tsx',
-        '_index/route.tsx',
-      ]
+      const files = flatFolderRouteFixtures().map(({ file }) => file)
       const routes = createRoutesFromFiles(files)
       const manifest = flattenRoutesById(routes)
 

@@ -4,80 +4,16 @@ import {
   expectRouteFixturesToMatchSnapshot,
   expectRoutesToMatch,
   fileOnly,
+  flatFileRouteFixtures,
+  flatFolderRouteFixtures,
   flattenRoutesById,
   route,
+  withDashboardIndex,
 } from './utils/route-test-helpers'
-import type { RouteFixture } from './utils/route-test-helpers'
-
-const createFlatFileFixtures = (): RouteFixture[] => [
-  route('$lang.$ref.tsx', {
-    id: '$lang.$ref',
-    parentId: 'root',
-    path: ':lang/:ref',
-  }),
-  route('$lang.$ref._index.tsx', {
-    id: '$lang.$ref._index',
-    parentId: 'routes/$lang.$ref',
-    index: true,
-  }),
-  route('$lang.$ref.$.tsx', {
-    id: '$lang.$ref.$',
-    parentId: 'routes/$lang.$ref',
-    path: '*',
-  }),
-  route('_index.tsx', {
-    id: '_index',
-    parentId: 'root',
-    index: true,
-  }),
-  route('healthcheck.tsx', {
-    id: 'healthcheck',
-    parentId: 'root',
-    path: 'healthcheck',
-  }),
-]
-
-const createFlatFolderFixtures = (): RouteFixture[] => [
-  route('$lang.$ref/route.tsx', {
-    id: '$lang.$ref/route',
-    parentId: 'root',
-    path: ':lang/:ref',
-  }),
-  route('$lang.$ref._index/route.tsx', {
-    id: '$lang.$ref._index/route',
-    parentId: 'routes/$lang.$ref/route',
-    index: true,
-  }),
-  route('$lang.$ref.$/route.tsx', {
-    id: '$lang.$ref.$/route',
-    parentId: 'routes/$lang.$ref/route',
-    path: '*',
-  }),
-  route('_index/route.tsx', {
-    id: '_index/route',
-    parentId: 'root',
-    index: true,
-  }),
-  route('healthcheck/route.tsx', {
-    id: 'healthcheck/route',
-    parentId: 'root',
-    path: 'healthcheck',
-  }),
-]
-
-const withDashboardIndex = (...fixtures: RouteFixture[]): RouteFixture[] => [
-  route('dashboard/index.tsx', {
-    id: 'dashboard/index',
-    parentId: 'root',
-    path: 'dashboard',
-    index: true,
-  }),
-  ...fixtures,
-]
 
 describe('flat file routes', () => {
   it('should define routes for flat-files', () => {
-    expectRouteFixturesToMatchSnapshot(createFlatFileFixtures())
+    expectRouteFixturesToMatchSnapshot(flatFileRouteFixtures())
   })
 
   it('should support markdown routes as flat-files', () => {
@@ -98,7 +34,7 @@ describe('flat file routes', () => {
 
 describe('flat folder routes', () => {
   it('should define routes for flat-folders', () => {
-    expectRouteFixturesToMatchSnapshot(createFlatFolderFixtures())
+    expectRouteFixturesToMatchSnapshot(flatFolderRouteFixtures())
   })
 
   it('should define routes for flat-folders on Windows', () => {
@@ -275,7 +211,7 @@ describe('ignored routes', () => {
   it('should ignore routes for flat-files', () => {
     expectRouteFixturesToMatchSnapshot(
       [
-        ...createFlatFileFixtures(),
+        ...flatFileRouteFixtures(),
         fileOnly('style.css'),
         fileOnly('_index.test.tsx'),
         fileOnly('styles/style.css'),
