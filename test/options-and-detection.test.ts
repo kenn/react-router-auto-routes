@@ -19,37 +19,44 @@ describe('routing options', () => {
   })
 
   describe('optional segments', () => {
-    it('should generate correct paths with optional syntax', () => {
-      const files = ['parent.(child).tsx']
-      const routes = createRoutesFromFiles(files)
-      const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/parent.(child)']!.path!).toBe('parent/child?')
-    })
+    const optionalSegmentCases = [
+      {
+        name: 'should generate correct paths with optional syntax',
+        files: ['parent.(child).tsx'],
+        expectedId: 'routes/parent.(child)',
+        expectedPath: 'parent/child?',
+      },
+      {
+        name: 'should generate correct paths with folders',
+        files: ['_folder.parent.(child)/index.tsx'],
+        expectedId: 'routes/_folder.parent.(child)/index',
+        expectedPath: 'parent/child?',
+      },
+      {
+        name: 'should generate correct paths with nested folder routes',
+        files: ['parent/(child)/route.tsx'],
+        expectedId: 'routes/parent/(child)/route',
+        expectedPath: 'parent/child?',
+      },
+      {
+        name: 'should generate correct paths with optional syntax and dynamic param',
+        files: ['parent.($child).tsx'],
+        expectedId: 'routes/parent.($child)',
+        expectedPath: 'parent/:child?',
+      },
+    ] as const
 
-    it('should generate correct paths with folders', () => {
-      const files = ['_folder.parent.(child)/index.tsx']
-      const routes = createRoutesFromFiles(files)
-      const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/_folder.parent.(child)/index']!.path!).toBe(
-        'parent/child?',
-      )
-    })
+    optionalSegmentCases.forEach(
+      ({ name, files, expectedId, expectedPath }) => {
+        it(name, () => {
+          const routes = createRoutesFromFiles(files)
+          const manifest = flattenRoutesById(routes)
 
-    it('should generate correct paths with nested folder routes', () => {
-      const files = ['parent/(child)/route.tsx']
-      const routes = createRoutesFromFiles(files)
-      const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/parent/(child)/route']!.path!).toBe(
-        'parent/child?',
-      )
-    })
-
-    it('should generate correct paths with optional syntax and dynamic param', () => {
-      const files = ['parent.($child).tsx']
-      const routes = createRoutesFromFiles(files)
-      const manifest = flattenRoutesById(routes)
-      expect(manifest['routes/parent.($child)']!.path!).toBe('parent/:child?')
-    })
+          expect(manifest[expectedId]).toBeDefined()
+          expect(manifest[expectedId]?.path).toBe(expectedPath)
+        })
+      },
+    )
   })
 
   describe('routesDir normalization', () => {
