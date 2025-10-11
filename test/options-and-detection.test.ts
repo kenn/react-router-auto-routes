@@ -49,7 +49,7 @@ describe('routing options', () => {
     optionalSegmentCases.forEach(
       ({ name, files, expectedId, expectedPath }) => {
         it(name, () => {
-          const routes = createRoutesFromFiles(files)
+          const routes = createRoutesFromFiles([...files])
           const manifest = flattenRoutesById(routes)
 
           expect(manifest[expectedId]).toBeDefined()
