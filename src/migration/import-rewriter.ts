@@ -32,11 +32,18 @@ type ImportRewriteContext = {
   sourcePath: string
   targetPath: string
   normalizedMapping: Map<string, string>
+  specifierReplacements: SpecifierReplacement[]
+}
+
+export type SpecifierReplacement = {
+  from: string
+  to: string
 }
 
 export function rewriteAndCopy(
   mapping: FileMapping,
   normalizedMapping: Map<string, string>,
+  specifierReplacements: SpecifierReplacement[],
 ): void {
   const sourcePath = normalizeAbsolutePath(mapping.source)
   const targetPath = normalizeAbsolutePath(mapping.target)
@@ -44,6 +51,7 @@ export function rewriteAndCopy(
     sourcePath,
     targetPath,
     normalizedMapping,
+    specifierReplacements,
   }
 
   fs.mkdirSync(path.dirname(targetPath), { recursive: true })
@@ -158,9 +166,23 @@ function computeSpecifierReplacement(
     }
   }
 
-  const legacyReplacement = rewriteLegacyPlusSegments(base)
+  let nextBase = base
+  let changed = false
+
+  const aliasedReplacement = rewriteAliasedSpecifier(base, context)
+  if (aliasedReplacement) {
+    nextBase = aliasedReplacement
+    changed = true
+  }
+
+  const legacyReplacement = rewriteLegacyPlusSegments(nextBase)
   if (legacyReplacement) {
-    const nextSpecifier = legacyReplacement + suffix
+    nextBase = legacyReplacement
+    changed = true
+  }
+
+  if (changed) {
+    const nextSpecifier = nextBase + suffix
     if (nextSpecifier !== specifier) {
       return nextSpecifier
     }
@@ -174,15 +196,14 @@ function splitImportSpecifier(specifier: string): {
   suffix: string
 } {
   const queryIndex = specifier.indexOf('?')
-  const hashIndex = specifier.indexOf('#')
+  const hashIndex = specifier.startsWith('#')
+    ? specifier.indexOf('#', 1)
+    : specifier.indexOf('#')
 
   let cutIndex = specifier.length
-  if (queryIndex !== -1 && hashIndex !== -1) {
-    cutIndex = Math.min(queryIndex, hashIndex)
-  } else if (queryIndex !== -1) {
-    cutIndex = queryIndex
-  } else if (hashIndex !== -1) {
-    cutIndex = hashIndex
+  const candidates = [queryIndex, hashIndex].filter((index) => index > -1)
+  if (candidates.length > 0) {
+    cutIndex = Math.min(...candidates)
   }
 
   return {
@@ -280,6 +301,32 @@ function rewriteLegacyPlusSegments(specifier: string): string | null {
   }
 
   return segments.join('/')
+}
+
+function rewriteAliasedSpecifier(
+  specifier: string,
+  context: ImportRewriteContext,
+): string | null {
+  if (context.specifierReplacements.length === 0) {
+    return null
+  }
+
+  const normalized = normalizeSpecifier(specifier)
+  for (const replacement of context.specifierReplacements) {
+    const index = normalized.lastIndexOf(replacement.from)
+    if (index === -1) {
+      continue
+    }
+
+    const prefix = normalized.slice(0, index)
+    const suffix = normalized.slice(index + replacement.from.length)
+    const next = prefix + replacement.to + suffix
+    if (next !== normalized) {
+      return next
+    }
+  }
+
+  return null
 }
 
 function resolveRelativeSpecifier(
@@ -388,6 +435,10 @@ function safeStat(filePath: string): fs.Stats | null {
   } catch {
     return null
   }
+}
+
+function normalizeSpecifier(value: string): string {
+  return value.replace(/\\/g, '/')
 }
 
 function getScriptKindForFile(filePath: string): ts.ScriptKind {

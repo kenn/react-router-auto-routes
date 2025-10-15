@@ -250,6 +250,35 @@ describe('migrate CLI', () => {
     )
   })
 
+  it('rewrites alias imports for parent routes promoted to _layout', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/settings/profile.two-factor.tsx':
+        'export function TwoFactorLayout() { return null }\n',
+      'app/routes/settings/profile.two-factor.index.tsx':
+        "import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor.tsx'\nexport default function TwoFactorIndex() { return <TwoFactorLayout /> }\n",
+    })
+
+    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const generatedFiles = fixture.listRelativeFiles(targetAbsolute)
+    const indexFile = generatedFiles.find((file) =>
+      /settings\/profile\.two-factor(\/|\.index\.tsx$)/.test(file),
+    )
+    expect(indexFile).toBeDefined()
+
+    const routePath = path.join(targetAbsolute, indexFile!)
+    const contents = fs.readFileSync(routePath, 'utf8')
+    expect(contents).toContain(
+      "import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor/_layout.tsx'",
+    )
+  })
+
   it('treats dot notation index files as index routes', () => {
     const fixture = createRoutesFixture({
       'app/routes/settings+/profile.two-factor.tsx':

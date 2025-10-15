@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   normalizeAbsolutePath,
   rewriteAndCopy,
+  type SpecifierReplacement,
 } from '../src/migration/import-rewriter'
 
 let workspace: string | undefined
@@ -58,7 +59,12 @@ export function AdminShell() {
       [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
     ])
 
-    rewriteAndCopy({ source: sourceFile, target: targetFile }, normalizedMapping)
+    const specifierReplacements: SpecifierReplacement[] = []
+    rewriteAndCopy(
+      { source: sourceFile, target: targetFile },
+      normalizedMapping,
+      specifierReplacements,
+    )
 
     const rewritten = fs.readFileSync(targetFile, 'utf8')
     expect(rewritten).toContain(
@@ -91,11 +97,82 @@ export default function Admin() {
       [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
     ])
 
-    rewriteAndCopy({ source: sourceFile, target: targetFile }, normalizedMapping)
+    const specifierReplacements: SpecifierReplacement[] = []
+    rewriteAndCopy(
+      { source: sourceFile, target: targetFile },
+      normalizedMapping,
+      specifierReplacements,
+    )
 
     const rewritten = fs.readFileSync(targetFile, 'utf8')
     // Relative path changes: ../utils+ → ../../utils (moved deeper + parent up)
     // Legacy + stripped: utils+ → utils, auth+ → auth
     expect(rewritten).toContain(`from '../utils/auth/index'`)
+  })
+
+  it('rewrites aliased imports for parent routes promoted to _layout', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-alias-'))
+
+    const sourceDir = path.join(workspace, 'app', 'routes')
+    const targetDir = path.join(workspace, 'app', 'new-routes')
+
+    const sourceFile = path.join(
+      sourceDir,
+      'settings',
+      'profile.two-factor.index.tsx',
+    )
+    const targetFile = path.join(
+      targetDir,
+      'settings',
+      'profile.two-factor.index.tsx',
+    )
+    const parentSource = path.join(
+      sourceDir,
+      'settings',
+      'profile.two-factor.tsx',
+    )
+    const parentTarget = path.join(
+      targetDir,
+      'settings',
+      'profile.two-factor',
+      '_layout.tsx',
+    )
+
+    fs.mkdirSync(path.dirname(sourceFile), { recursive: true })
+    fs.writeFileSync(
+      sourceFile,
+      `import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor.tsx'\nexport default function TwoFactorIndex() {\n  return <TwoFactorLayout />\n}\n`,
+    )
+    fs.writeFileSync(parentSource, 'export default function Layout() { return null }\n')
+
+    const normalizedMapping = new Map<string, string>([
+      [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
+      [normalizeAbsolutePath(parentSource), normalizeAbsolutePath(parentTarget)],
+    ])
+    const specifierReplacements: SpecifierReplacement[] = [
+      {
+        from: 'app/routes/settings/profile.two-factor.tsx',
+        to: 'app/routes/settings/profile.two-factor/_layout.tsx',
+      },
+      {
+        from: 'routes/settings/profile.two-factor.tsx',
+        to: 'routes/settings/profile.two-factor/_layout.tsx',
+      },
+      {
+        from: 'settings/profile.two-factor.tsx',
+        to: 'settings/profile.two-factor/_layout.tsx',
+      },
+    ]
+
+    rewriteAndCopy(
+      { source: sourceFile, target: targetFile },
+      normalizedMapping,
+      specifierReplacements,
+    )
+
+    const rewritten = fs.readFileSync(targetFile, 'utf8')
+    expect(rewritten).toContain(
+      "import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor/_layout.tsx'",
+    )
   })
 })

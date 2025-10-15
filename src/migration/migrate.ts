@@ -10,6 +10,7 @@ import {
   normalizeAbsolutePath,
   rewriteAndCopy,
   type FileMapping,
+  type SpecifierReplacement,
 } from './import-rewriter'
 import { defineRoutes, type RouteManifest } from './route-definition'
 
@@ -49,18 +50,22 @@ export function migrate(
 
   const routeMappings = collectRouteMappings(routes, sourceDir, targetDir)
   const colocatedMappings = collectColocatedMappings(sourceDir, targetDir)
-
   const normalizedMapping = createNormalizedMapping([
     ...routeMappings,
     ...colocatedMappings,
   ])
+  const specifierReplacements = createSpecifierReplacements(
+    [...routeMappings, ...colocatedMappings],
+    sourceDir,
+    targetDir,
+  )
 
   for (const mapping of routeMappings) {
-    rewriteAndCopy(mapping, normalizedMapping)
+    rewriteAndCopy(mapping, normalizedMapping, specifierReplacements)
   }
 
   for (const mapping of colocatedMappings) {
-    rewriteAndCopy(mapping, normalizedMapping)
+    rewriteAndCopy(mapping, normalizedMapping, specifierReplacements)
   }
 
   console.log('🏁 Finished!')
@@ -144,6 +149,88 @@ function createNormalizedMapping(mappings: FileMapping[]): Map<string, string> {
     )
   }
   return normalized
+}
+
+function createSpecifierReplacements(
+  mappings: FileMapping[],
+  sourceDir: string,
+  targetDir: string,
+): SpecifierReplacement[] {
+  if (mappings.length === 0) {
+    return []
+  }
+
+  const replacements: SpecifierReplacement[] = []
+  const seen = new Set<string>()
+  const sourceDirAbsolute = normalizeAbsolutePath(path.resolve(sourceDir))
+  const targetDirAbsolute = normalizeAbsolutePath(path.resolve(targetDir))
+  const sourceDirImport = normalizeImportPath(sourceDir)
+  const prefixes = createPrefixCandidates(sourceDirImport)
+
+  for (const mapping of mappings) {
+    const sourceAbsolute = normalizeAbsolutePath(mapping.source)
+    const targetAbsolute = normalizeAbsolutePath(mapping.target)
+
+    const sourceRelative = normalizeImportPath(
+      path.relative(sourceDirAbsolute, sourceAbsolute),
+    )
+    if (sourceRelative.startsWith('../')) {
+      continue
+    }
+
+    const targetRelative = normalizeImportPath(
+      path.relative(targetDirAbsolute, targetAbsolute),
+    )
+    if (targetRelative.startsWith('../')) {
+      continue
+    }
+
+    for (const prefix of prefixes) {
+      const from = prefix ? `${prefix}/${sourceRelative}` : sourceRelative
+      const to = prefix ? `${prefix}/${targetRelative}` : targetRelative
+      if (from === to) {
+        continue
+      }
+      const key = `${from}->${to}`
+      if (seen.has(key)) {
+        continue
+      }
+      seen.add(key)
+      replacements.push({ from, to })
+    }
+  }
+
+  replacements.sort((a, b) => b.from.length - a.from.length)
+  return replacements
+}
+
+function normalizeImportPath(value: string): string {
+  let normalized = value.replace(/\\/g, '/')
+  if (normalized.startsWith('./')) {
+    normalized = normalized.slice(2)
+  }
+  normalized = normalized.replace(/\/+/g, '/')
+  if (normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1)
+  }
+  return normalized
+}
+
+function createPrefixCandidates(base: string): string[] {
+  const prefixes = new Set<string>()
+  if (base) {
+    prefixes.add(base)
+    const segments = base.split('/')
+    for (let index = 1; index < segments.length; index += 1) {
+      const suffix = segments.slice(index).join('/')
+      if (suffix) {
+        prefixes.add(suffix)
+      }
+    }
+  }
+  prefixes.add('')
+
+  return Array.from(prefixes)
 }
 
 function convertColocatedPath(file: string): string {
