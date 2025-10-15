@@ -83,11 +83,15 @@ export function rewriteLegacyRouteEntry(
 }
 
 function createAutoRoutesEntry(optionsText: string | undefined): string {
+  const header =
+    "import { autoRoutes } from 'react-router-auto-routes'\n" +
+    "import { type RouteConfig } from '@react-router/dev/routes'\n\n"
+
   if (!optionsText) {
-    return `import { autoRoutes } from 'react-router-auto-routes'\n\nexport default autoRoutes()\n`
+    return `${header}export default autoRoutes() satisfies RouteConfig\n`
   }
 
-  return `import { autoRoutes } from 'react-router-auto-routes'\n\nexport default autoRoutes(${optionsText})\n`
+  return `${header}export default autoRoutes(${optionsText}) satisfies RouteConfig\n`
 }
 
 function extractLegacyRouteOptions(

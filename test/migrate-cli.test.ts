@@ -525,7 +525,9 @@ describe('runCli', () => {
 
     const updatedEntry = fs.readFileSync(entryPath, 'utf8')
     expect(updatedEntry).toBe(
-      "import { autoRoutes } from 'react-router-auto-routes'\n\nexport default autoRoutes()\n",
+      "import { autoRoutes } from 'react-router-auto-routes'\n" +
+        "import { type RouteConfig } from '@react-router/dev/routes'\n\n" +
+        'export default autoRoutes() satisfies RouteConfig\n',
     )
 
     const migratedFiles = fixture.listRelativeFiles(fixture.sourceDir)
