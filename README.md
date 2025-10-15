@@ -113,11 +113,10 @@ Keep helpers, components, and utilities alongside routes using the `+` prefix. A
 routes/
 ├── dashboard/
 │   ├── index.tsx          → Route: /dashboard
-│   ├── +types.ts
 │   ├── +/
-│   │   └── helpers.ts
+│   │   ├── helpers.ts
+│   │   └── types.tsx
 │   └── +components/
-│       ├── chart.tsx
 │       └── data-table.tsx
 └── users/
     ├── index.tsx          → Route: /users
@@ -140,6 +139,7 @@ import { formatDate } from './+/helpers'
 
 - **Allowed:** Use `+` prefixed files and folders anywhere inside route directories (including anonymous `+.tsx` files and `+/` folders)
 - **Disallowed:** Don't place `+` entries at the routes root level like `routes/+helpers.ts` (but `routes/_top/+helpers.ts` is fine)
+- **Note:** `+types` is [reserved](https://reactrouter.com/explanation/type-safety) for React Router's typegen virtual folders so avoid that name.
 
 ## Configuration Options
 
