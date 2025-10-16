@@ -2,7 +2,7 @@
 
 Automatic folder-based routing with colocation for React Router v7+.
 
-## Philosophy
+## Principles
 
 Built on [convention-over-configuration](https://en.wikipedia.org/wiki/Convention_over_configuration) principles—your file structure defines your routes automatically, with smart defaults that just work, and scale well.
 
@@ -10,7 +10,7 @@ Built on [convention-over-configuration](https://en.wikipedia.org/wiki/Conventio
 
 > "Place code as close to where it's relevant as possible" — Kent C. Dodds
 
-Keep your components, tests, utilities, and routes together. No more hunting across folders or artificial separation of concerns. The `+` prefix marks non-route files for cohesive, feature-based organization.
+Keep your components, tests, utilities, and routes together. No more hunting across folders or artificial separation of concerns. The `+` prefix marks non-route files for cohesive, feature-based code organization.
 
 ## Features
 
