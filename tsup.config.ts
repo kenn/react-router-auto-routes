@@ -18,6 +18,7 @@ export default defineConfig(() => {
       ...commonOptions,
       entry: ['src/migration/cli.ts'],
       format: 'cjs',
+      external: ['typescript'],
     },
   ]
 })

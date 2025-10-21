@@ -28,6 +28,8 @@ Install:
 npm install -D react-router-auto-routes
 ```
 
+> The migration CLI relies on your project's own TypeScript install. Make sure `typescript@>=5.0` is already in `devDependencies` if you plan to run `npx migrate-auto-routes`.
+
 Use in your app:
 
 ```ts
@@ -204,6 +206,8 @@ Routes from each mount stay isolated when resolving parents and dot-flattening, 
 ## Migration Guide
 
 > **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
+
+Ensure your project already lists `typescript@>=5.0`; the CLI resolves the compiler from your workspace.
 
 Install the package, then run the migration CLI:
 
