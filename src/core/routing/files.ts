@@ -1,7 +1,7 @@
 import * as path from 'path'
 import picomatch from 'picomatch'
 
-import { createRouteId, escapeRegexChar, memoizedRegex } from '../../utils'
+import { createRouteId, memoizedRegex, resolveRouteRegex } from '../../utils'
 import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from '../constants'
 import { NormalizedRoutesDir, ResolvedOptions, RouteInfo } from '../types'
 import { getRouteSegments } from './segments'
@@ -77,19 +77,7 @@ export function isRouteModuleFile(
   return hasValidRouteExtension(filename, routeRegex)
 }
 
-export function getRouteRegex(
-  RegexRequiresNestedDirReplacement: RegExp,
-  colocationChar: string,
-): RegExp {
-  const escapedColocationChar = escapeRegexChar(colocationChar)
-  return new RegExp(
-    RegexRequiresNestedDirReplacement.source.replace(
-      '\\${colocationChar}',
-      `\\${escapedColocationChar}`,
-    ),
-    RegexRequiresNestedDirReplacement.flags,
-  )
-}
+export const getRouteRegex = resolveRouteRegex
 
 export function isIndexRoute(routeId: string): boolean {
   const indexRouteRegex = memoizedRegex(

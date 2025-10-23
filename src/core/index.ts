@@ -1,7 +1,7 @@
 import {
   defaultVisitFiles,
-  escapeRegexChar,
   normalizeRoutesDirOption,
+  resolveRouteRegex,
 } from '../utils'
 import { buildRouteTree, collectRouteInfos } from './routing'
 import { autoRoutesOptions, ResolvedOptions, RouteConfig } from './types'
@@ -11,14 +11,6 @@ export { autoRoutes }
 
 const DEFAULT_ROUTE_REGEX =
   /((\${colocationChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
-
-function resolveRouteRegex(pattern: RegExp, colocationChar: string): RegExp {
-  const escapedColocationChar = escapeRegexChar(colocationChar)
-  return new RegExp(
-    pattern.source.replace('\\${colocationChar}', `\\${escapedColocationChar}`),
-    pattern.flags,
-  )
-}
 
 export default function autoRoutes(
   options: autoRoutesOptions = {},

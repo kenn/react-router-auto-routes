@@ -177,3 +177,14 @@ export function normalizeRoutesDirOption(
 export function escapeRegexChar(char: string): string {
   return char.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&')
 }
+
+export function resolveRouteRegex(
+  pattern: RegExp,
+  colocationChar: string,
+): RegExp {
+  const escapedColocationChar = escapeRegexChar(colocationChar)
+  return new RegExp(
+    pattern.source.replace('\\${colocationChar}', `\\${escapedColocationChar}`),
+    pattern.flags,
+  )
+}
