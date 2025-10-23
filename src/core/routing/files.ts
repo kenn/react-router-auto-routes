@@ -1,10 +1,10 @@
-import picomatch from 'picomatch'
 import * as path from 'path'
+import picomatch from 'picomatch'
 
+import { createRouteId, escapeRegexChar, memoizedRegex } from '../../utils'
 import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from '../constants'
 import { NormalizedRoutesDir, ResolvedOptions, RouteInfo } from '../types'
-import { createRouteId, escapeRegexChar, memoizedRegex } from '../../utils'
-import { createRoutePath, getRouteSegments } from './segments'
+import { getRouteSegments } from './segments'
 
 export const routeModuleExts = ROUTE_EXTENSIONS
 export const serverRegex = SERVER_FILE_REGEX
@@ -141,26 +141,19 @@ export function getRouteInfo(
   }
   const routeIdWithoutRoutes = routeId.slice(routePrefix.length)
   const index = isIndexRoute(routeIdWithoutRoutes)
-  const routeSegments = getRouteSegments(
+  const { segments, path: routePath } = getRouteSegments(
     routeIdWithoutRoutes,
     index,
     options.paramChar,
-    options.colocationChar,
   )
-  const routePath = createRoutePath(routeSegments, index, options)
   const pathWithMount = applyMountPath(routePath, routeDir.mountPath)
-  const sourceKey = `${routeDir.mountPath}::${routeDir.idPrefix}`
 
   return {
     id: routeId,
-    idPrefix: routeDir.idPrefix,
-    relativeId: routeIdWithoutRoutes,
     path: pathWithMount,
     file: importFilePath,
-    name: routeSegments.join('/'),
-    segments: routeSegments,
+    segments,
     mountPath: routeDir.mountPath,
-    sourceKey,
     index,
   }
 }

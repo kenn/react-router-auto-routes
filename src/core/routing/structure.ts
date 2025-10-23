@@ -1,10 +1,6 @@
 import { ROOT_PARENT } from '../constants'
 import { RouteConfig, RouteInfo } from '../types'
 
-function nameKey(sourceKey: string, name: string): string {
-  return `${sourceKey}::${name}`
-}
-
 function isLayoutRoute(route: RouteInfo): boolean {
   const fileName = route.file.split('/').pop() ?? ''
   const withoutExtension = fileName.replace(/\.[^/.]+$/, '')
@@ -15,261 +11,169 @@ function isLayoutRoute(route: RouteInfo): boolean {
   return normalized === '_layout' || normalized === 'layout'
 }
 
-function getParentScore(route: RouteInfo): number {
-  // Check for route/route.tsx pattern (explicit nested route structure)
+const ROUTE_PRIORITY = 2
+const LAYOUT_PRIORITY = 3
+const ROUTE_DIR_PRIORITY = 4
+
+function parentScore(route: RouteInfo): number {
   const normalizedFile = route.file.replace(/\\/g, '/')
   if (normalizedFile.includes('/route/route.')) {
-    return 4 // Highest priority - explicit route structure
+    return ROUTE_DIR_PRIORITY
   }
 
-  // Check for layout files (_layout.tsx or layout.tsx)
   if (isLayoutRoute(route)) {
-    return 3 // High priority - explicit layout
+    return LAYOUT_PRIORITY
   }
 
-  // Regular route files
-  return 2 // Lower priority
+  return ROUTE_PRIORITY
 }
 
-function findBestParent(
-  child: RouteInfo,
-  candidates: RouteInfo[],
-): RouteInfo | undefined {
-  const eligible = candidates.filter(
-    (candidate) => candidate.id !== child.id && !candidate.index,
-  )
-
-  if (eligible.length === 0) {
-    return undefined
-  }
-
-  let best = eligible[0]
-  let bestScore = getParentScore(best)
-
-  for (let i = 1; i < eligible.length; i++) {
-    const candidate = eligible[i]
-    const score = getParentScore(candidate)
-    if (score > bestScore) {
-      best = candidate
-      bestScore = score
-    }
-  }
-
-  return best
+function keyFor(mountPath: string, segments: readonly string[]): string {
+  return `${mountPath}::${segments.join('/')}`
 }
 
-export function findParentRouteId(
-  routeInfo: RouteInfo,
-  nameMap: Map<string, RouteInfo[]>,
-): string | undefined {
-  let parentName = routeInfo.index
-    ? routeInfo.segments.join('/')
-    : routeInfo.segments.slice(0, -1).join('/')
-
-  while (parentName) {
-    const candidates = nameMap.get(nameKey(routeInfo.sourceKey, parentName))
-    if (candidates && candidates.length > 0) {
-      const parent = findBestParent(routeInfo, candidates)
-      if (parent) {
-        return parent.id
-      }
-    }
-
-    const lastSlashIndex = parentName.lastIndexOf('/')
-    if (lastSlashIndex === -1) {
-      break
-    }
-    parentName = parentName.substring(0, lastSlashIndex)
-  }
-
-  return undefined
-}
-
-function createNameMap(routes: readonly RouteInfo[]): Map<string, RouteInfo[]> {
-  const nameMap = new Map<string, RouteInfo[]>()
-
-  for (const route of routes) {
-    const key = nameKey(route.sourceKey, route.name)
-    const existing = nameMap.get(key)
-    if (existing) {
-      existing.push(route)
-    } else {
-      nameMap.set(key, [route])
-    }
-  }
-
-  return nameMap
-}
-
-function shouldNormalizeRoute(route: RouteInfo): boolean {
-  if (route.segments.length <= 1 || route.index) {
-    return false
-  }
-
-  const pathParts = route.relativeId.split('/').filter(Boolean)
-  const usesSpecialSyntax = pathParts.some(
-    (part) => part.includes('.') || part.includes('(') || part.includes(')'),
-  )
-
-  return !usesSpecialSyntax
-}
-
-function normalizeName(
+function resolveRelativePath(
   route: RouteInfo,
-  nameMap: Map<string, RouteInfo[]>,
-): string {
-  if (!shouldNormalizeRoute(route)) {
-    return route.name
-  }
-
-  const parentSegments = route.segments.slice(0, -1)
-  const parentName = parentSegments.join('/')
-  if (!parentName) {
-    return route.name
-  }
-
-  const existingParents = nameMap.get(nameKey(route.sourceKey, parentName))
-  const hasNonIndexParent = existingParents?.some((parent) => !parent.index)
-
-  if (!hasNonIndexParent) {
-    return route.segments.join('/')
-  }
-
-  return route.name
-}
-
-export function normalizeAndAssignParents(
-  routes: readonly RouteInfo[],
-): RouteInfo[] {
-  const initialNameMap = createNameMap(routes)
-
-  const normalizedRoutes = routes.map((route) => ({
-    ...route,
-    name: normalizeName(route, initialNameMap),
-  }))
-
-  const finalNameMap = createNameMap(normalizedRoutes)
-
-  return normalizedRoutes.map((route) => ({
-    ...route,
-    parentId: findParentRouteId(route, finalNameMap) ?? ROOT_PARENT,
-  }))
-}
-
-function groupRoutesByParent(
-  routes: readonly RouteInfo[],
-): Map<string, RouteInfo[]> {
-  const childrenByParent = new Map<string, RouteInfo[]>()
-
-  for (const route of routes) {
-    const parentKey = route.parentId ?? ROOT_PARENT
-    const children = childrenByParent.get(parentKey)
-    if (children) {
-      children.push(route)
-    } else {
-      childrenByParent.set(parentKey, [route])
-    }
-  }
-
-  return childrenByParent
-}
-
-function getParentPath(
-  parentId: string | undefined,
-  routeMap: Map<string, RouteInfo>,
-): string {
-  if (!parentId || parentId === ROOT_PARENT) {
-    return '/'
-  }
-
-  const parentRoute = routeMap.get(parentId)
-  if (!parentRoute?.path) {
-    return '/'
-  }
-
-  return parentRoute.path
-}
-
-function computeRelativePath(
-  route: RouteInfo,
-  routeMap: Map<string, RouteInfo>,
+  parentPath: string | undefined,
 ): string | undefined {
   if (!route.path) {
     return undefined
   }
 
-  const parentPath = getParentPath(route.parentId, routeMap)
+  let relative = route.path
 
-  if (!route.path.startsWith(parentPath)) {
-    const trimmed = route.path.startsWith('/')
-      ? route.path.slice(1)
-      : route.path
-    return trimmed || undefined
-  }
-
-  let relative = route.path.slice(parentPath.length)
-  if (relative.startsWith('/')) {
+  if (parentPath && relative.startsWith(parentPath)) {
+    relative = relative.slice(parentPath.length)
+    if (relative.startsWith('/')) {
+      relative = relative.slice(1)
+    }
+  } else if (relative.startsWith('/')) {
     relative = relative.slice(1)
   }
 
-  if (
-    route.index &&
-    route.parentId &&
-    route.parentId !== ROOT_PARENT &&
-    !relative
-  ) {
+  if (route.index && parentPath && !relative) {
     return undefined
   }
 
   return relative || undefined
 }
 
-function createRouteNode(
-  route: RouteInfo,
-  routeMap: Map<string, RouteInfo>,
-  childrenByParent: Map<string, RouteInfo[]>,
-  createConfig: (route: RouteInfo) => RouteConfig,
-): RouteConfig {
-  const node: RouteConfig = {
-    id: route.id,
-    file: route.file,
-  }
+function sortForAssembly(routes: readonly RouteInfo[]): RouteInfo[] {
+  return [...routes].sort((a, b) => {
+    const depthDiff = a.segments.length - b.segments.length
+    if (depthDiff !== 0) {
+      return depthDiff
+    }
 
-  if (route.caseSensitive) {
-    node.caseSensitive = true
-  }
+    if (a.index !== b.index) {
+      return a.index ? 1 : -1
+    }
 
-  const relativePath = computeRelativePath(route, routeMap)
-  if (relativePath !== undefined) {
-    node.path = relativePath
-  }
+    const scoreDiff = parentScore(b) - parentScore(a)
+    if (scoreDiff !== 0) {
+      return scoreDiff
+    }
 
-  if (route.index) {
-    node.index = true
-  }
-
-  const children = childrenByParent.get(route.id) ?? []
-  if (route.index && children.length > 0) {
-    throw new Error(
-      `Child routes are not allowed in index routes. Please remove child routes of ${route.id}`,
-    )
-  }
-
-  if (children.length > 0) {
-    node.children = children.map(createConfig)
-  }
-
-  return node
+    return a.id.localeCompare(b.id)
+  })
 }
 
 export function buildRouteTree(routes: readonly RouteInfo[]): RouteConfig[] {
-  const routeMap = new Map(routes.map((route) => [route.id, route] as const))
-  const childrenByParent = groupRoutesByParent(routes)
+  const sortedRoutes = sortForAssembly(routes)
+  const configMap = new Map<string, RouteConfig>()
+  const absolutePaths = new Map<string, string | undefined>()
+  const parentLookup = new Map<string, RouteInfo>()
+  const roots: RouteConfig[] = []
 
-  const createRouteConfig = (route: RouteInfo): RouteConfig => {
-    return createRouteNode(route, routeMap, childrenByParent, createRouteConfig)
+  const resolveParentId = (route: RouteInfo): string => {
+    let parentId: string | undefined
+
+    if (route.index) {
+      parentId = parentLookup.get(keyFor(route.mountPath, route.segments))?.id
+    }
+
+    if (!parentId) {
+      for (let length = route.segments.length - 1; length > 0; length--) {
+        const candidate = parentLookup.get(
+          keyFor(route.mountPath, route.segments.slice(0, length)),
+        )
+        if (candidate && candidate.id !== route.id) {
+          parentId = candidate.id
+          break
+        }
+      }
+    }
+
+    return parentId ?? ROOT_PARENT
   }
 
-  const topLevelRoutes = childrenByParent.get(ROOT_PARENT) ?? []
-  return topLevelRoutes.map(createRouteConfig)
+  for (const route of sortedRoutes) {
+    const parentId = resolveParentId(route)
+    const parentPath =
+      parentId === ROOT_PARENT ? '/' : absolutePaths.get(parentId)
+
+    const config: RouteConfig = {
+      id: route.id,
+      file: route.file,
+    }
+
+    const relativePath = resolveRelativePath(
+      route,
+      parentPath === '/' ? undefined : parentPath,
+    )
+    if (relativePath !== undefined) {
+      config.path = relativePath
+    }
+
+    if (route.index) {
+      config.index = true
+    }
+
+    if (!route.index) {
+      const key = keyFor(route.mountPath, route.segments)
+      const current = parentLookup.get(key)
+      const score = parentScore(route)
+      if (!current) {
+        parentLookup.set(key, route)
+      } else {
+        const currentScore = parentScore(current)
+        if (
+          score > currentScore ||
+          (score === currentScore && route.id < current.id)
+        ) {
+          parentLookup.set(key, route)
+        }
+      }
+    }
+
+    if (parentId === ROOT_PARENT) {
+      roots.push(config)
+      configMap.set(route.id, config)
+      absolutePaths.set(route.id, route.path)
+      continue
+    }
+
+    const parentConfig = configMap.get(parentId)
+    if (!parentConfig) {
+      roots.push(config)
+      configMap.set(route.id, config)
+      absolutePaths.set(route.id, route.path)
+      continue
+    }
+
+    if (parentConfig.index) {
+      throw new Error(
+        `Child routes are not allowed in index routes. Please remove child routes of ${parentConfig.id}`,
+      )
+    }
+
+    if (!parentConfig.children) {
+      parentConfig.children = []
+    }
+    parentConfig.children.push(config)
+    configMap.set(route.id, config)
+    absolutePaths.set(route.id, route.path)
+  }
+
+  return roots
 }

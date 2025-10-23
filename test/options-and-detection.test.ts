@@ -149,6 +149,48 @@ describe('routing options', () => {
       expect(manifest['api/routes/index']?.index).toBe(true)
     })
 
+    it('nests discovered children under secondary mounts', () => {
+      const routes = createRoutesFromFiles([], {
+        routesDir: {
+          '/': 'app/routes',
+          '/api': 'api/routes',
+          '/docs': 'packages/docs/routes',
+        },
+        visitFiles: (dir, visitor) => {
+          const normalized = dir.replace(/\\/g, '/')
+
+          if (normalized.endsWith('app/routes')) {
+            visitor('_analytics.tsx')
+            return
+          }
+
+          if (normalized.endsWith('packages/docs/routes')) {
+            visitor('overview.tsx')
+            return
+          }
+
+          if (normalized.endsWith('api/routes')) {
+            visitor('index.tsx')
+            visitor('users/_layout.tsx')
+            visitor('users/settings.tsx')
+          }
+        },
+      })
+
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/_analytics']?.parentId).toBe('root')
+      expect(manifest['routes/_analytics']?.path).toBeUndefined()
+
+      expect(manifest['api/routes/users/_layout']?.parentId).toBe('root')
+      expect(manifest['api/routes/users/_layout']?.path).toBe('api/users')
+
+      expect(manifest['api/routes/users/settings']?.parentId).toBe(
+        'api/routes/users/_layout',
+      )
+      expect(manifest['api/routes/users/settings']?.path).toBe('settings')
+    })
+
     it('keeps root app routes relative to the main app directory when using object mounts', () => {
       const routes = createRoutesFromFiles([], {
         routesDir: {

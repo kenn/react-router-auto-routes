@@ -1,16 +1,11 @@
 export type RouteInfo = {
   id: string
-  idPrefix: string
-  relativeId: string
   path: string | undefined
   file: string
-  name: string
   segments: string[]
   mountPath: string
-  sourceKey: string
   parentId?: string
   index?: boolean
-  caseSensitive?: boolean
 }
 
 export interface RouteConfig {
@@ -18,7 +13,6 @@ export interface RouteConfig {
   file: string
   path?: string
   index?: boolean
-  caseSensitive?: boolean
   children?: RouteConfig[]
 }
 

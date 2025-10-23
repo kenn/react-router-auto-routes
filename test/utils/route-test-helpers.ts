@@ -9,7 +9,6 @@ type FlattenedRouteEntry = {
   parentId: string
   path?: string
   index?: boolean
-  caseSensitive?: boolean
 }
 
 export type ExpectedRouteSnapshot = Record<string, Partial<FlattenedRouteEntry>>
@@ -19,7 +18,6 @@ export type RouteFixtureExpectation = {
   parentId?: string
   path?: string
   index?: boolean
-  caseSensitive?: boolean
   file?: string
 }
 
@@ -51,7 +49,6 @@ function flattenRoutes(
       parentId,
       path: route.path,
       index: route.index,
-      caseSensitive: route.caseSensitive,
     })
 
     if (route.children && route.children.length > 0) {
@@ -73,7 +70,6 @@ export function flattenRoutesById(
       parentId,
       path: route.path,
       index: route.index,
-      caseSensitive: route.caseSensitive,
     })
 
     if (route.children && route.children.length > 0) {
@@ -156,8 +152,7 @@ export function createRouteFixtures(fixtures: RouteFixture[]) {
     if (!expectation) continue
 
     const { id, file: overrideFile, parentId, ...rest } = expectation
-    const normalizedFile =
-      overrideFile ?? `routes/${file.replace(/\\/g, '/')}`
+    const normalizedFile = overrideFile ?? `routes/${file.replace(/\\/g, '/')}`
 
     const resolvedId = addDefaultPrefix(id)
     const resolvedParentId = addDefaultPrefix(parentId)

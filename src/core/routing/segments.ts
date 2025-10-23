@@ -1,166 +1,256 @@
-import { autoRoutesOptions } from '../types'
-import { PATHLESS_PREFIX, SPECIAL_ROUTE_FILES } from '../constants'
+import path from 'path'
 
-const pathSeparatorRegex = /[\\/\\.]/
+import { SPECIAL_ROUTE_FILES } from '../constants'
 
-function isPathSeparator(char: string) {
-  return pathSeparatorRegex.test(char)
+const ESCAPE_START = '['
+const ESCAPE_END = ']'
+const OPTIONAL_START = '('
+const OPTIONAL_END = ')'
+const WINDOWS_SEPARATOR = path.win32.sep
+
+const STRIP_ALWAYS = new Set(['route', '_route'])
+
+type State = 'NORMAL' | 'ESCAPE' | 'OPTIONAL' | 'OPTIONAL_ESCAPE'
+
+function isSegmentSeparator(char: string | undefined): boolean {
+  if (!char) return false
+  return char === '/' || char === '.' || char === WINDOWS_SEPARATOR
 }
 
-function removeSquareBrackets(segment: string): string {
-  if (!segment.includes('[') || !segment.includes(']')) {
-    return segment
-  }
-
-  let output = ''
-  let depth = 0
-
-  for (const char of segment) {
-    if (char === '[' && depth === 0) {
-      depth++
-    } else if (char === ']' && depth > 0) {
-      depth--
-    } else {
-      output += char
-    }
-  }
-
-  return output
-}
-
-function transformSegment(
-  segment: string,
-  paramChar: string,
-  index: boolean,
-): string | null {
-  if (segment.startsWith(PATHLESS_PREFIX)) {
-    return null
-  }
-
-  if (segment.endsWith(PATHLESS_PREFIX)) {
-    segment = segment.slice(0, -1)
-  }
-
-  segment = removeSquareBrackets(segment)
-
-  if (index && segment === 'index') {
-    return null
-  }
-
-  if (segment.startsWith(paramChar)) {
-    return segment === paramChar ? '/*' : `/:${segment.slice(1)}`
-  }
-
-  if (segment.startsWith(`(${paramChar}`)) {
-    return `/:${segment.slice(2, segment.length - 1)}?`
-  }
-
-  if (segment.startsWith('(')) {
-    return `/${segment.slice(1, segment.length - 1)}?`
-  }
-
-  return `/${segment}`
-}
-
-export function createRoutePath(
+function pushRouteSegment(
   routeSegments: string[],
-  index: boolean,
-  options: autoRoutesOptions,
-): string | undefined {
-  const paramChar = options.paramChar ?? '$'
+  rawRouteSegments: string[],
+  segment: string,
+  rawSegment: string,
+  routeId: string,
+): void {
+  if (!segment) return
 
-  const pathParts = routeSegments
-    .map((segment) => transformSegment(segment, paramChar, index))
-    .filter((part): part is string => part !== null)
-
-  let result = pathParts.join('')
-
-  if (result.endsWith('/')) {
-    result = result.slice(0, -1)
-  }
-
-  return result || undefined
-}
-
-function removeSpecialRouteFile(name: string): string {
-  const hasFolder = name.includes('/')
-  if (!hasFolder) {
-    return name
-  }
-
-  const lastSegment = name.split('/').pop()
-  if (!lastSegment || !SPECIAL_ROUTE_FILES.includes(lastSegment)) {
-    return name
-  }
-
-  const lastSlash = name.lastIndexOf('/')
-  return lastSlash >= 0 ? name.substring(0, lastSlash) : name
-}
-
-function validateSegment(segment: string, paramChar: string): void {
-  if (
-    segment.includes(paramChar) &&
-    !(segment.startsWith(paramChar) || segment.startsWith(`(${paramChar}`))
-  ) {
+  const notSupported = (value: string, char: string) => {
     throw new Error(
-      `Route params must start with prefix char ${paramChar}: ${segment}`,
+      `Route segment "${value}" for "${routeId}" cannot contain "${char}".\n` +
+        `If this is something you need, upvote this proposal for React Router https://github.com/remix-run/react-router/discussions/9822.`,
     )
   }
 
-  if (
-    segment.includes('(') &&
-    !segment.startsWith('(') &&
-    !segment.endsWith(')')
-  ) {
-    throw new Error(
-      `Optional routes must start and end with parentheses: ${segment}`,
-    )
+  if (rawSegment.includes('*')) {
+    notSupported(rawSegment, '*')
   }
+
+  if (rawSegment.includes(':')) {
+    notSupported(rawSegment, ':')
+  }
+
+  if (rawSegment.includes('/')) {
+    notSupported(segment, '/')
+  }
+
+  routeSegments.push(segment)
+  rawRouteSegments.push(rawSegment)
 }
 
-function parseSegmentsFromPath(name: string): string[] {
-  const segments: string[] = []
-  let currentSegment = ''
-  let inEscape = false
+function stripTrailingSpecialSegments(
+  originalName: string,
+  routeSegments: string[],
+  rawRouteSegments: string[],
+): void {
+  if (!originalName.includes('/')) {
+    return
+  }
 
-  for (const char of name) {
-    if (char === '[') {
-      inEscape = true
-      currentSegment += char
-    } else if (char === ']') {
-      inEscape = false
-      currentSegment += char
-    } else if (isPathSeparator(char) && !inEscape) {
-      if (currentSegment) {
-        segments.push(currentSegment)
-        currentSegment = ''
-      }
-    } else {
-      currentSegment += char
+  while (routeSegments.length > 0 && rawRouteSegments.length > 0) {
+    const lastRaw = rawRouteSegments[rawRouteSegments.length - 1]
+    if (!lastRaw || !STRIP_ALWAYS.has(lastRaw)) {
+      break
     }
-  }
 
-  if (currentSegment) {
-    segments.push(currentSegment)
+    routeSegments.pop()
+    rawRouteSegments.pop()
   }
-
-  return segments
 }
 
 export function getRouteSegments(
-  name: string,
-  _index: boolean,
+  routeId: string,
+  isIndex: boolean,
   paramChar: string = '$',
-  _colocationChar: string = '+',
-): string[] {
-  const cleanedName = removeSpecialRouteFile(name)
-  const segments = parseSegmentsFromPath(cleanedName)
+): { segments: string[]; path: string | undefined } {
+  const routeSegments: string[] = []
+  const rawRouteSegments: string[] = []
 
-  for (const segment of segments) {
-    validateSegment(segment, paramChar)
+  let index = 0
+  let routeSegment = ''
+  let rawRouteSegment = ''
+  let state: State = 'NORMAL'
+
+  const matchesParamChar = (char: string) => char === paramChar
+
+  while (index < routeId.length) {
+    const char = routeId[index]
+    index++
+
+    switch (state) {
+      case 'NORMAL': {
+        if (isSegmentSeparator(char)) {
+          pushRouteSegment(
+            routeSegments,
+            rawRouteSegments,
+            routeSegment,
+            rawRouteSegment,
+            routeId,
+          )
+          routeSegment = ''
+          rawRouteSegment = ''
+          break
+        }
+
+        if (char === ESCAPE_START) {
+          state = 'ESCAPE'
+          rawRouteSegment += char
+          break
+        }
+
+        if (char === OPTIONAL_START) {
+          state = 'OPTIONAL'
+          rawRouteSegment += char
+          break
+        }
+
+        if (!routeSegment && matchesParamChar(char)) {
+          const nextChar = routeId[index]
+          if (index === routeId.length || isSegmentSeparator(nextChar)) {
+            routeSegment += '*'
+            rawRouteSegment += char
+          } else {
+            routeSegment += ':'
+            rawRouteSegment += char
+          }
+          break
+        }
+
+        routeSegment += char
+        rawRouteSegment += char
+        break
+      }
+      case 'ESCAPE': {
+        if (char === ESCAPE_END) {
+          state = 'NORMAL'
+          rawRouteSegment += char
+          break
+        }
+
+        routeSegment += char
+        rawRouteSegment += char
+        break
+      }
+      case 'OPTIONAL': {
+        if (char === OPTIONAL_END) {
+          routeSegment += '?'
+          rawRouteSegment += char
+          state = 'NORMAL'
+          break
+        }
+
+        if (char === ESCAPE_START) {
+          state = 'OPTIONAL_ESCAPE'
+          rawRouteSegment += char
+          break
+        }
+
+        if (!routeSegment && matchesParamChar(char)) {
+          const nextChar = routeId[index]
+          if (index === routeId.length || isSegmentSeparator(nextChar)) {
+            routeSegment += '*'
+            rawRouteSegment += char
+          } else {
+            routeSegment += ':'
+            rawRouteSegment += char
+          }
+          break
+        }
+
+        routeSegment += char
+        rawRouteSegment += char
+        break
+      }
+      case 'OPTIONAL_ESCAPE': {
+        if (char === ESCAPE_END) {
+          state = 'OPTIONAL'
+          rawRouteSegment += char
+          break
+        }
+
+        routeSegment += char
+        rawRouteSegment += char
+        break
+      }
+    }
   }
 
-  if (segments.at(-1) === 'route') {
+  pushRouteSegment(
+    routeSegments,
+    rawRouteSegments,
+    routeSegment,
+    rawRouteSegment,
+    routeId,
+  )
+
+  stripTrailingSpecialSegments(routeId, routeSegments, rawRouteSegments)
+
+  const path = createRoutePath(routeSegments, rawRouteSegments, isIndex)
+  const segments = deriveNameSegments(routeId, rawRouteSegments)
+
+  return { segments, path }
+}
+
+function createRoutePath(
+  routeSegments: string[],
+  rawRouteSegments: string[],
+  isIndex: boolean,
+): string | undefined {
+  const length = isIndex ? routeSegments.length - 1 : routeSegments.length
+  if (length <= 0) {
+    return undefined
+  }
+
+  const parts: string[] = []
+
+  for (let i = 0; i < length; i++) {
+    let segment = routeSegments[i]
+    const rawSegment = rawRouteSegments[i]
+
+    if (!rawSegment) {
+      continue
+    }
+
+    if (segment.startsWith('_') && rawSegment.startsWith('_')) {
+      continue
+    }
+
+    if (segment.endsWith('_') && rawSegment.endsWith('_')) {
+      segment = segment.slice(0, -1)
+    }
+
+    parts.push(segment)
+  }
+
+  return parts.length > 0 ? parts.join('/') : undefined
+}
+
+function deriveNameSegments(
+  routeId: string,
+  rawSegments: readonly string[],
+): string[] {
+  if (!routeId.includes('/')) {
+    return [...rawSegments]
+  }
+
+  const segments = [...rawSegments]
+
+  while (segments.length > 0) {
+    const last = segments[segments.length - 1]
+    if (!last || !SPECIAL_ROUTE_FILES.includes(last)) {
+      break
+    }
     segments.pop()
   }
 

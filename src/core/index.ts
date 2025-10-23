@@ -3,15 +3,11 @@ import {
   escapeRegexChar,
   normalizeRoutesDirOption,
 } from '../utils'
-import {
-  collectRouteInfos,
-  normalizeAndAssignParents,
-  buildRouteTree,
-} from './routing'
-import { RouteConfig, autoRoutesOptions, ResolvedOptions } from './types'
+import { buildRouteTree, collectRouteInfos } from './routing'
+import { autoRoutesOptions, ResolvedOptions, RouteConfig } from './types'
 
+export type { autoRoutesOptions, RouteConfig } from './types'
 export { autoRoutes }
-export type { RouteConfig, autoRoutesOptions } from './types'
 
 const DEFAULT_ROUTE_REGEX =
   /((\${colocationChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
@@ -55,7 +51,6 @@ export default function autoRoutes(
   }
 
   const collectedRoutes = collectRouteInfos(resolved)
-  const routesWithParents = normalizeAndAssignParents(collectedRoutes)
 
-  return buildRouteTree(routesWithParents)
+  return buildRouteTree(collectedRoutes)
 }
