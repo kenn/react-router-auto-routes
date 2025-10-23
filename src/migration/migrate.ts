@@ -52,21 +52,15 @@ export function migrate(
 
   const routeMappings = collectRouteMappings(routes, sourceDir, targetDir)
   const colocatedMappings = collectColocatedMappings(sourceDir, targetDir)
-  const normalizedMapping = createNormalizedMapping([
-    ...routeMappings,
-    ...colocatedMappings,
-  ])
+  const mappings = [...routeMappings, ...colocatedMappings]
+  const normalizedMapping = createNormalizedMapping(mappings)
   const specifierReplacements = createSpecifierReplacements(
-    [...routeMappings, ...colocatedMappings],
+    mappings,
     sourceDir,
     targetDir,
   )
 
-  for (const mapping of routeMappings) {
-    rewriteAndCopy(mapping, normalizedMapping, specifierReplacements)
-  }
-
-  for (const mapping of colocatedMappings) {
+  for (const mapping of mappings) {
     rewriteAndCopy(mapping, normalizedMapping, specifierReplacements)
   }
 

@@ -28,10 +28,7 @@ export type { CommandRunner }
 
 const defaultSourceDir = 'app/routes'
 
-type CliArguments = {
-  sourceDir: string
-  targetDir: string
-}
+type CliArguments = { sourceDir: string; targetDir: string }
 
 type MigrationPaths = {
   sourceArg: string
@@ -75,32 +72,43 @@ function buildMigrationPaths(args: CliArguments): MigrationPaths {
 }
 
 function validateMigrationPaths(paths: MigrationPaths): boolean {
-  if (paths.sourceArg === paths.targetArg) {
-    logError('source and target directories must be different')
-    return false
-  }
-
-  if (!fs.existsSync(paths.sourceArg)) {
-    logError(`source directory '${paths.sourceArg}' does not exist`)
-    return false
-  }
-
-  if (paths.resolvedSource === paths.resolvedBackup) {
-    logError('source directory cannot be named old-routes')
-    return false
-  }
-
-  if (paths.resolvedTarget === paths.resolvedBackup) {
-    logError('target directory cannot be the backup directory old-routes')
-    return false
-  }
-
-  if (fs.existsSync(paths.resolvedBackup)) {
-    logError(
-      `backup directory '${pathRelative(process.cwd(), paths.resolvedBackup)}' already exists. ` +
+  const {
+    sourceArg,
+    targetArg,
+    resolvedSource,
+    resolvedTarget,
+    resolvedBackup,
+  } = paths
+  const checks: Array<[boolean, () => string]> = [
+    [
+      sourceArg === targetArg,
+      () => 'source and target directories must be different',
+    ],
+    [
+      !fs.existsSync(sourceArg),
+      () => `source directory '${sourceArg}' does not exist`,
+    ],
+    [
+      resolvedSource === resolvedBackup,
+      () => 'source directory cannot be named old-routes',
+    ],
+    [
+      resolvedTarget === resolvedBackup,
+      () => 'target directory cannot be the backup directory old-routes',
+    ],
+    [
+      fs.existsSync(resolvedBackup),
+      () =>
+        `backup directory '${pathRelative(process.cwd(), resolvedBackup)}' already exists. ` +
         'Remove or rename it before running the migration.',
-    )
-    return false
+    ],
+  ]
+
+  for (const [condition, message] of checks) {
+    if (condition) {
+      logError(message())
+      return false
+    }
   }
 
   return true
@@ -147,41 +155,16 @@ function runMigrationWorkflow(context: MigrationContext): number {
   } = context
 
   const { entryPath, isLegacy } = detectLegacyRouteEntry(resolvedSource)
-
+  let entryRewrite: RewriteLegacyRouteEntryResult | null = null
   const beforeSnapshot = captureRoutesSnapshot(runner, 'before migration')
   if (beforeSnapshot === null) {
     return 1
-  }
-
-  let entryRewrite: RewriteLegacyRouteEntryResult | null = null
-  const restoreLegacyEntryIfNeeded = () => {
-    if (!entryRewrite?.updated) {
-      return
-    }
-
-    if (!entryPath || typeof entryRewrite.previousContents !== 'string') {
-      entryRewrite = null
-      return
-    }
-
-    try {
-      fs.writeFileSync(entryPath, entryRewrite.previousContents)
-    } catch (restoreError) {
-      const entryRelative = pathRelative(process.cwd(), entryPath)
-      logWarn(
-        `⚠️ Failed to restore route entry '${entryRelative}'. Restore it manually if needed.`,
-      )
-      logWarn(String(restoreError))
-    } finally {
-      entryRewrite = null
-    }
   }
 
   try {
     if (fs.existsSync(resolvedTarget)) {
       fs.rmSync(resolvedTarget, { recursive: true, force: true })
     }
-
     migrate(sourceArg, targetArg, migrateOptions)
   } catch (error) {
     logError(error)
@@ -215,8 +198,8 @@ function runMigrationWorkflow(context: MigrationContext): number {
 
     const afterSnapshot = captureRoutesSnapshot(runner, 'after migration')
     if (afterSnapshot === null) {
-      restoreLegacyEntryIfNeeded()
-      revertRoutes(resolvedSource, resolvedTarget, resolvedBackup)
+      entryRewrite = restoreLegacyEntry(entryPath, entryRewrite)
+      revertMigration(context, swapped)
       return 1
     }
 
@@ -224,34 +207,74 @@ function runMigrationWorkflow(context: MigrationContext): number {
     const afterNormalized = normalizeSnapshot(afterSnapshot)
 
     if (beforeNormalized === afterNormalized) {
-      logInfo('✅ Routes match between runs. Migration looks good!')
-      if (fs.existsSync(resolvedBackup)) {
-        fs.rmSync(resolvedBackup, { recursive: true, force: true })
-        logInfo(
-          `🧹 Removed temporary backup '${pathRelative(process.cwd(), resolvedBackup)}'. ` +
-            'Use git history if you need the previous structure.',
-        )
-      }
+      finalizeSuccessfulMigration(resolvedBackup)
       return 0
     }
 
     logError('❌ Route output changed. Reverting migration.')
-    const diff = diffSnapshots(beforeNormalized, afterNormalized)
-    logError(diff)
-    restoreLegacyEntryIfNeeded()
-    revertRoutes(resolvedSource, resolvedTarget, resolvedBackup)
+    logError(diffSnapshots(beforeNormalized, afterNormalized))
+    entryRewrite = restoreLegacyEntry(entryPath, entryRewrite)
+    revertMigration(context, swapped)
     return 1
   } catch (error) {
-    restoreLegacyEntryIfNeeded()
-    if (swapped) {
-      revertRoutes(resolvedSource, resolvedTarget, resolvedBackup)
-    } else if (fs.existsSync(resolvedTarget)) {
-      fs.rmSync(resolvedTarget, { recursive: true, force: true })
-    }
-
+    entryRewrite = restoreLegacyEntry(entryPath, entryRewrite)
+    revertMigration(context, swapped)
     logError(error)
     return 1
   }
+}
+
+function restoreLegacyEntry(
+  entryPath: string | null,
+  rewrite: RewriteLegacyRouteEntryResult | null,
+): RewriteLegacyRouteEntryResult | null {
+  if (
+    !rewrite?.updated ||
+    !entryPath ||
+    typeof rewrite.previousContents !== 'string'
+  ) {
+    return null
+  }
+
+  try {
+    fs.writeFileSync(entryPath, rewrite.previousContents)
+  } catch (restoreError) {
+    const entryRelative = pathRelative(process.cwd(), entryPath)
+    logWarn(
+      `⚠️ Failed to restore route entry '${entryRelative}'. Restore it manually if needed.`,
+    )
+    logWarn(String(restoreError))
+  }
+
+  return null
+}
+
+function revertMigration(context: MigrationContext, swapped: boolean): void {
+  if (swapped) {
+    revertRoutes(
+      context.resolvedSource,
+      context.resolvedTarget,
+      context.resolvedBackup,
+    )
+    return
+  }
+
+  if (fs.existsSync(context.resolvedTarget)) {
+    fs.rmSync(context.resolvedTarget, { recursive: true, force: true })
+  }
+}
+
+function finalizeSuccessfulMigration(resolvedBackup: string): void {
+  logInfo('✅ Routes match between runs. Migration looks good!')
+  if (!fs.existsSync(resolvedBackup)) {
+    return
+  }
+
+  fs.rmSync(resolvedBackup, { recursive: true, force: true })
+  logInfo(
+    `🧹 Removed temporary backup '${pathRelative(process.cwd(), resolvedBackup)}'. ` +
+      'Use git history if you need the previous structure.',
+  )
 }
 
 function ensureCleanGitWorktree(resolvedSource: string): boolean {
