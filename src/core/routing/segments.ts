@@ -26,23 +26,18 @@ function pushRouteSegment(
 ): void {
   if (!segment) return
 
-  const notSupported = (value: string, char: string) => {
-    throw new Error(
-      `Route segment "${value}" for "${routeId}" cannot contain "${char}".\n` +
-        `If this is something you need, upvote this proposal for React Router https://github.com/remix-run/react-router/discussions/9822.`,
-    )
-  }
-
-  if (rawSegment.includes('*')) {
-    notSupported(rawSegment, '*')
-  }
-
-  if (rawSegment.includes(':')) {
-    notSupported(rawSegment, ':')
-  }
-
-  if (rawSegment.includes('/')) {
-    notSupported(segment, '/')
+  const checks: Array<[string, string, string]> = [
+    [rawSegment, '*', rawSegment],
+    [rawSegment, ':', rawSegment],
+    [rawSegment, '/', segment],
+  ]
+  for (const [testValue, char, value] of checks) {
+    if (testValue.includes(char)) {
+      throw new Error(
+        `Route segment "${value}" for "${routeId}" cannot contain "${char}".\n` +
+          `If this is something you need, upvote this proposal for React Router https://github.com/remix-run/react-router/discussions/9822.`,
+      )
+    }
   }
 
   routeSegments.push(segment)
@@ -77,122 +72,83 @@ export function getRouteSegments(
   const routeSegments: string[] = []
   const rawRouteSegments: string[] = []
 
-  let index = 0
   let routeSegment = ''
   let rawRouteSegment = ''
   let state: State = 'NORMAL'
 
-  const matchesParamChar = (char: string) => char === paramChar
-
-  while (index < routeId.length) {
-    const char = routeId[index]
-    index++
-
-    switch (state) {
-      case 'NORMAL': {
-        if (isSegmentSeparator(char)) {
-          pushRouteSegment(
-            routeSegments,
-            rawRouteSegments,
-            routeSegment,
-            rawRouteSegment,
-            routeId,
-          )
-          routeSegment = ''
-          rawRouteSegment = ''
-          break
-        }
-
-        if (char === ESCAPE_START) {
-          state = 'ESCAPE'
-          rawRouteSegment += char
-          break
-        }
-
-        if (char === OPTIONAL_START) {
-          state = 'OPTIONAL'
-          rawRouteSegment += char
-          break
-        }
-
-        if (!routeSegment && matchesParamChar(char)) {
-          const nextChar = routeId[index]
-          if (index === routeId.length || isSegmentSeparator(nextChar)) {
-            routeSegment += '*'
-            rawRouteSegment += char
-          } else {
-            routeSegment += ':'
-            rawRouteSegment += char
-          }
-          break
-        }
-
-        routeSegment += char
-        rawRouteSegment += char
-        break
-      }
-      case 'ESCAPE': {
-        if (char === ESCAPE_END) {
-          state = 'NORMAL'
-          rawRouteSegment += char
-          break
-        }
-
-        routeSegment += char
-        rawRouteSegment += char
-        break
-      }
-      case 'OPTIONAL': {
-        if (char === OPTIONAL_END) {
-          routeSegment += '?'
-          rawRouteSegment += char
-          state = 'NORMAL'
-          break
-        }
-
-        if (char === ESCAPE_START) {
-          state = 'OPTIONAL_ESCAPE'
-          rawRouteSegment += char
-          break
-        }
-
-        if (!routeSegment && matchesParamChar(char)) {
-          const nextChar = routeId[index]
-          if (index === routeId.length || isSegmentSeparator(nextChar)) {
-            routeSegment += '*'
-            rawRouteSegment += char
-          } else {
-            routeSegment += ':'
-            rawRouteSegment += char
-          }
-          break
-        }
-
-        routeSegment += char
-        rawRouteSegment += char
-        break
-      }
-      case 'OPTIONAL_ESCAPE': {
-        if (char === ESCAPE_END) {
-          state = 'OPTIONAL'
-          rawRouteSegment += char
-          break
-        }
-
-        routeSegment += char
-        rawRouteSegment += char
-        break
-      }
-    }
+  const flushSegment = () => {
+    pushRouteSegment(
+      routeSegments,
+      rawRouteSegments,
+      routeSegment,
+      rawRouteSegment,
+      routeId,
+    )
+    routeSegment = ''
+    rawRouteSegment = ''
   }
 
-  pushRouteSegment(
-    routeSegments,
-    rawRouteSegments,
-    routeSegment,
-    rawRouteSegment,
-    routeId,
-  )
+  for (let index = 0; index < routeId.length; index++) {
+    const char = routeId[index]
+    if (state === 'ESCAPE' || state === 'OPTIONAL_ESCAPE') {
+      if (char === ESCAPE_END) {
+        state = state === 'ESCAPE' ? 'NORMAL' : 'OPTIONAL'
+        rawRouteSegment += char
+      } else {
+        routeSegment += char
+        rawRouteSegment += char
+      }
+      continue
+    }
+
+    if (state === 'NORMAL') {
+      if (isSegmentSeparator(char)) {
+        flushSegment()
+        continue
+      }
+      if (char === ESCAPE_START) {
+        state = 'ESCAPE'
+        rawRouteSegment += char
+        continue
+      }
+      if (char === OPTIONAL_START) {
+        state = 'OPTIONAL'
+        rawRouteSegment += char
+        continue
+      }
+    }
+
+    if (state === 'OPTIONAL') {
+      if (char === OPTIONAL_END) {
+        routeSegment += '?'
+        rawRouteSegment += char
+        state = 'NORMAL'
+        continue
+      }
+      if (char === ESCAPE_START) {
+        state = 'OPTIONAL_ESCAPE'
+        rawRouteSegment += char
+        continue
+      }
+    }
+
+    if (
+      !routeSegment &&
+      char === paramChar &&
+      (state === 'NORMAL' || state === 'OPTIONAL')
+    ) {
+      const next = routeId[index + 1]
+      routeSegment +=
+        index + 1 === routeId.length || isSegmentSeparator(next) ? '*' : ':'
+      rawRouteSegment += char
+      continue
+    }
+
+    routeSegment += char
+    rawRouteSegment += char
+  }
+
+  flushSegment()
 
   stripTrailingSpecialSegments(routeId, routeSegments, rawRouteSegments)
 
