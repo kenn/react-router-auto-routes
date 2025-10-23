@@ -10,6 +10,8 @@
 
 - `src/core/routing/*`: detection, metadata collection, path building, normalization, and tree assembly.
 - `src/utils.ts`: shared helpers (`defaultVisitFiles`, memoized regex, route id normalization).
+- `src/migration/route-scanner.ts`: filesystem crawl + ignore handling for legacy migrations.
+- `src/migration/normalizers.ts`: legacy route ID and colocated path normalization.
 - `src/migration/*`: CLI compatibility for older Remix setups via `createRoutesFromFolders`.
 
 ## Tooling & Commands
@@ -22,8 +24,10 @@
 
 - Codebase is ESM-only; import via `import` syntax, use Node 22+.
 - Route conventions: param char defaults to `$`, colocation prefix `+`, optional segments `(...)`, and pathless layouts prefixed `_`.
-- When extending detection logic ensure colocation errors remain descriptive (see `isRouteModuleFile`).
+- When extending detection logic ensure colocation errors remain descriptive (see `scanRouteModules` and `isColocatedFile`).
 - Maintain TypeScript types in `src/core/types.ts` and keep `autoRoutes` API backwards compatible.
+- The migration CLI now funnels orchestration through `runMigrationWorkflow`; dry-run support is exposed via `RunOptions` for tests/tooling.
+- Use `buildImportRewritePlan` when you need to inspect import rewrites without performing disk writes (supports dry-run reporting).
 
 ### Route Nesting Behavior
 

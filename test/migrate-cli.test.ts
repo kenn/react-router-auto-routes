@@ -3,12 +3,12 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createRoutesFromFolders } from '../src/migration/create-routes-from-folders'
-import { defineRoutes } from '../src/migration/route-definition'
 import { diffSnapshots, normalizeSnapshot } from '../src/migration/cli/diff'
-import { migrate } from '../src/migration/migrate'
-import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
 import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
+import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
+import { createRoutesFromFolders } from '../src/migration/create-routes-from-folders'
+import { migrate } from '../src/migration/migrate'
+import { defineRoutes } from '../src/migration/route-definition'
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
@@ -732,5 +732,37 @@ describe('runCli', () => {
 
     const entryContents = fs.readFileSync(entryPath, 'utf8')
     expect(entryContents).toBe(legacyEntry)
+  })
+
+  it('supports dry run mode without swapping directories', () => {
+    const fixture = createBasicRoutesFixture('run-cli-dry-run')
+
+    const runner: CommandRunner = () => ({
+      status: 0,
+      stdout: 'ROUTES\n',
+      stderr: '',
+    })
+
+    const previousCwd = process.cwd()
+    process.chdir(fixture.workspace)
+    try {
+      const exitCode = runCli([], { runner, dryRun: true })
+      expect(exitCode).toBe(0)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const messages = consoleLogSpy.mock.calls
+      .map(([message]) => message)
+      .filter((message): message is string => typeof message === 'string')
+
+    expect(
+      messages.some((message) => message.includes('Dry run complete')),
+    ).toBe(true)
+
+    const backupDir = fixture.resolve('app', 'old-routes')
+    expect(fs.existsSync(backupDir)).toBe(false)
+    expect(fs.existsSync(fixture.sourceDir)).toBe(true)
+    expect(fs.existsSync(fixture.resolve('app', 'new-routes'))).toBe(true)
   })
 })

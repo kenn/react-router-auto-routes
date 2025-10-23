@@ -1,8 +1,7 @@
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
 
-import { migrate, type MigrateOptions } from '../migrate'
 import {
   defaultTargetDir,
   pathRelative,
@@ -10,71 +9,142 @@ import {
   swapRoutes,
 } from '../fs-helpers'
 import { logError, logInfo, logWarn } from '../logger'
+import { migrate, type MigrateOptions } from '../migrate'
 import { diffSnapshots, normalizeSnapshot } from './diff'
+import type { RewriteLegacyRouteEntryResult } from './route-entry'
+import { detectLegacyRouteEntry, rewriteLegacyRouteEntry } from './route-entry'
 import {
   captureRoutesSnapshot,
   defaultRunner,
   type CommandRunner,
 } from './runner'
-import { detectLegacyRouteEntry, rewriteLegacyRouteEntry } from './route-entry'
-import type { RewriteLegacyRouteEntryResult } from './route-entry'
 
 export type RunOptions = {
   runner?: CommandRunner
+  dryRun?: boolean
 }
 
 export type { CommandRunner }
 
 const defaultSourceDir = 'app/routes'
 
-export function runCli(argv: string[], options: RunOptions = {}): number {
+type CliArguments = {
+  sourceDir: string
+  targetDir: string
+}
+
+type MigrationPaths = {
+  sourceArg: string
+  targetArg: string
+  resolvedSource: string
+  resolvedTarget: string
+  resolvedBackup: string
+  parentDir: string
+}
+
+type MigrationContext = MigrationPaths & {
+  runner: CommandRunner
+  migrateOptions: MigrateOptions
+  dryRun: boolean
+}
+
+function resolveCliArguments(argv: string[]): CliArguments | null {
   if (argv.length > 2) {
-    usage()
-    return 1
+    return null
   }
 
   const sourceDir = argv[0] ?? defaultSourceDir
   const targetDir = argv[1] ?? defaultTargetDir(sourceDir)
+  return { sourceDir, targetDir }
+}
 
-  if (sourceDir === targetDir) {
+function buildMigrationPaths(args: CliArguments): MigrationPaths {
+  const resolvedSource = path.resolve(args.sourceDir)
+  const resolvedTarget = path.resolve(args.targetDir)
+  const parentDir = path.dirname(resolvedSource)
+  const resolvedBackup = path.join(parentDir, 'old-routes')
+
+  return {
+    sourceArg: args.sourceDir,
+    targetArg: args.targetDir,
+    resolvedSource,
+    resolvedTarget,
+    resolvedBackup,
+    parentDir,
+  }
+}
+
+function validateMigrationPaths(paths: MigrationPaths): boolean {
+  if (paths.sourceArg === paths.targetArg) {
     logError('source and target directories must be different')
+    return false
+  }
+
+  if (!fs.existsSync(paths.sourceArg)) {
+    logError(`source directory '${paths.sourceArg}' does not exist`)
+    return false
+  }
+
+  if (paths.resolvedSource === paths.resolvedBackup) {
+    logError('source directory cannot be named old-routes')
+    return false
+  }
+
+  if (paths.resolvedTarget === paths.resolvedBackup) {
+    logError('target directory cannot be the backup directory old-routes')
+    return false
+  }
+
+  if (fs.existsSync(paths.resolvedBackup)) {
+    logError(
+      `backup directory '${pathRelative(process.cwd(), paths.resolvedBackup)}' already exists. ` +
+        'Remove or rename it before running the migration.',
+    )
+    return false
+  }
+
+  return true
+}
+
+export function runCli(argv: string[], options: RunOptions = {}): number {
+  const args = resolveCliArguments(argv)
+  if (!args) {
+    usage()
     return 1
   }
 
-  if (!fs.existsSync(sourceDir)) {
-    logError(`source directory '${sourceDir}' does not exist`)
+  const paths = buildMigrationPaths(args)
+  if (!validateMigrationPaths(paths)) {
     return 1
   }
 
   const runner = options.runner ?? defaultRunner
   const optionsForMigrate: MigrateOptions = { force: true }
+  const context: MigrationContext = {
+    ...paths,
+    runner,
+    migrateOptions: optionsForMigrate,
+    dryRun: options.dryRun ?? false,
+  }
 
-  const resolvedSource = path.resolve(sourceDir)
-  const resolvedTarget = path.resolve(targetDir)
-  const parentDir = path.dirname(resolvedSource)
-  const resolvedBackup = path.join(parentDir, 'old-routes')
-
-  if (resolvedSource === resolvedBackup) {
-    logError('source directory cannot be named old-routes')
+  if (!ensureCleanGitWorktree(context.resolvedSource)) {
     return 1
   }
 
-  if (resolvedTarget === resolvedBackup) {
-    logError('target directory cannot be the backup directory old-routes')
-    return 1
-  }
+  return runMigrationWorkflow(context)
+}
 
-  if (fs.existsSync(resolvedBackup)) {
-    logError(
-      `backup directory '${pathRelative(process.cwd(), resolvedBackup)}' already exists. ` +
-        'Remove or rename it before running the migration.',
-    )
-    return 1
-  }
-
-  if (!ensureCleanGitWorktree(resolvedSource)) {
-    return 1
-  }
+function runMigrationWorkflow(context: MigrationContext): number {
+  const {
+    sourceArg,
+    targetArg,
+    resolvedSource,
+    resolvedTarget,
+    resolvedBackup,
+    runner,
+    migrateOptions,
+    dryRun,
+  } = context
 
   const { entryPath, isLegacy } = detectLegacyRouteEntry(resolvedSource)
 
@@ -112,10 +182,17 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
       fs.rmSync(resolvedTarget, { recursive: true, force: true })
     }
 
-    migrate(sourceDir, targetDir, optionsForMigrate)
+    migrate(sourceArg, targetArg, migrateOptions)
   } catch (error) {
     logError(error)
     return 1
+  }
+
+  if (dryRun) {
+    logInfo(
+      `🧪 Dry run complete. Review generated routes in '${pathRelative(process.cwd(), resolvedTarget)}'.`,
+    )
+    return 0
   }
 
   let swapped = false

@@ -7,6 +7,21 @@ export type FileMapping = {
   target: string
 }
 
+export type ImportRewritePlan =
+  | {
+      mode: 'copy'
+      sourcePath: string
+      targetPath: string
+    }
+  | {
+      mode: 'rewrite'
+      sourcePath: string
+      targetPath: string
+      originalContents: string
+      rewrittenContents: string
+      changed: boolean
+    }
+
 const transformableExtensions = new Set(['.js', '.jsx', '.ts', '.tsx'])
 const resolutionExtensions = [
   '.ts',
@@ -40,11 +55,11 @@ export type SpecifierReplacement = {
   to: string
 }
 
-export function rewriteAndCopy(
+export function buildImportRewritePlan(
   mapping: FileMapping,
   normalizedMapping: Map<string, string>,
   specifierReplacements: SpecifierReplacement[],
-): void {
+): ImportRewritePlan {
   const sourcePath = normalizeAbsolutePath(mapping.source)
   const targetPath = normalizeAbsolutePath(mapping.target)
   const context: ImportRewriteContext = {
@@ -54,16 +69,49 @@ export function rewriteAndCopy(
     specifierReplacements,
   }
 
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true })
-
   if (!shouldRewriteImports(sourcePath)) {
-    fs.copyFileSync(sourcePath, targetPath)
+    return {
+      mode: 'copy',
+      sourcePath,
+      targetPath,
+    }
+  }
+
+  const originalContents = fs.readFileSync(sourcePath, 'utf8')
+  const rewrittenContents = rewriteModuleImports(originalContents, context)
+
+  return {
+    mode: 'rewrite',
+    sourcePath,
+    targetPath,
+    originalContents,
+    rewrittenContents,
+    changed: originalContents !== rewrittenContents,
+  }
+}
+
+export function executeImportRewritePlan(plan: ImportRewritePlan): void {
+  fs.mkdirSync(path.dirname(plan.targetPath), { recursive: true })
+
+  if (plan.mode === 'copy') {
+    fs.copyFileSync(plan.sourcePath, plan.targetPath)
     return
   }
 
-  const original = fs.readFileSync(sourcePath, 'utf8')
-  const rewritten = rewriteModuleImports(original, context)
-  fs.writeFileSync(targetPath, rewritten)
+  fs.writeFileSync(plan.targetPath, plan.rewrittenContents)
+}
+
+export function rewriteAndCopy(
+  mapping: FileMapping,
+  normalizedMapping: Map<string, string>,
+  specifierReplacements: SpecifierReplacement[],
+): void {
+  const plan = buildImportRewritePlan(
+    mapping,
+    normalizedMapping,
+    specifierReplacements,
+  )
+  executeImportRewritePlan(plan)
 }
 
 export function normalizeAbsolutePath(filePath: string): string {

@@ -1,82 +1,4 @@
-function normalizeRouteFilePath(filePath: string): string {
-  const segments = filePath.split('/')
-  const normalized: string[] = []
-
-  for (const segment of segments) {
-    if (!segment) {
-      normalized.push(segment)
-      continue
-    }
-
-    const trailingPlusMatch = segment.match(/^(.*?)(\+)+$/)
-    if (trailingPlusMatch) {
-      normalized.push(trailingPlusMatch[1])
-      continue
-    }
-
-    const lastDotIndex = segment.lastIndexOf('.')
-    if (lastDotIndex > 0) {
-      const name = segment.slice(0, lastDotIndex)
-      const ext = segment.slice(lastDotIndex)
-      if (name.endsWith('+')) {
-        normalized.push(name.slice(0, -1) + ext)
-        continue
-      }
-    }
-
-    normalized.push(segment)
-  }
-
-  for (let i = 0; i < normalized.length; i += 1) {
-    const segment = normalized[i]
-    if (i >= 2 && /^_layout\.[^.]+$/.test(segment)) {
-      const parent = normalized[i - 1]
-      if (parent && parent !== '.' && parent !== '') {
-        const ext = segment.slice('_layout'.length)
-        normalized.splice(i - 1, 2, `${parent}${ext}`)
-        i -= 1
-        continue
-      }
-    }
-  }
-
-  for (let i = 0; i < normalized.length; i += 1) {
-    const segment = normalized[i]
-    if (i >= 2 && /^index\.[^.]+$/.test(segment)) {
-      const parent = normalized[i - 1]
-      if (parent && parent !== '.' && parent !== '') {
-        const ext = segment.slice('index'.length)
-        normalized.splice(i - 1, 2, `${parent}.index${ext}`)
-        i -= 1
-        continue
-      }
-    }
-  }
-
-  for (let i = 0; i < normalized.length; i += 1) {
-    const segment = normalized[i]
-    if (
-      i >= 2 &&
-      normalized[i - 1].endsWith('_') &&
-      /^_[^.]+(\.[^.]+)?$/.test(segment)
-    ) {
-      const previous = normalized[i - 1]
-      const extIndex = segment.lastIndexOf('.')
-      let name = segment.slice(1, extIndex > 0 ? extIndex : undefined)
-      const ext = extIndex > 0 ? segment.slice(extIndex) : ''
-      if (name.startsWith('_')) {
-        name = name.slice(1)
-      }
-      const combined =
-        name.length > 0 ? `${previous}.${name}${ext}` : `${previous}${ext}`
-      normalized.splice(i - 1, 2, combined)
-      i -= 1
-      continue
-    }
-  }
-
-  return normalized.join('/')
-}
+import { normalizeSnapshotRouteFilePath } from '../normalizers'
 
 export function normalizeSnapshot(snapshot: string): string {
   const normalizedRoutes: string[] = []
@@ -94,7 +16,7 @@ export function normalizeSnapshot(snapshot: string): string {
       continue
     }
 
-    const normalizedFile = normalizeRouteFilePath(fileMatch[1])
+    const normalizedFile = normalizeSnapshotRouteFilePath(fileMatch[1])
     const isIndex = /(^|\s)index(\s|$)/.test(attributes)
     const caseSensitiveMatch = attributes.match(
       /caseSensitive="?(true|false)"?/,

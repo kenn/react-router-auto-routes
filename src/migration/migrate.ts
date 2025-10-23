@@ -1,5 +1,5 @@
-import * as fs from 'fs'
 import * as path from 'path'
+import { MIGRATION_ROUTE_EXTENSIONS } from './constants'
 import { createRoutesFromFolders } from './create-routes-from-folders'
 import {
   isColocatedFile,
@@ -12,14 +12,16 @@ import {
   type FileMapping,
   type SpecifierReplacement,
 } from './import-rewriter'
+import { logInfo } from './logger'
+import { convertColocatedPath, convertToRoute } from './normalizers'
 import { defineRoutes, type RouteManifest } from './route-definition'
+
+export { convertToRoute } from './normalizers'
 
 export type MigrateOptions = {
   force: boolean
   ignoredRouteFiles?: string[]
 }
-
-const routeExtensions = ['.js', '.jsx', '.ts', '.tsx', '.md', '.mdx']
 
 export function migrate(
   sourceDir: string,
@@ -36,11 +38,11 @@ export function migrate(
     new Set([...(options.ignoredRouteFiles ?? []), '**/.DS_Store']),
   )
 
-  console.log('🛠️ Migrating routes to + folder convention...')
-  console.log(`🗂️ source: ${sourceDir}`)
-  console.log(`🗂️ target: ${targetDir}`)
-  console.log(`🙈ignored files: ${ignoredPatterns}`)
-  console.log()
+  logInfo('🛠️ Migrating routes to + folder convention...')
+  logInfo(`🗂️ source: ${sourceDir}`)
+  logInfo(`🗂️ target: ${targetDir}`)
+  logInfo(`🙈ignored files: ${ignoredPatterns}`)
+  logInfo('')
 
   const routes = createRoutesFromFolders(defineRoutes, {
     appDirectory: './',
@@ -68,33 +70,7 @@ export function migrate(
     rewriteAndCopy(mapping, normalizedMapping, specifierReplacements)
   }
 
-  console.log('🏁 Finished!')
-}
-
-export function convertToRoute(
-  routes: RouteManifest,
-  sourceDir: string,
-  id: string,
-  parentId: string,
-) {
-  // strip sourceDir from id and parentId
-  let routeId = id.substring(sourceDir.length + 1)
-  parentId =
-    parentId === 'root' ? parentId : parentId.substring(sourceDir.length + 1)
-
-  let flat = routeId
-    // remove + suffix from folder names (old convention marker)
-    .replace(/\+\//g, '/')
-    // convert double __ to single _ for pathless layout prefix
-    .replace(/(^|\/|\.)__/g, '$1_')
-
-  // check if route is a parent route
-  // if so, move to folder as _layout route
-  if (Object.values(routes).some((r) => r.parentId === id)) {
-    flat = flat + '/_layout'
-  }
-
-  return flat
+  logInfo('🏁 Finished!')
 }
 
 function collectRouteMappings(
@@ -107,7 +83,7 @@ function collectRouteMappings(
   for (const [id, route] of Object.entries(routes)) {
     const { path: routePath, file, parentId } = route
     const extension = path.extname(file)
-    if (!routeExtensions.includes(extension)) {
+    if (!MIGRATION_ROUTE_EXTENSIONS.includes(extension)) {
       continue
     }
 
@@ -231,44 +207,4 @@ function createPrefixCandidates(base: string): string[] {
   prefixes.add('')
 
   return Array.from(prefixes)
-}
-
-function convertColocatedPath(file: string): string {
-  const normalized = file.replace(/\\/g, '/')
-  const segments = normalized.split('/')
-
-  // Find the first colocated folder (without + suffix)
-  let colocatedFolderIndex = -1
-  for (let i = 0; i < segments.length - 1; i++) {
-    const segment = segments[i]
-    if (
-      segment &&
-      !segment.endsWith('+') &&
-      segment !== '.' &&
-      segment !== ''
-    ) {
-      colocatedFolderIndex = i
-      break
-    }
-  }
-
-  // Process each segment
-  const converted = segments.map((segment, index) => {
-    const isLastSegment = index === segments.length - 1
-
-    // Add + prefix to the first colocated folder
-    if (index === colocatedFolderIndex) {
-      return '+' + segment
-    }
-
-    // Remove + suffix from route folders
-    if (!isLastSegment) {
-      return segment.replace(/\+$/, '')
-    }
-
-    // Keep filename as-is
-    return segment
-  })
-
-  return converted.join(path.sep)
 }
