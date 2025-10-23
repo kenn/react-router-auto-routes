@@ -101,8 +101,7 @@ export function normalizeSnapshotRouteFilePath(filePath: string): string {
     ) {
       const previous = result.pop()!
       const suffix = segment.slice(1)
-      const combined =
-        suffix.length > 0 ? `${previous}.${suffix}` : previous
+      const combined = suffix.length > 0 ? `${previous}.${suffix}` : previous
       result.push(combined)
       continue
     }
