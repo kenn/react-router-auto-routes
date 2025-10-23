@@ -1,10 +1,11 @@
 import * as path from 'path'
 import picomatch from 'picomatch'
 
-import { createRouteId, memoizedRegex, resolveRouteRegex } from '../../utils'
-import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from '../constants'
+import { createRouteId } from '../../utils'
 import { NormalizedRoutesDir, ResolvedOptions, RouteInfo } from '../types'
+import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from './constants'
 import { getRouteSegments } from './segments'
+import { memoizedRegex, resolveRouteRegex } from './utils'
 
 export const routeModuleExts = ROUTE_EXTENSIONS
 export const serverRegex = SERVER_FILE_REGEX

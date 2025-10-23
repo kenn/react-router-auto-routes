@@ -1,5 +1,5 @@
-import { ROOT_PARENT } from '../constants'
 import { RouteConfig, RouteInfo } from '../types'
+import { ROOT_PARENT } from './constants'
 
 function isLayoutRoute(route: RouteInfo): boolean {
   const fileName = route.file.split('/').pop() ?? ''

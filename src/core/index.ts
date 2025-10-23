@@ -1,9 +1,6 @@
-import {
-  defaultVisitFiles,
-  normalizeRoutesDirOption,
-  resolveRouteRegex,
-} from '../utils'
+import { defaultVisitFiles, normalizeRoutesDirOption } from '../utils'
 import { buildRouteTree, collectRouteInfos } from './routing'
+import { resolveRouteRegex } from './routing/utils'
 import { autoRoutesOptions, ResolvedOptions, RouteConfig } from './types'
 
 export type { autoRoutesOptions, RouteConfig } from './types'

@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { SPECIAL_ROUTE_FILES } from '../constants'
+import { SPECIAL_ROUTE_FILES } from './constants'
 
 const ESCAPE_START = '['
 const ESCAPE_END = ']'

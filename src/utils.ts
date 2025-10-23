@@ -3,19 +3,6 @@ import * as path from 'path'
 import { NormalizedRoutesDir, RoutesDirInput } from './core/types'
 import { visitFiles as walkFiles } from './fs/visit-files'
 
-const regexCache: { [key: string]: RegExp } = {}
-
-export function memoizedRegex(input: string): RegExp {
-  if (input in regexCache) {
-    return regexCache[input]
-  }
-
-  const newRegex = new RegExp(input)
-  regexCache[input] = newRegex
-
-  return newRegex
-}
-
 export function defaultVisitFiles(
   dir: string,
   visitor: (file: string) => void,
@@ -172,19 +159,4 @@ export function normalizeRoutesDirOption(
       importPrefix: normalizedImport === '.' ? '' : normalizedImport,
     }
   })
-}
-
-export function escapeRegexChar(char: string): string {
-  return char.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&')
-}
-
-export function resolveRouteRegex(
-  pattern: RegExp,
-  colocationChar: string,
-): RegExp {
-  const escapedColocationChar = escapeRegexChar(colocationChar)
-  return new RegExp(
-    pattern.source.replace('\\${colocationChar}', `\\${escapedColocationChar}`),
-    pattern.flags,
-  )
 }
