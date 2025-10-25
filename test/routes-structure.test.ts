@@ -1,7 +1,8 @@
+import type { RouteFixture } from './utils/route-test-helpers'
 import {
   createRoutesFromFiles,
-  expectRouteFixturesToMatchSnapshot,
   ExpectedValues,
+  expectRouteFixturesToMatchSnapshot,
   fileOnly,
   flatFileRouteFixtures,
   flatFolderRouteFixtures,
@@ -9,7 +10,6 @@ import {
   generateFlexRoutesAndVerifyResultWithExpected,
   route,
 } from './utils/route-test-helpers'
-import type { RouteFixture } from './utils/route-test-helpers'
 
 describe('route structures', () => {
   describe('index routes', () => {
@@ -139,6 +139,13 @@ describe('route structures', () => {
           path: ':userId/edit',
         }),
       ])
+    })
+
+    it('supports literal dot segments via escape syntax', () => {
+      const routes = createRoutesFromFiles(['robots[.]txt.ts'])
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/robots[.]txt']?.path).toBe('robots.txt')
     })
   })
 

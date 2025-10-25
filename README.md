@@ -49,6 +49,7 @@ export default autoRoutes()
 routes/
 ├── index.tsx            → / (index route)
 ├── about.tsx            → /about
+├── robots[.]txt.ts      → /robots.txt (literal dot segment)
 ├── _auth/               → Pathless layout (no /auth in URL)
 │   ├── _layout.tsx      → Auth layout
 │   ├── login.tsx        → /login
@@ -76,6 +77,7 @@ routes/
 routes/
 ├── index.tsx                          → / (index route)
 ├── about.tsx                          → /about
+├── robots[.]txt.ts                    → /robots.txt (literal dot segment)
 ├── _auth._layout.tsx                  → Auth layout
 ├── _auth.login.tsx                    → /login
 ├── _auth.signup.tsx                   → /signup
@@ -104,6 +106,7 @@ Both structures produce identical routes. Use folders for organization, flat fil
 - `$.tsx` - Splat routes (catch-all)
 - `(segment)` - Optional segments (e.g., `(en)` → `en?`)
 - `($param)` - Optional dynamic params (e.g., `($lang)` → `:lang?`)
+- `robots[.]txt.ts` (and similar) - Escape a literal `.` (or other special characters) inside `[...]` to generate file-like routes such as `/robots.txt`
 
 **Key insight:** Folders are just a convenience for organization. Without a parent file, `api/users.ts` behaves exactly like `api.users.ts` - both create the same `/api/users` route.
 
