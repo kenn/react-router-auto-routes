@@ -5,6 +5,7 @@ export default defineConfig(() => {
     splitting: false,
     sourcemap: false,
     clean: true,
+    tsconfig: './tsconfig.build.json',
   }
 
   return [
@@ -12,7 +13,7 @@ export default defineConfig(() => {
       ...commonOptions,
       entry: ['src/core/index.ts'],
       format: 'esm',
-      dts: true, // Generate declaration file (.d.ts)
+      dts: true, // Declarations leverage shared tsconfig.build.json includes
     },
     {
       ...commonOptions,
