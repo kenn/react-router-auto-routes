@@ -107,11 +107,18 @@ function toRoutesDirEntries(
   return entries
 }
 
-function resolveBaseDirFor(routesDir: RoutesDirInput | undefined): string {
-  const base =
-    routesDir === undefined || typeof routesDir === 'string' ? 'app' : '.'
+// inspired by @react-router/dev/routes
+function getRootDirectory(): string {
+  return process.cwd();
+}
 
-  return path.isAbsolute(base) ? base : path.resolve(process.cwd(), base)
+// inspired by @react-router/dev/routes
+function getAppDirectory(): string {
+  return (globalThis as any).__reactRouterAppDirectory ?? path.resolve(getRootDirectory(), 'app');
+}
+
+function resolveBaseDirFor(routesDir: RoutesDirInput | undefined): string {
+  return (routesDir === undefined || typeof routesDir === 'string') ? getAppDirectory() : getRootDirectory();
 }
 
 export function normalizeRoutesDirOption(
@@ -145,13 +152,8 @@ export function normalizeRoutesDirOption(
     }
   })
 
-  const rootEntry = entries.find((entry) => entry.mountPath === '/')
-  const appDir = rootEntry
-    ? path.dirname(rootEntry.fsDir)
-    : path.resolve(process.cwd(), 'app')
-
   return entries.map((entry) => {
-    const relativeImport = path.relative(appDir, entry.fsDir) || '.'
+    const relativeImport = path.relative(getAppDirectory(), entry.fsDir) || '.'
     const normalizedImport = relativeImport.split(path.sep).join('/')
 
     return {
