@@ -233,6 +233,35 @@ Using an optional splat `($).tsx` can cause issues with error boundaries bubblin
 
 > **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
 
+### Nesting vs. Siblings (Important!)
+
+In Remix (and `remix-flat-routes`), dot-delimited files often created sibling routes. In React Router v7, **routes that share a path prefix are nested by default**.
+
+**Example:**
+- `users.$id.tsx`
+- `users.$id.edit.tsx`
+
+In **Remix**, these might be siblings.
+In **React Router v7**, `users.$id.edit.tsx` is a **child** of `users.$id.tsx`.
+
+**Implication:**
+If `users.$id.tsx` does not render an `<Outlet />`, the `edit` route will never render.
+
+**Solution:**
+If you want them to be siblings (sharing the same layout or just independent), use folders and `index.tsx`:
+
+```
+routes/
+└── users/
+    ├── $id/
+    │   ├── index.tsx    → /users/:id (The detail view)
+    │   └── edit.tsx     → /users/:id/edit (The edit view)
+```
+
+Now `$id` is just a folder (path segment), and `index.tsx` and `edit.tsx` are siblings.
+
+### CLI Migration
+
 Ensure your project already lists `typescript@>=5.0`; the CLI resolves the compiler from your workspace.
 
 Install the package, then run the migration CLI:
