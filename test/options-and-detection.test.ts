@@ -1,3 +1,5 @@
+import * as path from 'path'
+
 import { getRouteRegex, isRouteModuleFile } from '../src/core/routing/files'
 
 import {
@@ -86,16 +88,18 @@ describe('routing options', () => {
       expect(() => {
         createRoutesFromFiles(['index.tsx'], { routesDir: './routes' })
       }).toThrow(
-        "routesDir entries cannot contain '.' or '..' segments. Got: './routes'",
+        "routesDir entries cannot contain '.' segments. Got: './routes'",
       )
     })
 
-    it('rejects parent directory segments', () => {
-      expect(() => {
-        createRoutesFromFiles(['index.tsx'], { routesDir: '../routes' })
-      }).toThrow(
-        "routesDir entries cannot contain '.' or '..' segments. Got: '../routes'",
-      )
+    it('supports parent directory segments', () => {
+      const routes = createRoutesFromFiles(['index.tsx'], {
+        routesDir: '../pages',
+      })
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['../pages/index']?.file).toBe('pages/index.tsx')
+      expect(manifest['../pages/index']?.path).toBeUndefined()
     })
 
     it('rejects absolute paths', () => {
@@ -237,6 +241,40 @@ describe('routing options', () => {
           routesDir: { '/tools/': 'tools/routes' },
         })
       }).toThrow("routesDir mount paths cannot end with '/'. Got: '/tools/'")
+    })
+  })
+
+  describe('app directory resolution', () => {
+    it('anchors import prefixes to the root mount directory when present', () => {
+      const routes = createRoutesFromFiles(['index.tsx'], {
+        routesDir: { '/': 'packages/web/routes' },
+      })
+
+      const manifest = flattenRoutesById(routes)
+      expect(manifest['packages/web/routes/index']?.file).toBe(
+        'routes/index.tsx',
+      )
+    })
+
+    it('respects __reactRouterAppDirectory when computing import prefixes without a root mount', () => {
+      const originalAppDir = (globalThis as any).__reactRouterAppDirectory
+      ;(globalThis as any).__reactRouterAppDirectory = path.resolve(
+        process.cwd(),
+        'app/router',
+      )
+
+      try {
+        const routes = createRoutesFromFiles(['index.tsx'], {
+          routesDir: { '/shop': 'shop/routes' },
+        })
+
+        const manifest = flattenRoutesById(routes)
+        expect(manifest['shop/routes/index']?.file).toBe(
+          '../../shop/routes/index.tsx',
+        )
+      } finally {
+        ;(globalThis as any).__reactRouterAppDirectory = originalAppDir
+      }
     })
   })
 })

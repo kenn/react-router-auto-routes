@@ -162,6 +162,12 @@ autoRoutes({
 
 **Note:** Prefer using the `+` colocation prefix over `ignoredRouteFiles` when possible. Ignored files skip all processing including conflict detection, while colocated files still benefit from validation checks like ensuring proper placement. For example, place tests in `+test/` folders rather than using `**/*.test.{ts,tsx}` in `ignoredRouteFiles`.
 
+**Directory resolution notes**
+
+- `routesDir` entries stay relative (no absolute paths), but you can point outside the app folder with parent segments like `'../pages'`. Paths are resolved from the project root (`process.cwd()`).
+- When you mount `/` to a folder, import prefixes are anchored to that folder’s parent so generated `file` values stay short (e.g., `'/': 'packages/web/routes'` keeps `routes/*` imports instead of `../packages/web/routes/*`).
+- Without a `/` mount, the app directory defaults to `<cwd>/app`; override it by defining `globalThis.__reactRouterAppDirectory` (React Router’s config can set this) to match custom app roots such as `app/router`.
+
 ### Monorepo / Sub-apps (Multiple Route Roots)
 
 `routesDir` accepts two shapes:

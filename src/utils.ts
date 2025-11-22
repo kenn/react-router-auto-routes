@@ -44,13 +44,9 @@ export function normalizeRoutesDir(routeDir: string) {
   }
 
   const segments = normalized.split('/')
-  if (
-    segments.some(
-      (segment) => segment === '' || segment === '.' || segment === '..',
-    )
-  ) {
+  if (segments.some((segment) => segment === '' || segment === '.')) {
     throw new Error(
-      `routesDir entries cannot contain '.' or '..' segments. Got: '${routeDir}'`,
+      `routesDir entries cannot contain '.' segments. Got: '${routeDir}'`,
     )
   }
 
@@ -109,16 +105,21 @@ function toRoutesDirEntries(
 
 // inspired by @react-router/dev/routes
 function getRootDirectory(): string {
-  return process.cwd();
+  return process.cwd()
 }
 
 // inspired by @react-router/dev/routes
 function getAppDirectory(): string {
-  return (globalThis as any).__reactRouterAppDirectory ?? path.resolve(getRootDirectory(), 'app');
+  return (
+    (globalThis as any).__reactRouterAppDirectory ??
+    path.resolve(getRootDirectory(), 'app')
+  )
 }
 
 function resolveBaseDirFor(routesDir: RoutesDirInput | undefined): string {
-  return (routesDir === undefined || typeof routesDir === 'string') ? getAppDirectory() : getRootDirectory();
+  return routesDir === undefined || typeof routesDir === 'string'
+    ? getAppDirectory()
+    : getRootDirectory()
 }
 
 export function normalizeRoutesDirOption(
@@ -152,8 +153,11 @@ export function normalizeRoutesDirOption(
     }
   })
 
+  const rootEntry = entries.find((entry) => entry.mountPath === '/')
+  const appDir = rootEntry ? path.dirname(rootEntry.fsDir) : getAppDirectory()
+
   return entries.map((entry) => {
-    const relativeImport = path.relative(getAppDirectory(), entry.fsDir) || '.'
+    const relativeImport = path.relative(appDir, entry.fsDir) || '.'
     const normalizedImport = relativeImport.split(path.sep).join('/')
 
     return {
