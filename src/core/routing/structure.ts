@@ -8,7 +8,12 @@ function isLayoutRoute(route: RouteInfo): boolean {
     ? withoutExtension.slice(0, -'.route'.length)
     : withoutExtension
 
-  return normalized === '_layout' || normalized === 'layout'
+  return (
+    normalized === '_layout' ||
+    normalized === 'layout' ||
+    normalized.endsWith('._layout') ||
+    normalized.endsWith('.layout')
+  )
 }
 
 const ROUTE_PRIORITY = 2

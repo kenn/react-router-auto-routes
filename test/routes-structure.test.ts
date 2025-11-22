@@ -365,6 +365,22 @@ describe('route structures', () => {
           path: 'test-2',
         }),
       ],
+      'supports dot-delimited layouts': [
+        route('_auth._modal._layout.tsx', {
+          id: '_auth._modal._layout',
+          parentId: 'root',
+        }),
+        route('_auth._modal.login.tsx', {
+          id: '_auth._modal.login',
+          parentId: 'routes/_auth._modal._layout',
+          path: 'login',
+        }),
+        route('_auth._modal.signup.tsx', {
+          id: '_auth._modal.signup',
+          parentId: 'routes/_auth._modal._layout',
+          path: 'signup',
+        }),
+      ],
     }
 
     const trailingSlashScenario: Record<string, ExpectedValues> = {

@@ -196,9 +196,9 @@ function deriveNameSegments(
   routeId: string,
   rawSegments: readonly string[],
 ): string[] {
-  if (!routeId.includes('/')) {
-    return [...rawSegments]
-  }
+  // if (!routeId.includes('/')) {
+  //   return [...rawSegments]
+  // }
 
   const segments = [...rawSegments]
 
