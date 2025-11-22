@@ -212,6 +212,23 @@ packages/
 
 Routes from each mount stay isolated when resolving parents and dot-flattening, but still merged into a single manifest.
 
+## Recipes
+
+### CMS / Catch-all Routes
+
+For a CMS-style setup where you want a homepage (`/`) and a catch-all for dynamic pages (`/*`), use a separate `_index.tsx` and `$.tsx`.
+
+```
+routes/
+├── _index.tsx         → Homepage (/)
+└── $.tsx              → Catch-all (/*)
+```
+
+**Why?**
+Using an optional splat `($).tsx` can cause issues with error boundaries bubbling up unexpectedly in React Router v7. Separating them ensures:
+1. The homepage has its own explicit route and data requirements.
+2. The catch-all route handles everything else (404s or dynamic CMS pages) without interfering with the root layout's error handling.
+
 ## Migration Guide
 
 > **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
