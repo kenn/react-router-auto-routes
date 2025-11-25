@@ -216,16 +216,17 @@ Routes from each mount stay isolated when resolving parents and dot-flattening, 
 
 ### CMS / Catch-all Routes
 
-For a CMS-style setup where you want a homepage (`/`) and a catch-all for dynamic pages (`/*`), use a separate `_index.tsx` and `$.tsx`.
+For a CMS-style setup where you want a homepage (`/`) and a catch-all for dynamic pages (`/*`), use a separate `index.tsx` and `$.tsx`.
 
 ```
 routes/
-├── _index.tsx         → Homepage (/)
+├── index.tsx         → Homepage (/)
 └── $.tsx              → Catch-all (/*)
 ```
 
 **Why?**
 Using an optional splat `($).tsx` can cause issues with error boundaries bubbling up unexpectedly in React Router v7. Separating them ensures:
+
 1. The homepage has its own explicit route and data requirements.
 2. The catch-all route handles everything else (404s or dynamic CMS pages) without interfering with the root layout's error handling.
 
@@ -238,6 +239,7 @@ Using an optional splat `($).tsx` can cause issues with error boundaries bubblin
 In Remix (and `remix-flat-routes`), dot-delimited files often created sibling routes. In React Router v7, **routes that share a path prefix are nested by default**.
 
 **Example:**
+
 - `users.$id.tsx`
 - `users.$id.edit.tsx`
 
