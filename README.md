@@ -220,7 +220,7 @@ For a CMS-style setup where you want a homepage (`/`) and a catch-all for dynami
 
 ```
 routes/
-├── index.tsx         → Homepage (/)
+├── index.tsx          → Homepage (/)
 └── $.tsx              → Catch-all (/*)
 ```
 
