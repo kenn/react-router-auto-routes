@@ -101,6 +101,7 @@ Both structures produce identical routes. Use folders for organization, flat fil
 - `index.tsx` or `_index.tsx` - Index routes (match parent folder's path).
   - Index routes automatically nest under layouts with matching path segments—for example, `admin/index.tsx` nests under `admin/_layout.tsx`.
 - `_layout.tsx` - Layout with `<Outlet />` for child routes
+- Only layout files create nesting. Non-layout routes that share prefixes stay siblings (e.g., `users.$id.tsx` and `users.$id.edit.tsx`).
 - Other `_` prefixes (like `_auth/`) create pathless layout groups
 - `$param` - Dynamic segments (e.g., `$slug` → `:slug`)
 - `$.tsx` - Splat routes (catch-all)
@@ -234,33 +235,20 @@ Using an optional splat `($).tsx` can cause issues with error boundaries bubblin
 
 > **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
 
-### Nesting vs. Siblings (Important!)
+This library preserves `remix-flat-routes` sibling behavior: dot-delimited routes remain siblings by default and only nest under explicit layout files (`_layout.tsx` or `layout.tsx`).
 
-In Remix (and `remix-flat-routes`), dot-delimited files often created sibling routes. In React Router v7, **routes that share a path prefix are nested by default**.
-
-**Example:**
-
-- `users.$id.tsx`
-- `users.$id.edit.tsx`
-
-In **Remix**, these might be siblings.
-In **React Router v7**, `users.$id.edit.tsx` is a **child** of `users.$id.tsx`.
-
-**Implication:**
-If `users.$id.tsx` does not render an `<Outlet />`, the `edit` route will never render.
-
-**Solution:**
-If you want them to be siblings (sharing the same layout or just independent), use folders and `index.tsx`:
+If you want `edit` to render inside a layout, add a layout file and (optionally) move the detail view to `index.tsx`:
 
 ```
 routes/
 └── users/
-    ├── $id/
-    │   ├── index.tsx    → /users/:id (The detail view)
-    │   └── edit.tsx     → /users/:id/edit (The edit view)
+    └── $id/
+        ├── _layout.tsx  → Layout for /users/:id/*
+        ├── index.tsx    → /users/:id (The detail view)
+        └── edit.tsx     → /users/:id/edit (The edit view)
 ```
 
-Now `$id` is just a folder (path segment), and `index.tsx` and `edit.tsx` are siblings.
+The migration tool continues to follow legacy `remix-flat-routes` semantics and will promote parent routes to `_layout` when children exist.
 
 ### CLI Migration
 

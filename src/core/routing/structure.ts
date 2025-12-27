@@ -16,6 +16,10 @@ function isLayoutRoute(route: RouteInfo): boolean {
   )
 }
 
+function isParentCandidate(route: RouteInfo): boolean {
+  return isLayoutRoute(route)
+}
+
 const ROUTE_PRIORITY = 2
 const LAYOUT_PRIORITY = 3
 const ROUTE_DIR_PRIORITY = 4
@@ -134,7 +138,7 @@ export function buildRouteTree(routes: readonly RouteInfo[]): RouteConfig[] {
       config.index = true
     }
 
-    if (!route.index) {
+    if (!route.index && isParentCandidate(route)) {
       const key = keyFor(route.mountPath, route.segments)
       const current = parentLookup.get(key)
       const score = parentScore(route)

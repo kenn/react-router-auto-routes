@@ -129,13 +129,13 @@ describe('route structures', () => {
         }),
         route('users/$userId/route.tsx', {
           id: 'users/$userId/route',
-          parentId: 'routes/users/route/route',
+          parentId: 'routes/users/_layout',
           path: ':userId',
         }),
         fileOnly('users/$userId/avatar.png'),
         route('users/$userId_.edit/route.tsx', {
           id: 'users/$userId_.edit/route',
-          parentId: 'routes/users/route/route',
+          parentId: 'routes/users/_layout',
           path: ':userId/edit',
         }),
       ])
@@ -154,22 +154,22 @@ describe('route structures', () => {
       'supports complex auth and app routes': [
         route('_auth.forgot-password.tsx', {
           id: '_auth.forgot-password',
-          parentId: 'routes/_auth',
+          parentId: 'root',
           path: 'forgot-password',
         }),
         route('_auth.login.tsx', {
           id: '_auth.login',
-          parentId: 'routes/_auth',
+          parentId: 'root',
           path: 'login',
         }),
         route('_auth.reset-password.tsx', {
           id: '_auth.reset-password',
-          parentId: 'routes/_auth',
+          parentId: 'root',
           path: 'reset-password',
         }),
         route('_auth.signup.tsx', {
           id: '_auth.signup',
-          parentId: 'routes/_auth',
+          parentId: 'root',
           path: 'signup',
         }),
         route('_auth.tsx', {
@@ -178,12 +178,12 @@ describe('route structures', () => {
         }),
         route('_landing.about.tsx', {
           id: '_landing.about',
-          parentId: 'routes/_landing',
+          parentId: 'root',
           path: 'about',
         }),
         route('_landing.index.tsx', {
           id: '_landing.index',
-          parentId: 'routes/_landing',
+          parentId: 'root',
           index: true,
         }),
         route('_landing.tsx', {
@@ -192,28 +192,29 @@ describe('route structures', () => {
         }),
         route('app.calendar.$day.tsx', {
           id: 'app.calendar.$day',
-          parentId: 'routes/app.calendar',
-          path: ':day',
+          parentId: 'root',
+          path: 'app/calendar/:day',
         }),
         route('app.calendar.index.tsx', {
           id: 'app.calendar.index',
-          parentId: 'routes/app.calendar',
           index: true,
+          parentId: 'root',
+          path: 'app/calendar',
         }),
         route('app.calendar.tsx', {
           id: 'app.calendar',
-          parentId: 'routes/app',
-          path: 'calendar',
+          parentId: 'root',
+          path: 'app/calendar',
         }),
         route('app.projects.$id.tsx', {
           id: 'app.projects.$id',
-          parentId: 'routes/app.projects',
-          path: ':id',
+          parentId: 'root',
+          path: 'app/projects/:id',
         }),
         route('app.projects.tsx', {
           id: 'app.projects',
-          parentId: 'routes/app',
-          path: 'projects',
+          parentId: 'root',
+          path: 'app/projects',
         }),
         route('app.tsx', {
           id: 'app',
@@ -239,28 +240,28 @@ describe('route structures', () => {
         }),
         route('app.$organizationSlug.edit.tsx', {
           id: 'app.$organizationSlug.edit',
-          parentId: 'routes/app.$organizationSlug',
-          path: 'edit',
+          parentId: 'root',
+          path: 'app/:organizationSlug/edit',
         }),
         route('app.$organizationSlug.projects.tsx', {
           id: 'app.$organizationSlug.projects',
-          parentId: 'routes/app.$organizationSlug',
-          path: 'projects',
+          parentId: 'root',
+          path: 'app/:organizationSlug/projects',
         }),
         route('app.$organizationSlug.projects.$projectId.tsx', {
           id: 'app.$organizationSlug.projects.$projectId',
-          parentId: 'routes/app.$organizationSlug.projects',
-          path: ':projectId',
+          parentId: 'root',
+          path: 'app/:organizationSlug/projects/:projectId',
         }),
         route('app.$organizationSlug.projects.$projectId.edit.tsx', {
           id: 'app.$organizationSlug.projects.$projectId.edit',
-          parentId: 'routes/app.$organizationSlug.projects.$projectId',
-          path: 'edit',
+          parentId: 'root',
+          path: 'app/:organizationSlug/projects/:projectId/edit',
         }),
         route('app.$organizationSlug.projects.new.tsx', {
           id: 'app.$organizationSlug.projects.new',
-          parentId: 'routes/app.$organizationSlug.projects',
-          path: 'new',
+          parentId: 'root',
+          path: 'app/:organizationSlug/projects/new',
         }),
       ],
       'allows explicit parent overrides': [
@@ -271,13 +272,13 @@ describe('route structures', () => {
         }),
         route('parent.some.nested.tsx', {
           id: 'parent.some.nested',
-          parentId: 'routes/parent',
-          path: 'some/nested',
+          parentId: 'root',
+          path: 'parent/some/nested',
         }),
         route('parent.some_.nested.settings.tsx', {
           id: 'parent.some_.nested.settings',
-          parentId: 'routes/parent',
-          path: 'some/nested/settings',
+          parentId: 'root',
+          path: 'parent/some/nested/settings',
         }),
       ],
       'supports params with trailing underscore': [
@@ -288,19 +289,30 @@ describe('route structures', () => {
         }),
         route('app.$organizationSlug_._projects.projects.new.tsx', {
           id: 'app.$organizationSlug_._projects.projects.new',
-          parentId: 'routes/app.$organizationSlug_._projects',
-          path: 'projects/new',
+          parentId: 'root',
+          path: 'app/:organizationSlug/projects/new',
         }),
         route('app.$organizationSlug_._projects.projects.$projectId.tsx', {
           id: 'app.$organizationSlug_._projects.projects.$projectId',
-          parentId: 'routes/app.$organizationSlug_._projects',
-          path: 'projects/:projectId',
+          parentId: 'root',
+          path: 'app/:organizationSlug/projects/:projectId',
         }),
         route('app.$organizationSlug_._projects.projects.$projectId.edit.tsx', {
           id: 'app.$organizationSlug_._projects.projects.$projectId.edit',
-          parentId:
-            'routes/app.$organizationSlug_._projects.projects.$projectId',
-          path: 'edit',
+          parentId: 'root',
+          path: 'app/:organizationSlug/projects/:projectId/edit',
+        }),
+      ],
+      'treats shared prefixes as siblings without layouts': [
+        route('users.$id.tsx', {
+          id: 'users.$id',
+          parentId: 'root',
+          path: 'users/:id',
+        }),
+        route('users.$id.edit.tsx', {
+          id: 'users.$id.edit',
+          parentId: 'root',
+          path: 'users/:id/edit',
         }),
       ],
       'nests index routes under layouts with shared segments': [

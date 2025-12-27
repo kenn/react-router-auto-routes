@@ -25,8 +25,8 @@ describe('flat file routes', () => {
       }),
       route('docs.readme.md', {
         id: 'docs.readme',
-        parentId: 'routes/docs',
-        path: 'readme',
+        parentId: 'root',
+        path: 'docs/readme',
       }),
     ])
   })
@@ -46,13 +46,14 @@ describe('flat folder routes', () => {
       }),
       route('$lang.$ref._index\\route.tsx', {
         id: '$lang.$ref._index/route',
-        parentId: 'routes/$lang.$ref/route',
         index: true,
+        parentId: 'root',
+        path: ':lang/:ref',
       }),
       route('$lang.$ref.$\\route.tsx', {
         id: '$lang.$ref.$/route',
-        parentId: 'routes/$lang.$ref/route',
-        path: '*',
+        parentId: 'root',
+        path: ':lang/:ref/*',
       }),
       route('_index\\route.tsx', {
         id: '_index/route',
@@ -69,9 +70,7 @@ describe('flat folder routes', () => {
     const routes = createRoutesFromFiles(files)
     const lookup = flattenRoutesById(routes)
     expect(lookup['routes/$lang.$ref._index/route']).toBeDefined()
-    expect(lookup['routes/$lang.$ref._index/route']?.parentId).toBe(
-      'routes/$lang.$ref/route',
-    )
+    expect(lookup['routes/$lang.$ref._index/route']?.parentId).toBe('root')
     expect(lookup['routes/$lang.$ref._index/route']?.file).toBe(
       'routes/$lang.$ref._index/route.tsx',
     )
@@ -134,8 +133,8 @@ describe('flat folder routes', () => {
       }),
       route('oauth/google.tsx', {
         id: 'oauth/google',
-        parentId: 'routes/oauth',
-        path: 'google',
+        parentId: 'root',
+        path: 'oauth/google',
       }),
     ])
   })
@@ -160,15 +159,20 @@ describe('folder normalization', () => {
     expect(logoutRoute?.path).toBe('oauth/logout')
   })
 
-  it('should not flatten when explicit parent exists', () => {
+  it('should not nest under non-layout parents', () => {
     const files = ['oauth.tsx', 'oauth/google.ts']
     const routes = createRoutesFromFiles(files)
 
-    expect(routes).toHaveLength(1)
-    expect(routes[0].id).toBe('routes/oauth')
-    expect(routes[0].file).toBe('routes/oauth.tsx')
-    expect(routes[0].children).toHaveLength(1)
-    expect(routes[0].children?.[0].path).toBe('google')
+    expect(routes).toHaveLength(2)
+
+    const oauthRoute = routes.find((r) => r.id === 'routes/oauth')
+    expect(oauthRoute).toBeDefined()
+    expect(oauthRoute?.file).toBe('routes/oauth.tsx')
+
+    const googleRoute = routes.find((r) => r.id === 'routes/oauth/google')
+    expect(googleRoute).toBeDefined()
+    expect(googleRoute?.path).toBe('oauth/google')
+    expect(googleRoute?.children).toBeUndefined()
   })
 
   it('should handle deeply nested folders without parents', () => {
@@ -340,8 +344,8 @@ describe('prefix colocation integration tests', () => {
       fileOnly('users.$userId/+components/form.tsx'),
       route('users.$userId.edit.tsx', {
         id: 'users.$userId.edit',
-        parentId: 'routes/users.$userId',
-        path: 'edit',
+        parentId: 'root',
+        path: 'users/:userId/edit',
       }),
     ])
   })

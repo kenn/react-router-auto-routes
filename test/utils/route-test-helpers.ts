@@ -215,13 +215,14 @@ export const flatFileRouteFixtures = (): RouteFixture[] => [
   }),
   route('$lang.$ref._index.tsx', {
     id: '$lang.$ref._index',
-    parentId: 'routes/$lang.$ref',
     index: true,
+    parentId: 'root',
+    path: ':lang/:ref',
   }),
   route('$lang.$ref.$.tsx', {
     id: '$lang.$ref.$',
-    parentId: 'routes/$lang.$ref',
-    path: '*',
+    parentId: 'root',
+    path: ':lang/:ref/*',
   }),
   route('_index.tsx', {
     id: '_index',
@@ -243,13 +244,14 @@ export const flatFolderRouteFixtures = (): RouteFixture[] => [
   }),
   route('$lang.$ref._index/route.tsx', {
     id: '$lang.$ref._index/route',
-    parentId: 'routes/$lang.$ref/route',
     index: true,
+    parentId: 'root',
+    path: ':lang/:ref',
   }),
   route('$lang.$ref.$/route.tsx', {
     id: '$lang.$ref.$/route',
-    parentId: 'routes/$lang.$ref/route',
-    path: '*',
+    parentId: 'root',
+    path: ':lang/:ref/*',
   }),
   route('_index/route.tsx', {
     id: '_index/route',
