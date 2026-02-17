@@ -312,7 +312,7 @@ describe('route detection helpers', () => {
   it('preserves custom regex flags when substituting the colocation placeholder', () => {
     const colocationChar = '+' as const
     const baseRegex = new RegExp(
-      '((\\${colocationChar}[\\/\\\\][^\\/\\\\:?*]+)|[\\/\\\\]((index|route|layout)|(_[^\\/\\\\:?*]+)|([^\\/\\\\:?*]+\\.route)))\\.(TSX)$',
+      '((\\${colocationChar}[\\/\\\\][^\\/\\\\:?*]+)|[\\/\\\\]((index|route)|(_[^\\/\\\\:?*]+)|([^\\/\\\\:?*]+\\.route)))\\.(TSX)$',
       'i',
     )
 

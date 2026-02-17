@@ -3,16 +3,11 @@ import { ROOT_PARENT } from './constants'
 
 function isLayoutRoute(route: RouteInfo): boolean {
   const fileName = route.file.split('/').pop() ?? ''
-  const withoutExtension = fileName.replace(/\.[^/.]+$/, '')
-  const normalized = withoutExtension.endsWith('.route')
-    ? withoutExtension.slice(0, -'.route'.length)
-    : withoutExtension
+  const normalized = fileName.replace(/\.[^/.]+$/, '')
 
   return (
     normalized === '_layout' ||
-    normalized === 'layout' ||
-    normalized.endsWith('._layout') ||
-    normalized.endsWith('.layout')
+    normalized.endsWith('._layout')
   )
 }
 
@@ -102,7 +97,7 @@ export function buildRouteTree(routes: readonly RouteInfo[]): RouteConfig[] {
     }
 
     if (!parentId) {
-      for (let length = route.segments.length - 1; length > 0; length--) {
+      for (let length = route.segments.length - 1; length >= 0; length--) {
         const candidate = parentLookup.get(
           keyFor(route.mountPath, route.segments.slice(0, length)),
         )
@@ -110,6 +105,13 @@ export function buildRouteTree(routes: readonly RouteInfo[]): RouteConfig[] {
           parentId = candidate.id
           break
         }
+      }
+    }
+
+    if (!parentId && route.segments.length === 0) {
+      const candidate = parentLookup.get(keyFor(route.mountPath, []))
+      if (candidate && candidate.id !== route.id) {
+        parentId = candidate.id
       }
     }
 

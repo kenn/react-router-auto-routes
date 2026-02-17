@@ -98,18 +98,16 @@ Both structures produce identical routes. Use folders for organization, flat fil
 
 **Route patterns:**
 
-- `index.tsx` or `_index.tsx` - Index routes (match parent folder's path).
-  - Index routes automatically nest under layouts with matching path segments—for example, `admin/index.tsx` nests under `admin/_layout.tsx`.
-- `_layout.tsx` - Layout with `<Outlet />` for child routes
-- Only layout files create nesting. Non-layout routes that share prefixes stay siblings (e.g., `users.$id.tsx` and `users.$id.edit.tsx`).
-- Other `_` prefixes (like `_auth/`) create pathless layout groups
-- `$param` - Dynamic segments (e.g., `$slug` → `:slug`)
-- `$.tsx` - Splat routes (catch-all)
-- `(segment)` - Optional segments (e.g., `(en)` → `en?`)
-- `($param)` - Optional dynamic params (e.g., `($lang)` → `:lang?`)
-- `robots[.]txt.ts` (and similar) - Escape a literal `.` (or other special characters) inside `[...]` to generate file-like routes such as `/robots.txt`
+- `index.tsx` or `_index.tsx` — Index route (matches parent folder's path). Automatically nests under a matching `_layout.tsx`.
+- `_layout.tsx` — Layout with `<Outlet />` for child routes. This is the **only** file that creates nesting. A root `_layout.tsx` wraps the entire mounted route tree. `layout.tsx` is just a normal route (`/layout`).
+- `_` prefix (like `_auth/`) — Pathless layout group (no URL segment)
+- `$param` — Dynamic segment (`$slug` → `:slug`)
+- `$.tsx` — Splat / catch-all
+- `(segment)` — Optional segment (`(en)` → `en?`)
+- `($param)` — Optional dynamic param (`($lang)` → `:lang?`)
+- `[.]` — Literal dot escape (`robots[.]txt.ts` → `/robots.txt`)
 
-**Key insight:** Folders are just a convenience for organization. Without a parent file, `api/users.ts` behaves exactly like `api.users.ts` - both create the same `/api/users` route.
+**Key insight:** Folders are just organization. Without a parent file, `api/users.ts` behaves like `api.users.ts` — both create `/api/users`.
 
 ## Colocation with `+` Prefix
 
@@ -235,7 +233,7 @@ Using an optional splat `($).tsx` can cause issues with error boundaries bubblin
 
 > **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
 
-This library preserves `remix-flat-routes` sibling behavior: dot-delimited routes remain siblings by default and only nest under explicit layout files (`_layout.tsx` or `layout.tsx`).
+This library preserves `remix-flat-routes` sibling behavior: dot-delimited routes remain siblings by default and only nest under explicit `_layout` files. If you previously used `layout.tsx` as a layout parent, rename it to `_layout.tsx`.
 
 If you want `edit` to render inside a layout, add a layout file and (optionally) move the detail view to `index.tsx`:
 

@@ -7,7 +7,6 @@ export const SPECIAL_ROUTE_FILES = [
   '_index',
   'route',
   '_route',
-  'layout',
   '_layout',
 ]
 

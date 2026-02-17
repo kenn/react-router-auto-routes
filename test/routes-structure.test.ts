@@ -89,6 +89,278 @@ describe('route structures', () => {
     })
   })
 
+  describe('layout file semantics', () => {
+    it('makes root _layout.tsx the parent of direct root siblings', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('_layout.tsx', {
+          id: '_layout',
+          parentId: 'root',
+        }),
+        route('index.tsx', {
+          id: 'index',
+          parentId: 'routes/_layout',
+          index: true,
+        }),
+        route('about.tsx', {
+          id: 'about',
+          parentId: 'routes/_layout',
+          path: 'about',
+        }),
+      ])
+    })
+
+    it('makes root _layout.tsx the parent of pathless-prefixed routes', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('_layout.tsx', {
+          id: '_layout',
+          parentId: 'root',
+        }),
+        route('_top/index.tsx', {
+          id: '_top/index',
+          parentId: 'routes/_layout',
+          index: true,
+        }),
+      ])
+    })
+
+    it('keeps nested pathless layouts between root _layout and children', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('_layout.tsx', {
+          id: '_layout',
+          parentId: 'root',
+        }),
+        route('_top/_layout.tsx', {
+          id: '_top/_layout',
+          parentId: 'routes/_layout',
+        }),
+        route('_top/index.tsx', {
+          id: '_top/index',
+          parentId: 'routes/_top/_layout',
+          index: true,
+        }),
+      ])
+    })
+
+    it('treats root layout.tsx as a normal route file', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('layout.tsx', {
+          id: 'layout',
+          parentId: 'root',
+          path: 'layout',
+        }),
+        route('index.tsx', {
+          id: 'index',
+          parentId: 'root',
+          index: true,
+        }),
+        route('about.tsx', {
+          id: 'about',
+          parentId: 'root',
+          path: 'about',
+        }),
+      ])
+    })
+
+    it('treats dot-delimited *.layout.tsx as a normal route file', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('dashboard.layout.tsx', {
+          id: 'dashboard.layout',
+          parentId: 'root',
+          path: 'dashboard/layout',
+        }),
+        route('dashboard.profile.tsx', {
+          id: 'dashboard.profile',
+          parentId: 'root',
+          path: 'dashboard/profile',
+        }),
+      ])
+    })
+
+    it('treats users/layout.tsx as a normal nested route file', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('users/layout.tsx', {
+          id: 'users/layout',
+          parentId: 'root',
+          path: 'users/layout',
+        }),
+        route('users/index.tsx', {
+          id: 'users/index',
+          parentId: 'root',
+          index: true,
+          path: 'users',
+        }),
+        route('users/edit.tsx', {
+          id: 'users/edit',
+          parentId: 'root',
+          path: 'users/edit',
+        }),
+      ])
+    })
+
+    it('treats _layout.route.tsx as a normal route file', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('_layout.route.tsx', {
+          id: '_layout.route',
+          parentId: 'root',
+          path: 'route',
+        }),
+        route('index.tsx', {
+          id: 'index',
+          parentId: 'root',
+          index: true,
+        }),
+      ])
+    })
+
+    it('allows _layout.tsx and layout.tsx to coexist in the same folder', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('dashboard/_layout.tsx', {
+          id: 'dashboard/_layout',
+          parentId: 'root',
+          path: 'dashboard',
+        }),
+        route('dashboard/layout.tsx', {
+          id: 'dashboard/layout',
+          parentId: 'routes/dashboard/_layout',
+          path: 'layout',
+        }),
+        route('dashboard/index.tsx', {
+          id: 'dashboard/index',
+          parentId: 'routes/dashboard/_layout',
+          index: true,
+        }),
+        route('dashboard/settings.tsx', {
+          id: 'dashboard/settings',
+          parentId: 'routes/dashboard/_layout',
+          path: 'settings',
+        }),
+      ])
+    })
+
+    it('preserves non-root _layout nesting behavior', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('users/_layout.tsx', {
+          id: 'users/_layout',
+          parentId: 'root',
+          path: 'users',
+        }),
+        route('users/index.tsx', {
+          id: 'users/index',
+          parentId: 'routes/users/_layout',
+          index: true,
+        }),
+        route('users/edit.tsx', {
+          id: 'users/edit',
+          parentId: 'routes/users/_layout',
+          path: 'edit',
+        }),
+      ])
+    })
+
+    it('makes root _layout.tsx the parent of nested folder routes', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('_layout.tsx', {
+          id: '_layout',
+          parentId: 'root',
+        }),
+        route('dashboard/index.tsx', {
+          id: 'dashboard/index',
+          parentId: 'routes/_layout',
+          index: true,
+          path: 'dashboard',
+        }),
+      ])
+    })
+
+    it('makes root _layout.tsx the parent of route.tsx without changing its path semantics', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('_layout.tsx', {
+          id: '_layout',
+          parentId: 'root',
+        }),
+        route('route.tsx', {
+          id: 'route',
+          parentId: 'routes/_layout',
+          path: 'route',
+        }),
+        route('about.tsx', {
+          id: 'about',
+          parentId: 'routes/_layout',
+          path: 'about',
+        }),
+      ])
+    })
+
+    it('keeps foo.tsx as a sibling of foo/_layout.tsx', () => {
+      expectRouteFixturesToMatchSnapshot([
+        route('foo/_layout.tsx', {
+          id: 'foo/_layout',
+          parentId: 'root',
+          path: 'foo',
+        }),
+        route('foo.tsx', {
+          id: 'foo',
+          parentId: 'root',
+          path: 'foo',
+        }),
+      ])
+    })
+
+    it('keeps root _layout.tsx isolated to its own mount', () => {
+      const routes = createRoutesFromFiles([], {
+        routesDir: {
+          '/': 'routes',
+          '/admin': 'admin/routes',
+        },
+        visitFiles: (dir, visitor) => {
+          const normalized = dir.replace(/\\/g, '/')
+
+          if (normalized.endsWith('admin/routes')) {
+            visitor('index.tsx')
+            return
+          }
+
+          if (normalized.endsWith('/routes')) {
+            visitor('_layout.tsx')
+            visitor('about.tsx')
+          }
+        },
+      })
+
+      const manifest = flattenRoutesById(routes)
+      expect(manifest['routes/about']?.parentId).toBe('routes/_layout')
+      expect(manifest['admin/routes/index']?.parentId).toBe('root')
+    })
+
+    it('applies mount-local root _layout.tsx for secondary mounts only', () => {
+      const routes = createRoutesFromFiles([], {
+        routesDir: {
+          '/': 'routes',
+          '/admin': 'admin/routes',
+        },
+        visitFiles: (dir, visitor) => {
+          const normalized = dir.replace(/\\/g, '/')
+
+          if (normalized.endsWith('admin/routes')) {
+            visitor('_layout.tsx')
+            visitor('users.tsx')
+            return
+          }
+
+          if (normalized.endsWith('/routes')) {
+            visitor('about.tsx')
+          }
+        },
+      })
+
+      const manifest = flattenRoutesById(routes)
+      expect(manifest['routes/about']?.parentId).toBe('root')
+      expect(manifest['admin/routes/users']?.parentId).toBe(
+        'admin/routes/_layout',
+      )
+    })
+  })
+
   describe('hybrid route conventions', () => {
     it('handles hybrid flat and nested structures', () => {
       expectRouteFixturesToMatchSnapshot([

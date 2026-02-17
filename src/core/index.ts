@@ -7,7 +7,7 @@ export type { autoRoutesOptions, RouteConfig } from './types'
 export { autoRoutes }
 
 const DEFAULT_ROUTE_REGEX =
-  /((\${colocationChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route|layout)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
+  /((\${colocationChar}[\/\\][^\/\\:?*]+)|[\/\\]((index|route)|(_[^\/\\:?*]+)|([^\/\\:?*]+\.route)|([^\/\\:?*]+)))\.(ts|tsx|js|jsx|md|mdx)$/
 
 export default function autoRoutes(
   options: autoRoutesOptions = {},
