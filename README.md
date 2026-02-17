@@ -233,7 +233,7 @@ Using an optional splat `($).tsx` can cause issues with error boundaries bubblin
 
 > **Note:** This migration tool is designed for projects using [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\*
 
-This library preserves `remix-flat-routes` sibling behavior: dot-delimited routes remain siblings by default and only nest under explicit `_layout` files. If you previously used `layout.tsx` as a layout parent, rename it to `_layout.tsx`.
+This library preserves `remix-flat-routes` sibling behavior: dot-delimited routes remain siblings by default and only nest under explicit `_layout` files.
 
 If you want `edit` to render inside a layout, add a layout file and (optionally) move the detail view to `index.tsx`:
 
