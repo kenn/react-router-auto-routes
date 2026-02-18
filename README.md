@@ -115,8 +115,8 @@ Generated routes are ordered deterministically during assembly:
 
 1. Shallower segment depth first
 2. Non-index routes before index routes
-3. Parent candidates by priority (`/route/route.*`, then `_layout`, then normal routes)
-4. More specific paths before less specific paths at the same depth (static segments before params, params before splats)
+3. Layout routes before regular routes
+4. More specific paths first (static segments before params, params before splats)
 5. Route ID lexicographic order as final tiebreaker
 
 ## Colocation with `+` Prefix
