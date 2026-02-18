@@ -96,7 +96,7 @@ routes/
 
 Both structures produce identical routes. Use folders for organization, flat files for simplicity, or mix both approaches as needed.
 
-**Route patterns:**
+### Route Patterns
 
 | Pattern | Meaning | Example |
 |---|---|---|
