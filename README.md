@@ -109,6 +109,16 @@ Both structures produce identical routes. Use folders for organization, flat fil
 
 **Key insight:** Folders are just organization. Without a parent file, `api/users.ts` behaves like `api.users.ts` — both create `/api/users`.
 
+### Route Ordering
+
+Generated routes are ordered deterministically during assembly:
+
+1. Shallower segment depth first
+2. Non-index routes before index routes
+3. Parent candidates by priority (`/route/route.*`, then `_layout`, then normal routes)
+4. More specific paths before less specific paths at the same depth (static segments before params, params before splats)
+5. Route ID lexicographic order as final tiebreaker
+
 ## Colocation with `+` Prefix
 
 Keep helpers, components, and utilities alongside routes using the `+` prefix. Anything starting with `+` is ignored by the router.

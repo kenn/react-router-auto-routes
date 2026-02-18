@@ -62,6 +62,38 @@ function resolveRelativePath(
   return relative || undefined
 }
 
+function segmentSpecificity(segment: string): number {
+  if (segment === '*') {
+    return 0
+  }
+
+  if (segment.startsWith(':')) {
+    return segment.endsWith('?') ? 1 : 2
+  }
+
+  return segment.endsWith('?') ? 3 : 4
+}
+
+function comparePathSpecificity(a: RouteInfo, b: RouteInfo): number {
+  if (!a.path || !b.path) {
+    return 0
+  }
+
+  const left = a.path.split('/').filter(Boolean)
+  const right = b.path.split('/').filter(Boolean)
+  const length = Math.min(left.length, right.length)
+
+  for (let index = 0; index < length; index++) {
+    const specificityDiff =
+      segmentSpecificity(right[index]) - segmentSpecificity(left[index])
+    if (specificityDiff !== 0) {
+      return specificityDiff
+    }
+  }
+
+  return 0
+}
+
 function sortForAssembly(routes: readonly RouteInfo[]): RouteInfo[] {
   return [...routes].sort((a, b) => {
     const depthDiff = a.segments.length - b.segments.length
@@ -76,6 +108,11 @@ function sortForAssembly(routes: readonly RouteInfo[]): RouteInfo[] {
     const scoreDiff = parentScore(b) - parentScore(a)
     if (scoreDiff !== 0) {
       return scoreDiff
+    }
+
+    const specificityDiff = comparePathSpecificity(a, b)
+    if (specificityDiff !== 0) {
+      return specificityDiff
     }
 
     return a.id.localeCompare(b.id)

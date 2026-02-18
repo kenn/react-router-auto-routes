@@ -12,6 +12,17 @@ import {
 } from './utils/route-test-helpers'
 
 describe('route structures', () => {
+  describe('route ordering', () => {
+    it('prefers static-leading paths over dynamic-leading paths at the same depth', () => {
+      const routes = createRoutesFromFiles(['$id/root.tsx', 'root/$id.tsx'])
+
+      expect(routes.map((route) => route.id)).toEqual([
+        'routes/root/$id',
+        'routes/$id/root',
+      ])
+    })
+  })
+
   describe('index routes', () => {
     it('generates correct ids for flat files', () => {
       const files = flatFileRouteFixtures().map(({ file }) => file)
