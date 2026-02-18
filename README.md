@@ -98,26 +98,28 @@ Both structures produce identical routes. Use folders for organization, flat fil
 
 **Route patterns:**
 
-- `index.tsx` or `_index.tsx` — Index route (matches parent folder's path). Automatically nests under a matching `_layout.tsx`.
-- `_layout.tsx` — Layout with `<Outlet />` for child routes. This is the **only** file that creates nesting. A root `_layout.tsx` wraps the entire mounted route tree. `layout.tsx` is just a normal route (`/layout`).
-- `_` prefix (like `_auth/`) — Pathless layout group (no URL segment)
-- `$param` — Dynamic segment (`$slug` → `:slug`)
-- `$.tsx` — Splat / catch-all
-- `(segment)` — Optional segment (`(en)` → `en?`)
-- `($param)` — Optional dynamic param (`($lang)` → `:lang?`)
-- `[.]` — Literal dot escape (`robots[.]txt.ts` → `/robots.txt`)
+| Pattern | Meaning | Example |
+|---|---|---|
+| `index.tsx` / `_index.tsx` | Index route — the default page for a folder. Automatically nests under a matching `_layout.tsx`. | `blog/index.tsx` → `/blog` |
+| `_layout.tsx` | Shared layout wrapper (renders an `<Outlet />`). The **only** file that creates nesting. `layout.tsx` without `_` is just a normal route (`/layout`). | `blog/_layout.tsx` wraps all `/blog/*` pages |
+| `_` prefix folder | Groups routes under a shared layout **without** adding a URL segment | `_auth/login.tsx` → `/login` (not `/auth/login`) |
+| `$param` | Dynamic segment — matches any value in that position | `$slug.tsx` → `/blog/:slug` |
+| `$.tsx` | Catch-all (splat) — matches everything after this point | `files/$.tsx` → `/files/*` |
+| `(segment)` | Optional segment — matches with or without it | `(en)/about.tsx` → `/en?/about` |
+| `($param)` | Optional dynamic segment | `($lang)/home.tsx` → `/:lang?/home` |
+| `[.]` | Literal dot — escapes the dot so it's part of the URL | `robots[.]txt.ts` → `/robots.txt` |
 
-**Key insight:** Folders are just organization. Without a parent file, `api/users.ts` behaves like `api.users.ts` — both create `/api/users`.
+**Key insight:** Folders are just organization. Without a `_layout.tsx` in the folder, `api/users.ts` behaves like `api.users.ts` — both create a route at `/api/users`.
 
 ### Route Ordering
 
-Generated routes are ordered deterministically during assembly:
+When multiple routes could match the same URL, order matters. Routes are sorted by these rules (first match wins):
 
-1. Shallower segment depth first
-2. Non-index routes before index routes
-3. Layout routes before regular routes
-4. More specific paths first (static segments before params, params before splats)
-5. Route ID lexicographic order as final tiebreaker
+1. **Fewer segments first** — `/about` before `/about/team`
+2. **Non-index routes before index routes**
+3. **Layouts before regular routes**
+4. **More specific paths first** — `/users/new` before `/users/:id` before `/users/*`
+5. **Alphabetical** by route ID as a final tiebreaker
 
 ## Colocation with `+` Prefix
 
@@ -151,7 +153,7 @@ import { formatDate } from './+/helpers'
 
 **Rules:**
 
-- **Allowed:** Use `+` prefixed files and folders anywhere inside route directories (including anonymous `+.tsx` files and `+/` folders)
+- **Allowed:** Use `+` prefixed files and folders anywhere inside route directories (e.g., `+helpers.ts`, `+.tsx`, or `+/` folders)
 - **Disallowed:** Don't place `+` entries at the routes root level like `routes/+helpers.ts` (but `routes/_top/+helpers.ts` is fine)
 - **Note:** `+types` is [reserved](https://reactrouter.com/explanation/type-safety) for React Router's typegen virtual folders so avoid that name.
 
@@ -169,13 +171,16 @@ autoRoutes({
 
 `.DS_Store` is always ignored automatically, even when you provide custom `ignoredRouteFiles`, and the migration CLI inherits the same default.
 
-**Note:** Prefer using the `+` colocation prefix over `ignoredRouteFiles` when possible. Ignored files skip all processing including conflict detection, while colocated files still benefit from validation checks like ensuring proper placement. For example, place tests in `+test/` folders rather than using `**/*.test.{ts,tsx}` in `ignoredRouteFiles`.
+**Note:** Prefer the `+` colocation prefix over `ignoredRouteFiles` when possible. Files ignored via `ignoredRouteFiles` are completely invisible to the router — it won't warn you if they accidentally shadow a route. Colocated `+` files are still validated, so you'll get helpful errors if something is misplaced. For example, place tests in `+test/` folders rather than using `**/*.test.{ts,tsx}` in `ignoredRouteFiles`.
 
-**Directory resolution notes**
+<details>
+<summary><strong>Advanced: Directory resolution</strong></summary>
 
-- `routesDir` entries stay relative (no absolute paths), but you can point outside the app folder with parent segments like `'../pages'`. Paths are resolved from the project root (`process.cwd()`).
-- When you mount `/` to a folder, import prefixes are anchored to that folder’s parent so generated `file` values stay short (e.g., `'/': 'packages/web/routes'` keeps `routes/*` imports instead of `../packages/web/routes/*`).
-- Without a `/` mount, the app directory defaults to `<cwd>/app`; override it by defining `globalThis.__reactRouterAppDirectory` (React Router’s config can set this) to match custom app roots such as `app/router`.
+- Paths in `routesDir` are always relative to your project root. You can use `'../pages'` to point outside the app folder.
+- When you mount `/` to a folder, generated import paths are kept short relative to that folder's parent (e.g., `'/': 'packages/web/routes'` produces `routes/*` imports, not `../packages/web/routes/*`).
+- Without a `/` mount, the app directory defaults to `<project>/app`. Override this with `globalThis.__reactRouterAppDirectory` if your app lives elsewhere (e.g., `app/router`).
+
+</details>
 
 ### Monorepo / Sub-apps (Multiple Route Roots)
 
