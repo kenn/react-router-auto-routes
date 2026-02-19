@@ -88,6 +88,12 @@ export function normalizeSnapshotRouteFilePath(filePath: string): string {
       continue
     }
 
+    // Treat folder route convention (`about/route.tsx`) the same as flat file
+    // (`about.tsx`). The `route` segment is a marker, not a path component.
+    if (segment === 'route' && result.length > 0) {
+      continue
+    }
+
     if (segment === 'index' && result.length > 0) {
       const parent = result.pop()!
       result.push(`${parent}.index`)

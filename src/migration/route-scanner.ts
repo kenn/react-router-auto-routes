@@ -50,7 +50,19 @@ export function scanRouteModules(
     const extension = path.extname(file)
     if (MIGRATION_ROUTE_EXTENSIONS.includes(extension)) {
       const relativePath = path.join(routesDirectory, file)
-      const routeId = createRouteId(relativePath)
+      const basename = path.basename(file, extension)
+      // In the folder route convention, `route.tsx` inside a folder means
+      // the folder itself is the route. Strip the `/route` segment so the
+      // route ID matches the folder name (same as remix-flat-routes).
+      let routeId: string
+      if (basename === 'route') {
+        // Use directory path directly as route ID — don't use createRouteId
+        // here because it strips dot-segments (e.g. `.biography` from
+        // `($lang).biography`).
+        routeId = path.dirname(relativePath).split(path.win32.sep).join('/')
+      } else {
+        routeId = createRouteId(relativePath)
+      }
       files[routeId] = relativePath
       return
     }

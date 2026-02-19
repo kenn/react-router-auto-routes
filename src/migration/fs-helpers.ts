@@ -8,6 +8,23 @@ export function visitFiles(dir: string, visitor: (file: string) => void): void {
   walkFiles(dir, visitor, { followSymlinks: false })
 }
 
+const ROUTE_ENTRY_BASENAMES = new Set(['route', 'index', '_index', '_layout'])
+
+function isRouteEntryBasename(basename: string): boolean {
+  const ext = path.extname(basename)
+  const name = ext ? basename.slice(0, -ext.length) : basename
+  return ROUTE_ENTRY_BASENAMES.has(name)
+}
+
+function isRouteSegment(segment: string): boolean {
+  if (segment === '' || segment === '.') return true
+  if (segment.endsWith('+')) return true
+  if (segment.startsWith('(') && segment.endsWith(')')) return true
+  if (segment.startsWith('__')) return true
+  if (segment.startsWith('_')) return true
+  return false
+}
+
 export function isColocatedFile(filename: string): boolean {
   const normalized = filename.replace(/\\/g, '/')
   const segments = normalized.split('/')
@@ -25,13 +42,32 @@ export function isColocatedFile(filename: string): boolean {
     return true
   }
 
-  return directorySegments.some((segment) => {
-    if (segment === '' || segment === '.') return false
-    if (segment.endsWith('+')) return false
-    if (segment.startsWith('(') && segment.endsWith(')')) return false
-    if (segment.startsWith('__')) return false
-    return true
-  })
+  // Count how many "regular" (non-route) directory segments exist after the
+  // last `+` parent. In remix-flat-routes, the first directory after a `+`
+  // folder is a route folder (e.g. `demo+/about/route.tsx`). Files named as
+  // route entries directly inside such a folder are route modules, not
+  // colocated files. Deeper regular directories indicate colocated content.
+  let lastPlusIndex = -1
+  for (let i = directorySegments.length - 1; i >= 0; i--) {
+    if (directorySegments[i].endsWith('+')) {
+      lastPlusIndex = i
+      break
+    }
+  }
+
+  const segmentsAfterPlus = directorySegments.slice(lastPlusIndex + 1)
+  const regularSegments = segmentsAfterPlus.filter(
+    (segment) => !isRouteSegment(segment),
+  )
+
+  // If there's exactly one regular directory after the last `+` folder and
+  // the file is a route entry (route.tsx, index.tsx, etc.), this is a folder
+  // route — not a colocated file.
+  if (regularSegments.length <= 1 && isRouteEntryBasename(basename)) {
+    return false
+  }
+
+  return regularSegments.length > 0
 }
 
 export function defaultTargetDir(sourceDir: string): string {

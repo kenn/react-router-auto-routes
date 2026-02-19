@@ -208,7 +208,10 @@ function computeSpecifierReplacement(
 
   const relativeReplacement = rewriteRelativeSpecifier(base, context)
   if (relativeReplacement) {
-    const nextSpecifier = relativeReplacement + suffix
+    // Also strip /index.ts(x) from relative specifiers
+    const stripped =
+      stripTsExtension(relativeReplacement) ?? relativeReplacement
+    const nextSpecifier = stripped + suffix
     if (nextSpecifier !== specifier) {
       return nextSpecifier
     }
@@ -217,7 +220,19 @@ function computeSpecifierReplacement(
   let nextBase = base
   let changed = false
 
-  const aliasedReplacement = rewriteAliasedSpecifier(base, context)
+  const typesReplacement = rewriteTypesRouteSpecifier(nextBase, context)
+  if (typesReplacement) {
+    nextBase = typesReplacement
+    changed = true
+  }
+
+  const extensionReplacement = stripTsExtension(nextBase)
+  if (extensionReplacement) {
+    nextBase = extensionReplacement
+    changed = true
+  }
+
+  const aliasedReplacement = rewriteAliasedSpecifier(nextBase, context)
   if (aliasedReplacement) {
     nextBase = aliasedReplacement
     changed = true
@@ -234,6 +249,54 @@ function computeSpecifierReplacement(
     if (nextSpecifier !== specifier) {
       return nextSpecifier
     }
+  }
+
+  return null
+}
+
+/**
+ * When a folder route (`about/route.tsx`) is converted to a flat file
+ * (`about.tsx`), the virtual `+types/route` import must be updated to
+ * reference the new filename (e.g. `+types/about`).
+ */
+function rewriteTypesRouteSpecifier(
+  specifier: string,
+  context: ImportRewriteContext,
+): string | null {
+  const normalized = specifier.replace(/\\/g, '/')
+  const typesRoutePattern = /\/\+types\/route$/
+  if (!typesRoutePattern.test(normalized)) {
+    return null
+  }
+
+  const sourceBasename = path.basename(context.sourcePath)
+  const targetBasename = path.basename(context.targetPath)
+  const sourceNameWithoutExt = sourceBasename.replace(/\.[^.]+$/, '')
+  const targetNameWithoutExt = targetBasename.replace(/\.[^.]+$/, '')
+
+  // Only rewrite if the source file is `route.{ext}` and the target is
+  // different (i.e. the file was converted from a folder route to a flat file).
+  if (sourceNameWithoutExt !== 'route' || targetNameWithoutExt === 'route') {
+    return null
+  }
+
+  return normalized.replace(
+    typesRoutePattern,
+    `/+types/${targetNameWithoutExt}`,
+  )
+}
+
+/**
+ * Strips explicit `.ts` / `.tsx` extensions from import specifiers that
+ * reference barrel files (e.g. `./components/index.ts` → `./components`).
+ */
+function stripTsExtension(specifier: string): string | null {
+  const normalized = specifier.replace(/\\/g, '/')
+
+  // Strip /index.ts or /index.tsx suffix → import from directory
+  const indexTsPattern = /\/index\.tsx?$/
+  if (indexTsPattern.test(normalized)) {
+    return normalized.replace(indexTsPattern, '')
   }
 
   return null
