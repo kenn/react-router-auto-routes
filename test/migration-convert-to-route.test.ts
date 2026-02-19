@@ -75,9 +75,21 @@ describe('normalizeSnapshotRouteFilePath', () => {
     ).toBe('routes/settings/profile.index.tsx')
   })
 
-  it('merges pathless underscore segments', () => {
+  it('collapses folder route files (route.tsx) to their parent route', () => {
+    expect(normalizeSnapshotRouteFilePath('routes/demo/about/route.tsx')).toBe(
+      'routes/demo/about.tsx',
+    )
+    expect(normalizeSnapshotRouteFilePath('routes/demo/_index/route.tsx')).toBe(
+      'routes/demo/_index.tsx',
+    )
     expect(
-      normalizeSnapshotRouteFilePath('routes/root_/__public.tsx'),
-    ).toBe('routes/root_.public.tsx')
+      normalizeSnapshotRouteFilePath('routes/_public/($lang)._index/route.tsx'),
+    ).toBe('routes/_public/($lang)._index.tsx')
+  })
+
+  it('merges pathless underscore segments', () => {
+    expect(normalizeSnapshotRouteFilePath('routes/root_/__public.tsx')).toBe(
+      'routes/root_.public.tsx',
+    )
   })
 })
