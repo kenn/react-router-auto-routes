@@ -51,7 +51,14 @@ export function migrate(
   })
 
   const routeMappings = collectRouteMappings(routes, sourceDir, targetDir)
-  const colocatedMappings = collectColocatedMappings(sourceDir, targetDir)
+  const routeSourcePaths = new Set(
+    routeMappings.map((m) => normalizeAbsolutePath(m.source)),
+  )
+  const colocatedMappings = collectColocatedMappings(
+    sourceDir,
+    targetDir,
+    routeSourcePaths,
+  )
   const mappings = [...routeMappings, ...colocatedMappings]
   const normalizedMapping = createNormalizedMapping(mappings)
   const specifierReplacements = createSpecifierReplacements(
@@ -94,6 +101,7 @@ function collectRouteMappings(
 function collectColocatedMappings(
   sourceDir: string,
   targetDir: string,
+  routeSourcePaths: Set<string>,
 ): FileMapping[] {
   const mappings: FileMapping[] = []
 
@@ -103,6 +111,10 @@ function collectColocatedMappings(
     }
 
     const sourcePath = path.resolve(sourceDir, file)
+    if (routeSourcePaths.has(normalizeAbsolutePath(sourcePath))) {
+      return
+    }
+
     const targetPath = path.resolve(targetDir, convertColocatedPath(file))
     mappings.push({ source: sourcePath, target: targetPath })
   })

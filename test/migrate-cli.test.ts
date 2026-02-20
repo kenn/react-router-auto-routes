@@ -279,6 +279,93 @@ describe('migrate CLI', () => {
     )
   })
 
+  it('migrates folder route pattern (route.tsx) correctly', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/demo+/_layout/route.tsx':
+        'import { Outlet } from "react-router"\nexport default function DemoLayout() { return <Outlet /> }\n',
+      'app/routes/demo+/_index/route.tsx':
+        'export default function DemoIndex() { return null }\n',
+      'app/routes/demo+/about/route.tsx':
+        "import type { Route } from './+types/route'\nexport default function About() { return null }\n",
+      'app/routes/demo+/conform.nested-array/route.tsx':
+        "import { schema } from './schema'\nexport default function ConformNestedArray() { return null }\n",
+      'app/routes/demo+/conform.nested-array/schema.ts':
+        'export const schema = {}\n',
+      'app/routes/demo+/conform.nested-array/components/field.tsx':
+        'export function Field() { return null }\n',
+    })
+
+    const sourceAbsolute = fixture.sourceDir
+    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
+
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const files = fixture.listRelativeFiles(targetAbsolute)
+
+    // route.tsx files should become flat files or index.tsx, not +prefixed folders
+    expect(files).toContain('demo/_layout.tsx')
+    expect(files).toContain('demo/_index.tsx')
+    expect(files).toContain('demo/about.tsx')
+    expect(files).toContain('demo/conform.nested-array.tsx')
+
+    // Colocated files should get + prefix
+    expect(files).toContain('demo/+conform.nested-array/schema.ts')
+    expect(files).toContain('demo/+conform.nested-array/components/field.tsx')
+
+    // No route.tsx files should remain at the top level
+    expect(files).not.toContain('demo/+_layout/route.tsx')
+    expect(files).not.toContain('demo/+_index/route.tsx')
+    expect(files).not.toContain('demo/+about/route.tsx')
+  })
+
+  it('rewrites +types/route imports when migrating folder routes', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/demo+/about/route.tsx':
+        "import type { Route } from './+types/route'\nexport default function About({ loaderData }: Route.ComponentProps) { return null }\n",
+    })
+
+    const sourceAbsolute = fixture.sourceDir
+    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, { force: true })
+
+    const aboutPath = path.join(targetAbsolute, 'demo', 'about.tsx')
+    const contents = fs.readFileSync(aboutPath, 'utf8')
+    expect(contents).toContain("from './+types/about'")
+    expect(contents).not.toContain("from './+types/route'")
+  })
+
+  it('treats folder route (route.tsx) as equivalent to flat file in snapshots', () => {
+    const before = normalizeSnapshot(
+      `<Routes>
+  <Route file="root.tsx">
+    <Route file="routes/demo+/about/route.tsx" />
+    <Route file="routes/demo+/_index/route.tsx" index />
+  </Route>
+</Routes>
+`,
+    )
+
+    const after = normalizeSnapshot(
+      `<Routes>
+  <Route file="root.tsx">
+    <Route file="routes/demo/about.tsx" />
+    <Route file="routes/demo/_index.tsx" index />
+  </Route>
+</Routes>
+`,
+    )
+
+    expect(before).toBe(after)
+  })
+
   it('treats dot notation index files as index routes', () => {
     const fixture = createRoutesFixture({
       'app/routes/settings+/profile.two-factor.tsx':

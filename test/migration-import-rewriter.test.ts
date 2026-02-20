@@ -190,6 +190,111 @@ export default function Admin() {
     expect(rewritten).toContain(`from '../utils/auth/index'`)
   })
 
+  it('rewrites +types/route specifier when route.tsx becomes a flat file', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-types-route-'))
+
+    const sourceDir = path.join(workspace, 'app', 'routes')
+    const targetDir = path.join(workspace, 'app', 'new-routes')
+
+    // route.tsx → about.tsx: ./+types/route should become ./+types/about
+    const sourceFile = path.join(sourceDir, 'demo+', 'about', 'route.tsx')
+    const targetFile = path.join(targetDir, 'demo', 'about.tsx')
+
+    fs.mkdirSync(path.dirname(sourceFile), { recursive: true })
+    fs.writeFileSync(
+      sourceFile,
+      `import type { Route } from './+types/route'
+
+export function loader({ params }: Route.LoaderArgs) {
+  return { title: 'About' }
+}
+
+export default function About({ loaderData }: Route.ComponentProps) {
+  return <h1>{loaderData.title}</h1>
+}
+`,
+    )
+
+    const normalizedMapping = new Map<string, string>([
+      [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
+    ])
+
+    const specifierReplacements: SpecifierReplacement[] = []
+    rewriteAndCopy(
+      { source: sourceFile, target: targetFile },
+      normalizedMapping,
+      specifierReplacements,
+    )
+
+    const rewritten = fs.readFileSync(targetFile, 'utf8')
+    expect(rewritten).toContain("from './+types/about'")
+    expect(rewritten).not.toContain("from './+types/route'")
+  })
+
+  it('strips /index.ts extension from import specifiers', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-strip-ts-ext-'))
+
+    const sourceDir = path.join(workspace, 'app', 'routes')
+    const targetDir = path.join(workspace, 'app', 'new-routes')
+
+    const sourceFile = path.join(sourceDir, 'demo+', 'example', 'route.tsx')
+    const targetFile = path.join(targetDir, 'demo', 'example.tsx')
+
+    const componentsDir = path.join(sourceDir, 'demo+', 'example', 'components')
+    fs.mkdirSync(componentsDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(componentsDir, 'index.ts'),
+      'export { Header } from "./header"\n',
+    )
+    fs.writeFileSync(
+      path.join(componentsDir, 'header.tsx'),
+      'export function Header() { return null }\n',
+    )
+
+    // Colocated components move to +components/
+    const targetComponentsDir = path.join(
+      targetDir,
+      'demo',
+      '+example',
+      'components',
+    )
+    fs.mkdirSync(targetComponentsDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(targetComponentsDir, 'index.ts'),
+      'export { Header } from "./header"\n',
+    )
+    fs.writeFileSync(
+      path.join(targetComponentsDir, 'header.tsx'),
+      'export function Header() { return null }\n',
+    )
+
+    fs.mkdirSync(path.dirname(sourceFile), { recursive: true })
+    fs.writeFileSync(
+      sourceFile,
+      `import { Header } from './components/index.ts'
+
+export default function Example() {
+  return <Header />
+}
+`,
+    )
+
+    const normalizedMapping = new Map<string, string>([
+      [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
+    ])
+
+    const specifierReplacements: SpecifierReplacement[] = []
+    rewriteAndCopy(
+      { source: sourceFile, target: targetFile },
+      normalizedMapping,
+      specifierReplacements,
+    )
+
+    const rewritten = fs.readFileSync(targetFile, 'utf8')
+    // /index.ts should be stripped
+    expect(rewritten).not.toContain('/index.ts')
+  })
+
   it('rewrites aliased imports for parent routes promoted to _layout', () => {
     workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-alias-'))
 
