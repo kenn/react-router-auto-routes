@@ -388,6 +388,52 @@ describe('migrate CLI', () => {
     expect(routes[indexRouteId].path).toBeUndefined()
     expect(routes[indexRouteId].parentId).toBe(parentRouteId)
   })
+
+  it('treats dot underscore index files as index routes', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/newsletter.tsx':
+        'import { Outlet } from "react-router"\nexport default function Newsletter() { return <Outlet /> }\n',
+      'app/routes/newsletter._index.tsx':
+        'export default function NewsletterIndex() { return null }\n',
+    })
+
+    const routes = createRoutesFromFolders(defineRoutes, {
+      appDirectory: fixture.resolve('app'),
+      routesDirectory: 'routes',
+    })
+
+    const parentRouteId = 'routes/newsletter'
+    const indexRouteId = 'routes/newsletter._index'
+
+    expect(routes[parentRouteId]).toBeDefined()
+    expect(routes[indexRouteId]).toBeDefined()
+    expect(routes[indexRouteId].index).toBe(true)
+    expect(routes[indexRouteId].path).toBeUndefined()
+    expect(routes[indexRouteId].parentId).toBe(parentRouteId)
+  })
+
+  it('treats dot underscore index folders as index routes', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/products.tsx':
+        'import { Outlet } from "react-router"\nexport default function Products() { return <Outlet /> }\n',
+      'app/routes/products._index/route.tsx':
+        'export default function ProductsIndex() { return null }\n',
+    })
+
+    const routes = createRoutesFromFolders(defineRoutes, {
+      appDirectory: fixture.resolve('app'),
+      routesDirectory: 'routes',
+    })
+
+    const parentRouteId = 'routes/products'
+    const indexRouteId = 'routes/products._index'
+
+    expect(routes[parentRouteId]).toBeDefined()
+    expect(routes[indexRouteId]).toBeDefined()
+    expect(routes[indexRouteId].index).toBe(true)
+    expect(routes[indexRouteId].path).toBeUndefined()
+    expect(routes[indexRouteId].parentId).toBe(parentRouteId)
+  })
 })
 
 describe('rewriteLegacyRouteEntry', () => {

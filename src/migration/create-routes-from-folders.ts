@@ -1,5 +1,8 @@
 import { getRouteSegments } from '../core/routing/segments'
-import { DOT_INDEX_SUFFIX } from './constants'
+import {
+  DOT_INDEX_SUFFIX,
+  DOT_UNDERSCORE_INDEX_SUFFIX,
+} from './constants'
 import {
   DefineRouteFunction,
   DefineRoutesFunction,
@@ -140,6 +143,16 @@ function getParentRouteIds(
       }
     }
 
+    if (!parentRouteId && childRouteId.endsWith(DOT_UNDERSCORE_INDEX_SUFFIX)) {
+      const dotNotationParentId = childRouteId.slice(
+        0,
+        -DOT_UNDERSCORE_INDEX_SUFFIX.length,
+      )
+      if (routeIdMap.has(dotNotationParentId)) {
+        parentRouteId = dotNotationParentId
+      }
+    }
+
     parentRouteIdMap.set(childRouteId, parentRouteId)
   }
 
@@ -217,7 +230,8 @@ function isIndexRouteId(routeId: string): boolean {
   return (
     routeId === 'index' ||
     routeId.endsWith('/index') ||
-    routeId.endsWith(DOT_INDEX_SUFFIX)
+    routeId.endsWith(DOT_INDEX_SUFFIX) ||
+    routeId.endsWith(DOT_UNDERSCORE_INDEX_SUFFIX)
   )
 }
 
