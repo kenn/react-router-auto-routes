@@ -1,5 +1,4 @@
 import path from 'path'
-
 import { SPECIAL_ROUTE_FILES } from './constants'
 
 const ESCAPE_START = '['

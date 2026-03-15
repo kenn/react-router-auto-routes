@@ -1,5 +1,4 @@
 import * as path from 'path'
-
 import { NormalizedRoutesDir, RoutesDirInput } from './core/types'
 import { visitFiles as walkFiles } from './fs/visit-files'
 

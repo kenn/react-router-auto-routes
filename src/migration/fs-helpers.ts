@@ -1,6 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-
 import { visitFiles as walkFiles } from '../fs/visit-files'
 import { logInfo } from './logger'
 

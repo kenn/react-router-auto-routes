@@ -1,6 +1,5 @@
 import * as path from 'path'
 import picomatch from 'picomatch'
-
 import { createRouteId } from '../../utils'
 import { NormalizedRoutesDir, ResolvedOptions, RouteInfo } from '../types'
 import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from './constants'

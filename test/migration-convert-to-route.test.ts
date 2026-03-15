@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-
 import { convertToRoute } from '../src/migration/migrate'
 import { normalizeSnapshotRouteFilePath } from '../src/migration/normalizers'
 import type { RouteManifest } from '../src/migration/route-definition'

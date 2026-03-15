@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
-
 import { createRouteId, defaultVisitFiles } from '../utils'
 import { MIGRATION_ROUTE_EXTENSIONS } from './constants'
 import { isColocatedFile } from './fs-helpers'

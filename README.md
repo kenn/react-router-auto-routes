@@ -98,16 +98,16 @@ Both structures produce identical routes. Use folders for organization, flat fil
 
 ### Route Patterns
 
-| Pattern | Meaning | Example |
-|---|---|---|
-| `index.tsx` / `_index.tsx` | Index route — the default page for a folder. Automatically nests under a matching `_layout.tsx`. | `blog/index.tsx` → `/blog` |
-| `_layout.tsx` | Shared layout wrapper (renders an `<Outlet />`). The **only** file that creates nesting. `layout.tsx` without `_` is just a normal route (`/layout`). | `blog/_layout.tsx` wraps all `/blog/*` pages |
-| `_` prefix folder | Groups routes under a shared layout **without** adding a URL segment | `_auth/login.tsx` → `/login` (not `/auth/login`) |
-| `$param` | Dynamic segment — matches any value in that position | `$slug.tsx` → `/blog/:slug` |
-| `$.tsx` | Catch-all (splat) — matches everything after this point | `files/$.tsx` → `/files/*` |
-| `(segment)` | Optional segment — matches with or without it | `(en)/about.tsx` → `/en?/about` |
-| `($param)` | Optional dynamic segment | `($lang)/home.tsx` → `/:lang?/home` |
-| `[.]` | Literal dot — escapes the dot so it's part of the URL | `robots[.]txt.ts` → `/robots.txt` |
+| Pattern                    | Meaning                                                                                                                                               | Example                                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `index.tsx` / `_index.tsx` | Index route — the default page for a folder. Automatically nests under a matching `_layout.tsx`.                                                      | `blog/index.tsx` → `/blog`                       |
+| `_layout.tsx`              | Shared layout wrapper (renders an `<Outlet />`). The **only** file that creates nesting. `layout.tsx` without `_` is just a normal route (`/layout`). | `blog/_layout.tsx` wraps all `/blog/*` pages     |
+| `_` prefix folder          | Groups routes under a shared layout **without** adding a URL segment                                                                                  | `_auth/login.tsx` → `/login` (not `/auth/login`) |
+| `$param`                   | Dynamic segment — matches any value in that position                                                                                                  | `$slug.tsx` → `/blog/:slug`                      |
+| `$.tsx`                    | Catch-all (splat) — matches everything after this point                                                                                               | `files/$.tsx` → `/files/*`                       |
+| `(segment)`                | Optional segment — matches with or without it                                                                                                         | `(en)/about.tsx` → `/en?/about`                  |
+| `($param)`                 | Optional dynamic segment                                                                                                                              | `($lang)/home.tsx` → `/:lang?/home`              |
+| `[.]`                      | Literal dot — escapes the dot so it's part of the URL                                                                                                 | `robots[.]txt.ts` → `/robots.txt`                |
 
 **Key insight:** Folders are just organization. Without a `_layout.tsx` in the folder, `api/users.ts` behaves like `api.users.ts` — both create a route at `/api/users`.
 

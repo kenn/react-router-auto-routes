@@ -1,7 +1,5 @@
 import path from 'node:path'
-
 import { describe, expect, it } from 'vitest'
-
 import { visitFiles } from '../src/fs/visit-files'
 import { defaultVisitFiles } from '../src/utils'
 

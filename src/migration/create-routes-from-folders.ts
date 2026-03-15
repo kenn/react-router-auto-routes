@@ -1,8 +1,5 @@
 import { getRouteSegments } from '../core/routing/segments'
-import {
-  DOT_INDEX_SUFFIX,
-  DOT_UNDERSCORE_INDEX_SUFFIX,
-} from './constants'
+import { DOT_INDEX_SUFFIX, DOT_UNDERSCORE_INDEX_SUFFIX } from './constants'
 import {
   DefineRouteFunction,
   DefineRoutesFunction,

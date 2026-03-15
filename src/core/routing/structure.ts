@@ -5,10 +5,7 @@ function isLayoutRoute(route: RouteInfo): boolean {
   const fileName = route.file.split('/').pop() ?? ''
   const normalized = fileName.replace(/\.[^/.]+$/, '')
 
-  return (
-    normalized === '_layout' ||
-    normalized.endsWith('._layout')
-  )
+  return normalized === '_layout' || normalized.endsWith('._layout')
 }
 
 function isParentCandidate(route: RouteInfo): boolean {

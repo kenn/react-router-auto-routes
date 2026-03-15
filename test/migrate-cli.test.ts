@@ -1,8 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
 import { diffSnapshots, normalizeSnapshot } from '../src/migration/cli/diff'
 import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
@@ -12,6 +10,12 @@ import { defineRoutes } from '../src/migration/route-definition'
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+
+function getStringMessages(calls: unknown[][]): string[] {
+  return calls
+    .map((call) => call[0])
+    .filter((message): message is string => typeof message === 'string')
+}
 
 beforeEach(() => {
   consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -513,9 +517,7 @@ describe('runCli', () => {
       process.chdir(previousCwd)
     }
 
-    const messages = consoleLogSpy.mock.calls
-      .map(([message]) => message)
-      .filter((message): message is string => typeof message === 'string')
+    const messages = getStringMessages(consoleLogSpy.mock.calls)
 
     const backupIndex = messages.findIndex((message) =>
       message.includes("Backed up 'app/routes' to 'app/old-routes'"),
@@ -561,9 +563,7 @@ describe('runCli', () => {
 
       const exitCode = runCli(['app/routes', 'app/new-routes'], { runner })
       if (exitCode !== 0) {
-        const messages = consoleErrorSpy.mock.calls
-          .map(([message]) => message)
-          .filter((message): message is string => typeof message === 'string')
+        const messages = getStringMessages(consoleErrorSpy.mock.calls)
         throw new Error(
           `CLI failed with exit ${exitCode}:\n${messages.join('\n')}`,
         )
@@ -639,9 +639,7 @@ describe('runCli', () => {
 
       const exitCode = runCli(['app/routes', 'app/new-routes'], { runner })
       if (exitCode !== 0) {
-        const messages = consoleErrorSpy.mock.calls
-          .map(([message]) => message)
-          .filter((message): message is string => typeof message === 'string')
+        const messages = getStringMessages(consoleErrorSpy.mock.calls)
         throw new Error(
           `CLI failed with exit ${exitCode}:\n${messages.join('\n')}`,
         )
@@ -829,9 +827,9 @@ describe('runCli', () => {
     ])
 
     const diffCall = consoleErrorSpy.mock.calls.find(
-      ([message]) =>
-        typeof message === 'string' &&
-        message.includes('--- react-router routes (before)'),
+      (call: unknown[]) =>
+        typeof call[0] === 'string' &&
+        call[0].includes('--- react-router routes (before)'),
     )
     expect(diffCall).toBeDefined()
   })
@@ -885,9 +883,7 @@ describe('runCli', () => {
       process.chdir(previousCwd)
     }
 
-    const messages = consoleLogSpy.mock.calls
-      .map(([message]) => message)
-      .filter((message): message is string => typeof message === 'string')
+    const messages = getStringMessages(consoleLogSpy.mock.calls)
 
     expect(
       messages.some((message) => message.includes('Dry run complete')),

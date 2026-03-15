@@ -1,7 +1,5 @@
 import * as path from 'path'
-
 import { getRouteRegex, isRouteModuleFile } from '../src/core/routing/files'
-
 import {
   createRoutesFromFiles,
   ExpectedValues,

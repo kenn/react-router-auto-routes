@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-
 import { createRoutePath } from '../src/migration/create-routes-from-folders'
 
 describe('createRoutePath', () => {

@@ -1,5 +1,4 @@
 import path from 'node:path'
-
 import type { RouteManifest } from './route-definition'
 
 function cleanLegacySegment(segment: string, dropTrailingPlus = true): string {

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-
 import { isColocatedFile } from '../src/migration/fs-helpers'
 
 describe('isColocatedFile', () => {
