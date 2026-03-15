@@ -2,31 +2,16 @@
   "name": "react-router-auto-routes",
   "version": "0.8.3",
   "description": "Automatic folder-based routing with colocation for React Router v7+",
-  "type": "module",
-  "bin": {
-    "migrate-auto-routes": "dist/cli.cjs"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "sideEffects": false,
-  "scripts": {
-    "build": "tsup",
-    "test": "NODE_OPTIONS=\"--no-warnings=DEP0040\" vitest",
-    "typecheck": "tsc -b",
-    "prepublishOnly": "npm run typecheck && npm run build && npm run test -- --run",
-    "np": "np"
-  },
   "keywords": [
-    "react-router",
-    "routes",
-    "routing",
-    "flexible",
     "colocation",
     "file-based",
-    "flat-routes"
+    "flat-routes",
+    "flexible",
+    "react-router",
+    "routes",
+    "routing"
   ],
+  "license": "MIT",
   "author": {
     "name": "Kenn Ejima",
     "email": "kenn@users.noreply.github.com"
@@ -35,7 +20,28 @@
     "type": "git",
     "url": "https://github.com/kenn/react-router-auto-routes.git"
   },
-  "license": "MIT",
+  "bin": {
+    "migrate-auto-routes": "dist/cli.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "NODE_OPTIONS=\"--no-warnings=DEP0040\" vitest",
+    "typecheck": "tsc -b",
+    "prepublishOnly": "npm run typecheck && npm run build && npm run test -- --run",
+    "np": "np"
+  },
   "dependencies": {
     "picomatch": "^4.0.3"
   },
@@ -43,7 +49,7 @@
     "@types/node": "^25.5.0",
     "@types/picomatch": "^4.0.2",
     "np": "^11.0.2",
-    "prettier": "^3.8.1",
+    "oxfmt": "^0.40.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
@@ -53,11 +59,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
   }
 }
