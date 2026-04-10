@@ -12,7 +12,11 @@ const ROUTE_ENTRY_BASENAMES = new Set(['route', 'index', '_index', '_layout'])
 function isRouteEntryBasename(basename: string): boolean {
   const ext = path.extname(basename)
   const name = ext ? basename.slice(0, -ext.length) : basename
-  return ROUTE_ENTRY_BASENAMES.has(name)
+  if (name.startsWith('__')) {
+    return false
+  }
+
+  return ROUTE_ENTRY_BASENAMES.has(name) || name.startsWith('_')
 }
 
 function isRouteSegment(segment: string): boolean {

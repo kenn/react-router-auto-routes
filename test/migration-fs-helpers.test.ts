@@ -30,6 +30,14 @@ describe('isColocatedFile', () => {
     expect(isColocatedFile('app+/reports+/$id+/detail/route.tsx')).toBe(false)
   })
 
+  it('returns false for extended route filenames inside route folders', () => {
+    expect(isColocatedFile('_auth+/login/_login.tsx')).toBe(false)
+    expect(isColocatedFile('_auth+/logout/_logout.tsx')).toBe(false)
+    expect(isColocatedFile('_auth+/forgot-password/_forgot-password.tsx')).toBe(
+      false,
+    )
+  })
+
   it('returns true for non-route files inside folder route directories', () => {
     // Files that are not route entries should still be colocated
     expect(isColocatedFile('demo+/about/components/header.tsx')).toBe(true)
@@ -37,5 +45,6 @@ describe('isColocatedFile', () => {
     expect(isColocatedFile('demo+/conform.nested-array/faker.server.ts')).toBe(
       true,
     )
+    expect(isColocatedFile('_auth+/login/schema.ts')).toBe(true)
   })
 })

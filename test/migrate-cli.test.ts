@@ -139,6 +139,27 @@ describe('migrate CLI', () => {
     expect(files).toContain('app/reports/$id/index.tsx')
   })
 
+  it('migrates extended route filenames as route entries instead of colocated files', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/_auth+/login/_login.tsx':
+        'export default function Login() { return null }\n',
+      'app/routes/_auth+/login/schema.ts': 'export const schema = {}\n',
+    })
+
+    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    migrate(sourceArg, targetArg, {
+      force: true,
+    })
+
+    const files = fixture.listRelativeFiles(targetAbsolute)
+    expect(files).toContain('_auth/+login/schema.ts')
+    expect(files).toContain('_auth/login/_login.tsx')
+    expect(files).not.toContain('_auth/+login/_login.tsx')
+  })
+
   it('ignores macOS metadata files', () => {
     const fixture = createRoutesFixture({
       'app/routes/.DS_Store': '',
