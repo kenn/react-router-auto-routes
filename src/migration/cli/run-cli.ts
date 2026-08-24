@@ -29,6 +29,11 @@ const defaultSourceDir = 'app/routes'
 
 type CliArguments = { sourceDir: string; targetDir: string }
 
+type CliParseResult =
+  | { mode: 'run'; arguments: CliArguments }
+  | { mode: 'help' }
+  | { mode: 'error'; message: string }
+
 type MigrationPaths = {
   sourceArg: string
   targetArg: string
@@ -44,14 +49,23 @@ type MigrationContext = MigrationPaths & {
   dryRun: boolean
 }
 
-function resolveCliArguments(argv: string[]): CliArguments | null {
+function resolveCliArguments(argv: string[]): CliParseResult {
+  if (argv.includes('--help') || argv.includes('-h')) {
+    return { mode: 'help' }
+  }
+
+  const unknownFlag = argv.find((argument) => argument.startsWith('-'))
+  if (unknownFlag) {
+    return { mode: 'error', message: `Unknown option '${unknownFlag}'.` }
+  }
+
   if (argv.length > 2) {
-    return null
+    return { mode: 'error', message: 'Too many arguments.' }
   }
 
   const sourceDir = argv[0] ?? defaultSourceDir
   const targetDir = argv[1] ?? defaultTargetDir(sourceDir)
-  return { sourceDir, targetDir }
+  return { mode: 'run', arguments: { sourceDir, targetDir } }
 }
 
 function buildMigrationPaths(args: CliArguments): MigrationPaths {
@@ -114,13 +128,19 @@ function validateMigrationPaths(paths: MigrationPaths): boolean {
 }
 
 export function runCli(argv: string[], options: RunOptions = {}): number {
-  const args = resolveCliArguments(argv)
-  if (!args) {
+  const parsed = resolveCliArguments(argv)
+  if (parsed.mode === 'help') {
+    usage()
+    return 0
+  }
+
+  if (parsed.mode === 'error') {
+    logError(parsed.message)
     usage()
     return 1
   }
 
-  const paths = buildMigrationPaths(args)
+  const paths = buildMigrationPaths(parsed.arguments)
   if (!validateMigrationPaths(paths)) {
     return 1
   }
@@ -364,6 +384,8 @@ function matchesSource(pathname: string, sourceRelative: string): boolean {
 function usage(): void {
   logInfo(
     'Usage: migrate-auto-routes [sourceDir] [targetDir]\n\n' +
+      'Options:\n' +
+      '  -h, --help  Show this help message.\n\n' +
       'The CLI overwrites the target directory if it exists.\n\n' +
       'The CLI rewrites routes using the folder + colocation convention promoted by\n' +
       'react-router-auto-routes.\n\n' +

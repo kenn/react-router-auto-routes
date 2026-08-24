@@ -278,10 +278,13 @@ The CLI overwrites the target folder if it already exists. With no arguments it 
 
 - Verifies you are inside a Git repository and the route source folder (e.g. `app/routes`) has no pending changes before running the migration CLI
 - Runs `npx react-router routes` before and after rewriting files
+- Parses every JavaScript and TypeScript route before writing migrated files; syntax errors stop the migration before the target is modified
 - Stages the migrated result in `app/new-routes` (or your custom target) before swapping it into place
 - If successful, renames `app/routes` to `app/old-routes`, then moves the new routes into `app/routes`
 - If the generated route output differs, prints a diff, restores the original folder, and keeps the migrated files at the target path for inspection
 - When your project still imports `createRoutesFromFolders`/`remix-flat-routes`, the CLI updates `app/routes.ts` to export `autoRoutes()` so the snapshot check runs against the migrated tree
+
+Route-entry conversion stops with an actionable error when the legacy call cannot be identified safely—for example, when it is imported under an alias—or when extracted options reference local bindings. Inline those option values or update the entry manually, then rerun the migration. This prevents the CLI from replacing a customized entry with an incomplete `autoRoutes()` call.
 
 If everything looks good, you can uninstall the old packages:
 

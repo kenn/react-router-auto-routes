@@ -128,6 +128,27 @@ const templateRequire = require(\`#old/template-required\`)
       )
     }
   })
+
+  it('fails with the file, parser diagnostic, and remediation on invalid syntax', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-plan-invalid-'))
+    const sourceFile = path.join(workspace, 'broken.ts')
+    const targetFile = path.join(workspace, 'out', 'broken.ts')
+    fs.writeFileSync(sourceFile, 'export const broken = {\n')
+
+    expect(() =>
+      buildImportRewritePlan(
+        { source: sourceFile, target: targetFile },
+        new Map(),
+        [],
+      ),
+    ).toThrow(
+      new RegExp(
+        `Unable to migrate '${sourceFile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'.*Oxc could not parse.*Fix the syntax errors`,
+        's',
+      ),
+    )
+    expect(fs.existsSync(targetFile)).toBe(false)
+  })
 })
 
 describe('rewriteAndCopy', () => {
@@ -150,9 +171,11 @@ describe('rewriteAndCopy', () => {
       `
 import { AdminShell } from '../components/AdminShell'
 import data from './fixture.json?raw'
+import assetUrl from './fixture.json?url#preview'
+import fragment from './fixture.json#section'
 
 export default function Admin() {
-  return <AdminShell data={data} />
+  return <AdminShell data={[data, assetUrl, fragment]} />
 }
 `.trimStart(),
     )
@@ -180,6 +203,38 @@ export function AdminShell() {
     const rewritten = fs.readFileSync(targetFile, 'utf8')
     expect(rewritten).toContain(`from '../../components/AdminShell'`)
     expect(rewritten).toContain(`from '../../routes/fixture.json?raw'`)
+    expect(rewritten).toContain(`from '../../routes/fixture.json?url#preview'`)
+    expect(rewritten).toContain(`from '../../routes/fixture.json#section'`)
+  })
+
+  it('does not replace aliased path substrings outside segment boundaries', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-boundary-'))
+    const sourceFile = path.join(workspace, 'route.ts')
+    const targetFile = path.join(workspace, 'next-route.ts')
+    const contents =
+      "import value from '~/lib/routes/foo-utils'\nexport default value\n"
+    fs.writeFileSync(sourceFile, contents)
+
+    rewriteAndCopy({ source: sourceFile, target: targetFile }, new Map(), [
+      { from: 'routes/foo', to: 'new-routes/foo' },
+    ])
+
+    expect(fs.readFileSync(targetFile, 'utf8')).toBe(contents)
+  })
+
+  it('rewrites aliases that begin immediately after an alias sigil', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-alias-sigil-'))
+    const sourceFile = path.join(workspace, 'route.ts')
+    const targetFile = path.join(workspace, 'next-route.ts')
+    fs.writeFileSync(sourceFile, "import value from '#routes/foo'\n")
+
+    rewriteAndCopy({ source: sourceFile, target: targetFile }, new Map(), [
+      { from: 'routes/foo', to: 'new-routes/foo' },
+    ])
+
+    expect(fs.readFileSync(targetFile, 'utf8')).toContain(
+      "from '#new-routes/foo'",
+    )
   })
 
   it('strips legacy + segments from import paths', () => {

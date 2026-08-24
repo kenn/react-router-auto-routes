@@ -18,6 +18,19 @@ describe('routing options', () => {
     })
   })
 
+  describe('custom route regex', () => {
+    it('passes routeRegex through autoRoutes()', () => {
+      const routes = createRoutesFromFiles(
+        ['admin/page.custom.tsx', 'admin/page.tsx'],
+        { routeRegex: /\.custom\.tsx$/ },
+      )
+      const manifest = flattenRoutesById(routes)
+
+      expect(manifest['routes/admin/page.custom']).toBeDefined()
+      expect(manifest['routes/admin/page']).toBeUndefined()
+    })
+  })
+
   describe('optional segments', () => {
     const optionalSegmentCases = [
       {
@@ -239,7 +252,43 @@ describe('routing options', () => {
           routesDir: { '/tools/': 'tools/routes' },
         })
       }).toThrow("routesDir mount paths cannot end with '/'. Got: '/tools/'")
+
+      expect(() => {
+        createRoutesFromFiles(['index.tsx'], {
+          routesDir: { '': 'tools/routes' },
+        })
+      }).toThrow('routesDir mount paths must be non-empty strings.')
+
+      expect(() => {
+        createRoutesFromFiles(['index.tsx'], { routesDir: {} })
+      }).toThrow('routesDir object must contain at least one entry.')
+
+      expect(() => {
+        createRoutesFromFiles(['index.tsx'], {
+          routesDir: {
+            '/tools': 'tools/routes',
+            ' /tools ': 'other/routes',
+          },
+        })
+      }).toThrow("Duplicate routesDir mount path detected: '/tools'.")
     })
+  })
+
+  describe('invalid route definitions', () => {
+    it('rejects duplicate route ids from different extensions', () => {
+      expect(() => createRoutesFromFiles(['foo.tsx', 'foo.jsx'])).toThrow(
+        "Duplicate route id 'routes/foo'",
+      )
+    })
+
+    it.each(['bad*.tsx', 'bad:segment.tsx'])(
+      'rejects invalid route segment characters in %s',
+      (filename) => {
+        expect(() => createRoutesFromFiles([filename])).toThrow(
+          /cannot contain "[*:]/,
+        )
+      },
+    )
   })
 
   describe('app directory resolution', () => {

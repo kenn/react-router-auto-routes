@@ -7,8 +7,9 @@ import {
   visitFiles,
 } from './fs-helpers'
 import {
+  buildImportRewritePlan,
+  executeImportRewritePlan,
   normalizeAbsolutePath,
-  rewriteAndCopy,
   type FileMapping,
   type SpecifierReplacement,
 } from './import-rewriter'
@@ -67,8 +68,14 @@ export function migrate(
     targetDir,
   )
 
-  for (const mapping of mappings) {
-    rewriteAndCopy(mapping, normalizedMapping, specifierReplacements)
+  // Validate and prepare every source before writing anything. This prevents a
+  // parse failure in a later file from leaving a partially generated target.
+  const plans = mappings.map((mapping) =>
+    buildImportRewritePlan(mapping, normalizedMapping, specifierReplacements),
+  )
+
+  for (const plan of plans) {
+    executeImportRewritePlan(plan)
   }
 
   logInfo('🏁 Finished!')

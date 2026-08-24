@@ -367,6 +367,21 @@ describe('migrate CLI', () => {
     expect(contents).not.toContain("from './+types/route'")
   })
 
+  it('writes nothing when planning fails for any source file', () => {
+    const fixture = createRoutesFixture({
+      'app/routes/a.tsx': 'export default function A() { return null }\n',
+      'app/routes/z.tsx': 'export default function Z( {\n',
+    })
+    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
+    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+
+    expect(() => migrate(sourceArg, targetArg, { force: true })).toThrow(
+      /z\.tsx.*Oxc could not parse.*Fix the syntax errors/s,
+    )
+    expect(fs.existsSync(targetAbsolute)).toBe(false)
+  })
+
   it('treats folder route (route.tsx) as equivalent to flat file in snapshots', () => {
     const before = normalizeSnapshot(
       `<Routes>
@@ -479,7 +494,7 @@ describe('rewriteLegacyRouteEntry', () => {
     expect(rewritten).toContain("ignoredRouteFiles: ['**/.*']")
   })
 
-  it('preserves source expressions, comments, and Unicode text', () => {
+  it('fails without overwriting when routesDir references a local binding', () => {
     const fixture = createRoutesFixture(
       {
         'app/routes.ts': `import { flatRoutes } from 'remix-flat-routes'
@@ -498,17 +513,118 @@ export default flatRoutes(routesDirectory, defineRoutes, {
     )
 
     const entryPath = fixture.resolve('app', 'routes.ts')
-    const result = rewriteLegacyRouteEntry(entryPath)
-    expect(result.updated).toBe(true)
+    const original = fs.readFileSync(entryPath, 'utf8')
+    expect(() => rewriteLegacyRouteEntry(entryPath)).toThrow(
+      /routesDirectory, title.*Inline these values/s,
+    )
+    expect(fs.readFileSync(entryPath, 'utf8')).toBe(original)
+  })
 
-    const rewritten = fs.readFileSync(entryPath, 'utf8')
-    expect(rewritten).toContain('routesDir: routesDirectory')
-    expect(rewritten).toContain('// Keep this migration setting.')
-    expect(rewritten).toContain('ignoredRouteFiles: [title]')
+  it('treats shorthand option properties as local references', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes.ts': `import { flatRoutes } from 'remix-flat-routes'
+import { defineRoutes } from '@remix-run/dev'
+const ignoredRouteFiles = ['**/*.css']
+export default flatRoutes('routes', defineRoutes, { ignoredRouteFiles })
+`,
+      },
+      'rewrite-entry-shorthand',
+    )
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    const original = fs.readFileSync(entryPath, 'utf8')
+
+    expect(() => rewriteLegacyRouteEntry(entryPath)).toThrow(
+      /ignoredRouteFiles.*Inline these values/s,
+    )
+    expect(fs.readFileSync(entryPath, 'utf8')).toBe(original)
+  })
+
+  it('allows literal options with property names that match local bindings', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes.ts': `import { flatRoutes } from 'remix-flat-routes'
+import { defineRoutes } from '@remix-run/dev'
+const ignoredRouteFiles = ['unused']
+export default flatRoutes('routes', defineRoutes, { ignoredRouteFiles: ['**/*.css'] })
+`,
+      },
+      'rewrite-entry-property-key',
+    )
+    const entryPath = fixture.resolve('app', 'routes.ts')
+
+    expect(rewriteLegacyRouteEntry(entryPath).updated).toBe(true)
+    expect(fs.readFileSync(entryPath, 'utf8')).toContain(
+      "ignoredRouteFiles: ['**/*.css']",
+    )
+  })
+
+  it('supports member-expression callees and JavaScript entry extensions', () => {
+    for (const extension of ['js', 'jsx']) {
+      const fixture = createRoutesFixture(
+        {
+          [`app/routes.${extension}`]: `import * as legacy from 'remix-flat-routes'\nexport default legacy.flatRoutes('routes', null, { ignoredRouteFiles: [] })\n`,
+        },
+        `rewrite-entry-${extension}`,
+      )
+      const entryPath = fixture.resolve('app', `routes.${extension}`)
+
+      expect(rewriteLegacyRouteEntry(entryPath).updated).toBe(true)
+      expect(fs.readFileSync(entryPath, 'utf8')).toContain(
+        "export default autoRoutes({\n  routesDir: 'routes',",
+      )
+    }
+  })
+
+  it('leaves entries already using react-router-auto-routes unchanged', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes.ts': `import { autoRoutes } from 'react-router-auto-routes'\nexport default autoRoutes()\n`,
+      },
+      'rewrite-entry-current',
+    )
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    const original = fs.readFileSync(entryPath, 'utf8')
+
+    expect(rewriteLegacyRouteEntry(entryPath)).toEqual({ updated: false })
+    expect(fs.readFileSync(entryPath, 'utf8')).toBe(original)
+  })
+
+  it('fails with parser diagnostics without overwriting invalid entries', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes.ts': `import { flatRoutes } from 'remix-flat-routes'\nexport default flatRoutes({\n`,
+      },
+      'rewrite-entry-invalid',
+    )
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    const original = fs.readFileSync(entryPath, 'utf8')
+
+    expect(() => rewriteLegacyRouteEntry(entryPath)).toThrow(
+      /Oxc could not parse.*Fix the syntax errors/s,
+    )
+    expect(fs.readFileSync(entryPath, 'utf8')).toBe(original)
   })
 })
 
 describe('runCli', () => {
+  it('prints help without validating the workspace', () => {
+    expect(runCli(['--help'])).toBe(0)
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Usage: migrate-auto-routes'),
+    )
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect.stringContaining('-h, --help'),
+    )
+    expect(consoleErrorSpy).not.toHaveBeenCalled()
+  })
+
+  it('rejects unknown flags instead of treating them as directories', () => {
+    expect(runCli(['--dry-run'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Unknown option '--dry-run'."),
+    )
+  })
   it('migrates routes using default source and target and cleans up backup on success', () => {
     const fixture = createBasicRoutesFixture('run-cli-success')
 

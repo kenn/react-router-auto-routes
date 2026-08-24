@@ -1,6 +1,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { parseSync, type Node, Visitor } from 'oxc-parser'
+import {
+  type BindingRestElement,
+  type BindingPattern,
+  type Declaration,
+  type Node,
+  type Program,
+  Visitor,
+} from 'oxc-parser'
+import { parseMigrationSource } from '../parser'
 
 const LEGACY_PATTERNS = [
   'remix-flat-routes',
@@ -51,6 +59,8 @@ export type RewriteLegacyRouteEntryResult = {
 
 type LegacyRouteOptions = {
   sourceText: string
+  program: Program
+  foundCall: boolean
   routesDirArg?: Node
   optionsArg?: Node
 }
@@ -70,6 +80,7 @@ export function rewriteLegacyRouteEntry(
   }
 
   const legacyOptions = extractLegacyRouteOptions(entryPath, contents)
+  assertRouteEntryCanBeRewritten(entryPath, legacyOptions)
   const optionsText = createAutoRoutesOptionsText(legacyOptions)
   const nextContents = createAutoRoutesEntry(optionsText)
 
@@ -97,10 +108,14 @@ function extractLegacyRouteOptions(
   entryPath: string,
   contents: string,
 ): LegacyRouteOptions {
-  const { program } = parseSync(entryPath, contents)
+  const program = parseMigrationSource(entryPath, contents)
 
   const legacyCalls = new Set(['flatRoutes', 'createRoutesFromFolders'])
-  const result: LegacyRouteOptions = { sourceText: contents }
+  const result: LegacyRouteOptions = {
+    sourceText: contents,
+    program,
+    foundCall: false,
+  }
 
   new Visitor({
     CallExpression(node) {
@@ -110,6 +125,7 @@ function extractLegacyRouteOptions(
 
       const name = extractCalleeName(node.callee)
       if (name && legacyCalls.has(name)) {
+        result.foundCall = true
         if (name === 'flatRoutes') {
           result.routesDirArg = node.arguments[0]
           result.optionsArg = node.arguments[2]
@@ -120,6 +136,171 @@ function extractLegacyRouteOptions(
     },
   }).visit(program)
   return result
+}
+
+function assertRouteEntryCanBeRewritten(
+  entryPath: string,
+  legacy: LegacyRouteOptions,
+): void {
+  if (!legacy.foundCall) {
+    throw new Error(
+      `Unable to rewrite route entry '${entryPath}' because no supported legacy route call was found. ` +
+        'Update the route entry manually, then rerun the migration.',
+    )
+  }
+
+  const topLevelBindings = collectTopLevelBindings(legacy.program)
+  const referencedBindings = new Set<string>()
+
+  for (const expression of [legacy.routesDirArg, legacy.optionsArg]) {
+    if (!expression) {
+      continue
+    }
+
+    for (const name of collectReferencedBindings(expression, legacy.program)) {
+      if (topLevelBindings.has(name)) {
+        referencedBindings.add(name)
+      }
+    }
+  }
+
+  if (referencedBindings.size === 0) {
+    return
+  }
+
+  const names = [...referencedBindings].sort().join(', ')
+  throw new Error(
+    `Unable to rewrite route entry '${entryPath}' because its legacy route options reference local bindings: ${names}. ` +
+      'Inline these values in the legacy route call and rerun the migration.',
+  )
+}
+
+function collectTopLevelBindings(program: Program): Set<string> {
+  const bindings = new Set<string>()
+
+  for (const statement of program.body) {
+    if (statement.type === 'ImportDeclaration') {
+      for (const specifier of statement.specifiers) {
+        bindings.add(specifier.local.name)
+      }
+      continue
+    }
+
+    if (statement.type === 'ExportNamedDeclaration' && statement.declaration) {
+      collectDeclarationBindings(statement.declaration, bindings)
+      continue
+    }
+
+    if (
+      statement.type === 'VariableDeclaration' ||
+      statement.type === 'FunctionDeclaration' ||
+      statement.type === 'ClassDeclaration'
+    ) {
+      collectDeclarationBindings(statement, bindings)
+    }
+  }
+
+  return bindings
+}
+
+function collectDeclarationBindings(
+  declaration: Declaration,
+  bindings: Set<string>,
+): void {
+  if (declaration.type === 'VariableDeclaration') {
+    for (const declarator of declaration.declarations) {
+      collectBindingPatternNames(declarator.id, bindings)
+    }
+    return
+  }
+
+  if (
+    (declaration.type === 'FunctionDeclaration' ||
+      declaration.type === 'ClassDeclaration') &&
+    declaration.id
+  ) {
+    bindings.add(declaration.id.name)
+  }
+}
+
+function collectBindingPatternNames(
+  pattern: BindingPattern | BindingRestElement,
+  bindings: Set<string>,
+): void {
+  if (pattern.type === 'Identifier') {
+    bindings.add(pattern.name)
+    return
+  }
+
+  if (pattern.type === 'AssignmentPattern') {
+    collectBindingPatternNames(pattern.left, bindings)
+    return
+  }
+
+  if (pattern.type === 'RestElement') {
+    collectBindingPatternNames(pattern.argument, bindings)
+    return
+  }
+
+  if (pattern.type === 'ArrayPattern') {
+    for (const element of pattern.elements) {
+      if (element) {
+        collectBindingPatternNames(element, bindings)
+      }
+    }
+    return
+  }
+
+  for (const property of pattern.properties) {
+    if (property.type === 'RestElement') {
+      collectBindingPatternNames(property.argument, bindings)
+    } else {
+      collectBindingPatternNames(property.value, bindings)
+    }
+  }
+}
+
+function collectReferencedBindings(
+  expression: Node,
+  program: Program,
+): Set<string> {
+  const references = new Set<string>()
+  const ignoredIdentifierSpans = new Set<string>()
+  const isWithinExpression = (node: Node) =>
+    node.start >= expression.start && node.end <= expression.end
+  const spanKey = (node: Node) => `${node.start}:${node.end}`
+
+  new Visitor({
+    Property(node) {
+      if (
+        isWithinExpression(node) &&
+        !node.computed &&
+        !node.shorthand &&
+        node.key.type === 'Identifier'
+      ) {
+        ignoredIdentifierSpans.add(spanKey(node.key))
+      }
+    },
+    MemberExpression(node) {
+      if (
+        isWithinExpression(node) &&
+        !node.computed &&
+        node.property.type === 'Identifier'
+      ) {
+        ignoredIdentifierSpans.add(spanKey(node.property))
+      }
+    },
+    Identifier(node) {
+      if (
+        isWithinExpression(node) &&
+        !ignoredIdentifierSpans.has(spanKey(node))
+      ) {
+        references.add(node.name)
+      }
+    },
+  }).visit(program)
+
+  return references
 }
 
 function createAutoRoutesOptionsText(

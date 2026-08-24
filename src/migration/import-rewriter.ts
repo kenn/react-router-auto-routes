@@ -1,11 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import {
-  parseSync,
-  type StringLiteral,
-  type TemplateLiteral,
-  Visitor,
-} from 'oxc-parser'
+import { type StringLiteral, type TemplateLiteral, Visitor } from 'oxc-parser'
+import { parseMigrationSource } from './parser'
 
 export type FileMapping = {
   source: string
@@ -134,7 +130,7 @@ function rewriteModuleImports(
   contents: string,
   context: ImportRewriteContext,
 ): string {
-  const { program } = parseSync(context.sourcePath, contents)
+  const program = parseMigrationSource(context.sourcePath, contents)
 
   type Edit = { start: number; end: number; text: string }
   const edits: Edit[] = []
@@ -458,7 +454,7 @@ function rewriteAliasedSpecifier(
 
   const normalized = normalizeSpecifier(specifier)
   for (const replacement of context.specifierReplacements) {
-    const index = normalized.lastIndexOf(replacement.from)
+    const index = findPathSegmentMatch(normalized, replacement.from)
     if (index === -1) {
       continue
     }
@@ -472,6 +468,33 @@ function rewriteAliasedSpecifier(
   }
 
   return null
+}
+
+function findPathSegmentMatch(specifier: string, value: string): number {
+  let searchFrom = specifier.length
+
+  while (searchFrom >= 0) {
+    const index = specifier.lastIndexOf(value, searchFrom)
+    if (index === -1) {
+      return -1
+    }
+
+    const before = specifier[index - 1]
+    const after = specifier[index + value.length]
+    const startsAtBoundary =
+      !before ||
+      before === '/' ||
+      before === '#' ||
+      before === '~' ||
+      before === '@'
+    if (startsAtBoundary && (!after || after === '/')) {
+      return index
+    }
+
+    searchFrom = index - 1
+  }
+
+  return -1
 }
 
 function resolveRelativeSpecifier(

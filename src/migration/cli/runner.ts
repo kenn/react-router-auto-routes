@@ -25,6 +25,8 @@ export function defaultRunner(): CommandResult {
 
   try {
     stdoutFd = fs.openSync(stdoutPath, 'w')
+    // Keep stdout out of spawnSync's in-memory buffer: large route manifests
+    // can otherwise exceed maxBuffer before the migration can compare them.
     result = spawnSync('npx', ['react-router', 'routes'], {
       encoding: 'utf8',
       maxBuffer: 50 * 1024 * 1024, // 50MB buffer for stderr
