@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import ts from 'typescript'
+import { parseSync, type Node, Visitor } from 'oxc-parser'
 
 const LEGACY_PATTERNS = [
   'remix-flat-routes',
@@ -50,9 +50,9 @@ export type RewriteLegacyRouteEntryResult = {
 }
 
 type LegacyRouteOptions = {
-  sourceFile: ts.SourceFile
-  routesDirArg?: ts.Expression
-  optionsArg?: ts.Expression
+  sourceText: string
+  routesDirArg?: Node
+  optionsArg?: Node
 }
 
 export function rewriteLegacyRouteEntry(
@@ -70,8 +70,7 @@ export function rewriteLegacyRouteEntry(
   }
 
   const legacyOptions = extractLegacyRouteOptions(entryPath, contents)
-  const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed })
-  const optionsText = createAutoRoutesOptionsText(printer, legacyOptions)
+  const optionsText = createAutoRoutesOptionsText(legacyOptions)
   const nextContents = createAutoRoutesEntry(optionsText)
 
   fs.writeFileSync(entryPath, nextContents)
@@ -98,25 +97,18 @@ function extractLegacyRouteOptions(
   entryPath: string,
   contents: string,
 ): LegacyRouteOptions {
-  const scriptKind = getScriptKind(entryPath)
-  const sourceFile = ts.createSourceFile(
-    entryPath,
-    contents,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKind,
-  )
+  const { program } = parseSync(entryPath, contents)
 
   const legacyCalls = new Set(['flatRoutes', 'createRoutesFromFolders'])
-  const result: LegacyRouteOptions = { sourceFile }
+  const result: LegacyRouteOptions = { sourceText: contents }
 
-  const visit = (node: ts.Node) => {
-    if (result.routesDirArg || result.optionsArg) {
-      return
-    }
+  new Visitor({
+    CallExpression(node) {
+      if (result.routesDirArg || result.optionsArg) {
+        return
+      }
 
-    if (ts.isCallExpression(node)) {
-      const name = extractCalleeName(node.expression)
+      const name = extractCalleeName(node.callee)
       if (name && legacyCalls.has(name)) {
         if (name === 'flatRoutes') {
           result.routesDirArg = node.arguments[0]
@@ -124,38 +116,30 @@ function extractLegacyRouteOptions(
         } else if (name === 'createRoutesFromFolders') {
           result.optionsArg = node.arguments[1]
         }
-        return
       }
-    }
-
-    ts.forEachChild(node, visit)
-  }
-
-  visit(sourceFile)
+    },
+  }).visit(program)
   return result
 }
 
 function createAutoRoutesOptionsText(
-  printer: ts.Printer,
   legacy: LegacyRouteOptions,
 ): string | undefined {
-  const { routesDirArg, optionsArg, sourceFile } = legacy
+  const { routesDirArg, optionsArg, sourceText } = legacy
 
   const hasRoutesDirProperty =
     optionsArg &&
-    ts.isObjectLiteralExpression(optionsArg) &&
+    optionsArg.type === 'ObjectExpression' &&
     optionsArg.properties.some(isRoutesDirProperty)
 
   const parts: string[] = []
 
   if (routesDirArg && !hasRoutesDirProperty) {
-    parts.push(
-      `routesDir: ${printExpression(printer, sourceFile, routesDirArg)}`,
-    )
+    parts.push(`routesDir: ${printExpression(sourceText, routesDirArg)}`)
   }
 
   if (optionsArg) {
-    const spreadExpression = printExpression(printer, sourceFile, optionsArg)
+    const spreadExpression = printExpression(sourceText, optionsArg)
     parts.push(`...${spreadExpression}`)
   }
 
@@ -174,53 +158,41 @@ function createAutoRoutesOptionsText(
   return `{${newline}${body}${newline}}`
 }
 
-function printExpression(
-  printer: ts.Printer,
-  sourceFile: ts.SourceFile,
-  expression: ts.Expression,
-): string {
-  return printer.printNode(ts.EmitHint.Expression, expression, sourceFile)
+function printExpression(sourceText: string, expression: Node): string {
+  return sourceText.slice(expression.start, expression.end)
 }
 
-function isRoutesDirProperty(property: ts.ObjectLiteralElementLike): boolean {
-  if (
-    ts.isPropertyAssignment(property) ||
-    ts.isShorthandPropertyAssignment(property)
-  ) {
-    const name = property.name
-    const text = getPropertyNameText(name)
-    return text === 'routesDir'
-  }
-
-  return false
+function isRoutesDirProperty(property: Node): boolean {
+  return (
+    property.type === 'Property' &&
+    !property.computed &&
+    getPropertyNameText(property.key) === 'routesDir'
+  )
 }
 
-function getPropertyNameText(name: ts.PropertyName): string | undefined {
-  if (ts.isIdentifier(name) || ts.isStringLiteral(name)) {
-    return name.text
+function getPropertyNameText(name: Node): string | undefined {
+  if (name.type === 'Identifier') {
+    return name.name
   }
 
-  if (ts.isNoSubstitutionTemplateLiteral(name)) {
-    return name.text
+  if (name.type === 'Literal' && typeof name.value === 'string') {
+    return name.value
   }
 
   return undefined
 }
 
-function getScriptKind(entryPath: string): ts.ScriptKind {
-  if (entryPath.endsWith('.tsx')) return ts.ScriptKind.TSX
-  if (entryPath.endsWith('.ts')) return ts.ScriptKind.TS
-  if (entryPath.endsWith('.jsx')) return ts.ScriptKind.JSX
-  return ts.ScriptKind.JS
-}
-
-function extractCalleeName(expression: ts.Expression): string | null {
-  if (ts.isIdentifier(expression)) {
-    return expression.text
+function extractCalleeName(expression: Node): string | null {
+  if (expression.type === 'Identifier') {
+    return expression.name
   }
 
-  if (ts.isPropertyAccessExpression(expression)) {
-    return expression.name.text
+  if (
+    expression.type === 'MemberExpression' &&
+    !expression.computed &&
+    expression.property.type === 'Identifier'
+  ) {
+    return expression.property.name
   }
 
   return null

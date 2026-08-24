@@ -28,8 +28,6 @@ Install:
 npm install -D react-router-auto-routes
 ```
 
-> The migration CLI relies on your project's own TypeScript install. Make sure `typescript@>=5.0` is already in `devDependencies` if you plan to run `npx migrate-auto-routes`.
-
 Use in your app:
 
 ```ts
@@ -265,8 +263,6 @@ The migration tool continues to follow legacy `remix-flat-routes` semantics and 
 
 ### CLI Migration
 
-Ensure your project already lists `typescript@>=5.0`; the CLI resolves the compiler from your workspace.
-
 Install the package, then run the migration CLI:
 
 ```bash
@@ -308,7 +304,7 @@ The migration CLI still recognizes `route.tsx` right now for backwards compatibi
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js ^20.19.0 or >= 22.12.0
 - React Router v7+
 
 ## Acknowledgments

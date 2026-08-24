@@ -97,6 +97,37 @@ export function AdminShell() {
       expect(rewritten).toBe(plan.rewrittenContents)
     }
   })
+
+  it('rewrites every supported module form without disturbing Unicode source', () => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-plan-forms-'))
+
+    const sourceFile = path.join(workspace, 'route.ts')
+    const targetFile = path.join(workspace, 'next-route.ts')
+    const originalContents = `const title = '日本語 😀'
+import value from '#old/static'
+export { value as other } from "#old/exported"
+export * from '#old/all'
+const lazy = import('#old/dynamic')
+const commonjs = require("#old/required")
+const templateImport = import(\`#old/template-dynamic\`)
+const templateRequire = require(\`#old/template-required\`)
+`
+
+    fs.writeFileSync(sourceFile, originalContents)
+
+    const plan = buildImportRewritePlan(
+      { source: sourceFile, target: targetFile },
+      new Map(),
+      [{ from: '#old', to: '#new' }],
+    )
+
+    expect(plan.mode).toBe('rewrite')
+    if (plan.mode === 'rewrite') {
+      expect(plan.rewrittenContents).toBe(
+        originalContents.replaceAll('#old', '#new'),
+      )
+    }
+  })
 })
 
 describe('rewriteAndCopy', () => {

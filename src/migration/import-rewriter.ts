@@ -1,6 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import ts from 'typescript'
+import {
+  parseSync,
+  type StringLiteral,
+  type TemplateLiteral,
+  Visitor,
+} from 'oxc-parser'
 
 export type FileMapping = {
   source: string
@@ -49,6 +54,8 @@ type ImportRewriteContext = {
   normalizedMapping: Map<string, string>
   specifierReplacements: SpecifierReplacement[]
 }
+
+type ModuleLiteral = Pick<StringLiteral, 'start' | 'end' | 'value'>
 
 export type SpecifierReplacement = {
   from: string
@@ -127,65 +134,61 @@ function rewriteModuleImports(
   contents: string,
   context: ImportRewriteContext,
 ): string {
-  const scriptKind = getScriptKindForFile(context.sourcePath)
-  const sourceFile = ts.createSourceFile(
-    context.sourcePath,
-    contents,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKind,
-  )
+  const { program } = parseSync(context.sourcePath, contents)
 
   type Edit = { start: number; end: number; text: string }
   const edits: Edit[] = []
 
-  const handleLiteral = (literal: ts.StringLiteralLike) => {
-    const replacement = computeSpecifierReplacement(literal.text, context)
+  const handleLiteral = (literal: ModuleLiteral) => {
+    const replacement = computeSpecifierReplacement(literal.value, context)
 
     if (!replacement) {
       return
     }
 
-    const literalText = literal.getText(sourceFile)
+    const literalText = contents.slice(literal.start, literal.end)
     const quote =
       literalText[0] === '`' || literalText[0] === '"' || literalText[0] === "'"
         ? literalText[0]
         : '"'
 
     edits.push({
-      start: literal.getStart(sourceFile),
-      end: literal.getEnd(),
+      start: literal.start,
+      end: literal.end,
       text: `${quote}${replacement}${quote}`,
     })
   }
 
-  const visit = (node: ts.Node) => {
-    if (
-      ts.isImportDeclaration(node) &&
-      ts.isStringLiteralLike(node.moduleSpecifier)
-    ) {
-      handleLiteral(node.moduleSpecifier)
-    } else if (
-      ts.isExportDeclaration(node) &&
-      node.moduleSpecifier &&
-      ts.isStringLiteralLike(node.moduleSpecifier)
-    ) {
-      handleLiteral(node.moduleSpecifier)
-    } else if (
-      ts.isCallExpression(node) &&
-      node.arguments.length === 1 &&
-      ts.isStringLiteralLike(node.arguments[0]) &&
-      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-        (ts.isIdentifier(node.expression) &&
-          node.expression.text === 'require'))
-    ) {
-      handleLiteral(node.arguments[0])
-    }
-
-    ts.forEachChild(node, visit)
-  }
-
-  visit(sourceFile)
+  new Visitor({
+    ImportDeclaration(node) {
+      handleLiteral(node.source)
+    },
+    ExportNamedDeclaration(node) {
+      if (node.source) {
+        handleLiteral(node.source)
+      }
+    },
+    ExportAllDeclaration(node) {
+      handleLiteral(node.source)
+    },
+    ImportExpression(node) {
+      const literal = getModuleLiteral(node.source)
+      if (literal) {
+        handleLiteral(literal)
+      }
+    },
+    CallExpression(node) {
+      const literal = getModuleLiteral(node.arguments[0])
+      if (
+        node.arguments.length === 1 &&
+        node.callee.type === 'Identifier' &&
+        node.callee.name === 'require' &&
+        literal
+      ) {
+        handleLiteral(literal)
+      }
+    },
+  }).visit(program)
 
   if (edits.length === 0) {
     return contents
@@ -198,6 +201,37 @@ function rewriteModuleImports(
   }
 
   return result
+}
+
+function getModuleLiteral(value: unknown): ModuleLiteral | null {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    value.type === 'Literal' &&
+    'value' in value &&
+    typeof value.value === 'string'
+  ) {
+    return value as StringLiteral
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    value.type === 'TemplateLiteral'
+  ) {
+    const template = value as TemplateLiteral
+    if (template.expressions.length === 0 && template.quasis.length === 1) {
+      return {
+        start: template.start,
+        end: template.end,
+        value: template.quasis[0].value.cooked ?? template.quasis[0].value.raw,
+      }
+    }
+  }
+
+  return null
 }
 
 function computeSpecifierReplacement(
@@ -550,20 +584,4 @@ function safeStat(filePath: string): fs.Stats | null {
 
 function normalizeSpecifier(value: string): string {
   return value.replace(/\\/g, '/')
-}
-
-function getScriptKindForFile(filePath: string): ts.ScriptKind {
-  const ext = path.extname(filePath).toLowerCase()
-  switch (ext) {
-    case '.tsx':
-      return ts.ScriptKind.TSX
-    case '.ts':
-      return ts.ScriptKind.TS
-    case '.jsx':
-      return ts.ScriptKind.JSX
-    case '.js':
-      return ts.ScriptKind.JS
-    default:
-      return ts.ScriptKind.TS
-  }
 }

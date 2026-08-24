@@ -31,18 +31,19 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsc -p tsconfig.build.json",
     "test": "NODE_OPTIONS=\"--no-warnings=DEP0040\" vitest",
     "typecheck": "tsc -b",
     "prepublishOnly": "npm run typecheck && npm run build && npm run test -- --run",
     "np": "np"
   },
   "dependencies": {
+    "oxc-parser": "^0.146.0",
     "picomatch": "^4.0.3"
   },
   "devDependencies": {
@@ -51,13 +52,10 @@
     "np": "^11.0.2",
     "oxfmt": "^0.40.0",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.0"
   },
-  "peerDependencies": {
-    "typescript": ">=5.0"
-  },
   "engines": {
-    "node": ">=20"
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

@@ -478,6 +478,34 @@ describe('rewriteLegacyRouteEntry', () => {
     expect(rewritten).toContain("routesDir: 'routes'")
     expect(rewritten).toContain("ignoredRouteFiles: ['**/.*']")
   })
+
+  it('preserves source expressions, comments, and Unicode text', () => {
+    const fixture = createRoutesFixture(
+      {
+        'app/routes.ts': `import { flatRoutes } from 'remix-flat-routes'
+import { defineRoutes } from '@remix-run/dev'
+
+const title = '日本語 😀'
+const routesDirectory = 'routes'
+
+export default flatRoutes(routesDirectory, defineRoutes, {
+  // Keep this migration setting.
+  ignoredRouteFiles: [title],
+})
+`,
+      },
+      'rewrite-entry-source-ranges',
+    )
+
+    const entryPath = fixture.resolve('app', 'routes.ts')
+    const result = rewriteLegacyRouteEntry(entryPath)
+    expect(result.updated).toBe(true)
+
+    const rewritten = fs.readFileSync(entryPath, 'utf8')
+    expect(rewritten).toContain('routesDir: routesDirectory')
+    expect(rewritten).toContain('// Keep this migration setting.')
+    expect(rewritten).toContain('ignoredRouteFiles: [title]')
+  })
 })
 
 describe('runCli', () => {

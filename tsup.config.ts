@@ -12,13 +12,11 @@ export default defineConfig(() => {
       ...commonOptions,
       entry: ['src/core/index.ts'],
       format: 'esm',
-      dts: true, // Generate declaration file (.d.ts)
     },
     {
       ...commonOptions,
       entry: ['src/migration/cli.ts'],
       format: 'cjs',
-      external: ['typescript'],
     },
   ]
 })
