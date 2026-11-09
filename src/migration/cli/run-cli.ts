@@ -10,7 +10,7 @@ import {
 } from '../fs-helpers'
 import { logError, logInfo, logWarn } from '../logger'
 import { migrate } from '../migrate'
-import { diffSnapshots, normalizeSnapshot } from './diff'
+import { diffSnapshots, findAmbiguousParents, normalizeSnapshot } from './diff'
 import type { RewriteLegacyRouteEntryResult } from './route-entry'
 import { detectLegacyRouteEntry, rewriteLegacyRouteEntry } from './route-entry'
 import {
@@ -274,7 +274,7 @@ function runMigrationWorkflow(context: MigrationContext): number {
   const { entryPath, isLegacy } = detectLegacyRouteEntry(resolvedSource)
   let entryRewrite: RewriteLegacyRouteEntryResult | null = null
   const beforeSnapshot = captureRoutesSnapshot(runner, 'before migration')
-  if (beforeSnapshot === null) {
+  if (beforeSnapshot === null || !hasUnambiguousParents(beforeSnapshot)) {
     return 1
   }
 
@@ -320,6 +320,13 @@ function runMigrationWorkflow(context: MigrationContext): number {
       return 1
     }
 
+    if (!hasUnambiguousParents(afterSnapshot)) {
+      logError('❌ Cannot verify the migrated routes. Reverting migration.')
+      restoreLegacyEntry(entryPath, entryRewrite)
+      revertMigration(context, swapped)
+      return 1
+    }
+
     const beforeNormalized = normalizeSnapshot(beforeSnapshot)
     const afterNormalized = normalizeSnapshot(afterSnapshot)
 
@@ -339,6 +346,19 @@ function runMigrationWorkflow(context: MigrationContext): number {
     logError(error)
     return 1
   }
+}
+
+/** Logs and rejects snapshots whose parents the comparison cannot tell apart. */
+function hasUnambiguousParents(snapshot: string): boolean {
+  const groups = findAmbiguousParents(snapshot)
+  for (const files of groups) {
+    logError(
+      `Cannot verify routes nested under ${files.join(', ')}: these files ` +
+        'normalize to the same route, so a change of parent would go unnoticed. ' +
+        'Rename one of them and rerun.',
+    )
+  }
+  return groups.length === 0
 }
 
 function restoreLegacyEntry(

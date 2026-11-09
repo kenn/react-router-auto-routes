@@ -1,7 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { diffSnapshots, normalizeSnapshot } from '../src/migration/cli/diff'
+import {
+  diffSnapshots,
+  findAmbiguousParents,
+  normalizeSnapshot,
+} from '../src/migration/cli/diff'
 import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
 import { migrate } from '../src/migration/migrate'
@@ -372,6 +376,18 @@ const MISMATCHED_SNAPSHOTS = [
   `<Routes>\n  <Route file="routes/bar.tsx" />\n</Routes>\n`,
 ]
 
+/** `foo.tsx` and `foo/_layout.tsx` normalize alike; `edit` sits under one. */
+const ambiguousParentSnapshot = (parentFile: string) =>
+  `<Routes>\n  <Route file="root.tsx">\n` +
+  ['routes/foo.tsx', 'routes/foo/_layout.tsx']
+    .map((file) =>
+      file === parentFile
+        ? `    <Route path="foo" file="${file}">\n      <Route path="edit" file="routes/foo/edit.tsx" />\n    </Route>\n`
+        : `    <Route path="foo" file="${file}" />\n`,
+    )
+    .join('') +
+  `  </Route>\n</Routes>\n`
+
 /** A runner that returns `outputs` in order, repeating the last one. */
 function runnerReturning(...outputs: string[]) {
   let call = 0
@@ -734,6 +750,32 @@ describe('runCli', () => {
     )
   })
 
+  it('stops before migrating when the current routes have ambiguous parents', () => {
+    const fixture = createBasicRoutesFixture('run-cli-ambiguous-before')
+    const runner = runnerReturning(ambiguousParentSnapshot('routes/foo.tsx'))
+
+    expect(runCliIn(fixture, ['app/routes'], { runner })).toBe(1)
+    expect(runner).toHaveBeenCalledTimes(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('routes/foo.tsx, routes/foo/_layout.tsx'),
+    )
+    expect(fs.existsSync(fixture.resolve('app', 'new-routes'))).toBe(false)
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+      BASIC_ROUTE_FILES,
+    )
+  })
+
+  it('reverts when the migrated routes have ambiguous parents', () => {
+    const { fixture, entryPath } = createRollbackFixture()
+    const runner = runnerReturning(
+      'ROUTES\n',
+      ambiguousParentSnapshot('routes/foo/_layout.tsx'),
+    )
+
+    expect(runCliIn(fixture, ['app/routes'], { runner })).toBe(1)
+    expectRolledBack(fixture, entryPath)
+  })
+
   it('reverts routes and the legacy entry when route generation differs', () => {
     const { fixture, entryPath } = createRollbackFixture()
 
@@ -880,6 +922,34 @@ describe('normalizeSnapshot', () => {
     ).toContain(
       'file=routes/settings/profile.tsx|parent=routes/settings.tsx|path=/settings/profile|index=0|caseSensitive=0',
     )
+  })
+
+  it('reports parents whose files normalize to the same name', () => {
+    for (const parent of ['routes/foo.tsx', 'routes/foo/_layout.tsx']) {
+      expect(findAmbiguousParents(ambiguousParentSnapshot(parent))).toEqual([
+        ['routes/foo.tsx', 'routes/foo/_layout.tsx'],
+      ])
+    }
+    // Both placements normalize identically, which is why they must be caught.
+    expect(normalizeSnapshot(ambiguousParentSnapshot('routes/foo.tsx'))).toBe(
+      normalizeSnapshot(ambiguousParentSnapshot('routes/foo/_layout.tsx')),
+    )
+  })
+
+  it('does not flag a plain foo.tsx to foo/_layout.tsx promotion', () => {
+    const before = routes(
+      '<Route path="foo" file="routes/foo.tsx">',
+      '  <Route path="edit" file="routes/foo/edit.tsx" />',
+      '</Route>',
+    )
+    const after = routes(
+      '<Route path="foo" file="routes/foo/_layout.tsx">',
+      '  <Route path="edit" file="routes/foo/edit.tsx" />',
+      '</Route>',
+    )
+    expect(findAmbiguousParents(before)).toEqual([])
+    expect(findAmbiguousParents(after)).toEqual([])
+    expect(normalizeSnapshot(before)).toBe(normalizeSnapshot(after))
   })
 
   it('renders a line diff for mismatched snapshots', () => {
