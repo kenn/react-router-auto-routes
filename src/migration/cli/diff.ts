@@ -1,37 +1,114 @@
 import { normalizeSnapshotRouteFilePath } from '../normalizers'
 
-export function normalizeSnapshot(snapshot: string): string {
-  const normalizedRoutes: string[] = []
+type SnapshotRoute = {
+  /** `file` exactly as `react-router routes` printed it. */
+  rawFile: string
+  /** Convention-independent name used for comparison. */
+  file: string
+  parent: SnapshotRoute | undefined
+  url: string
+  index: boolean
+  caseSensitive: boolean
+}
 
-  const lines = snapshot.replace(/\r\n/g, '\n').split('\n')
-  for (const line of lines) {
-    const routeMatch = line.match(/<Route\b([^>]*)>/)
+function parseSnapshot(snapshot: string): SnapshotRoute[] {
+  const routes: SnapshotRoute[] = []
+  // Open <Route> elements; routes without a `file` still carry the URL.
+  const ancestors: Array<{ route: SnapshotRoute | undefined; url: string }> = []
+
+  for (const line of snapshot.replace(/\r\n/g, '\n').split('\n')) {
+    if (/<\/Route>/.test(line)) {
+      ancestors.pop()
+      continue
+    }
+
+    const routeMatch = line.match(/<Route\b([^>]*?)(\/?)>/)
     if (!routeMatch) {
       continue
     }
 
-    const attributes = routeMatch[1]
-    const fileMatch = attributes.match(/file="([^"]+)"/)
-    if (!fileMatch) {
-      continue
-    }
-
-    const normalizedFile = normalizeSnapshotRouteFilePath(fileMatch[1])
-    const isIndex = /(^|\s)index(\s|$)/.test(attributes)
-    const caseSensitiveMatch = attributes.match(
-      /caseSensitive="?(true|false)"?/,
+    const [, attributes, selfClosing] = routeMatch
+    const parent = ancestors.at(-1)
+    const url = joinUrl(
+      parent?.url ?? '',
+      attributes.match(/\bpath="([^"]*)"/)?.[1],
     )
-    const caseSensitive = caseSensitiveMatch?.[1] === 'true'
-    const parts = [
-      `file=${normalizedFile}`,
-      `index=${isIndex ? '1' : '0'}`,
-      `caseSensitive=${caseSensitive ? '1' : '0'}`,
-    ]
-    normalizedRoutes.push(parts.join('|'))
+    const rawFile = attributes.match(/\bfile="([^"]+)"/)?.[1]
+    const route = rawFile
+      ? {
+          rawFile,
+          file: normalizeSnapshotRouteFilePath(rawFile),
+          parent: parent?.route,
+          url,
+          index: /(^|\s)index(\s|$)/.test(attributes),
+          caseSensitive:
+            attributes.match(/caseSensitive="?(true|false)"?/)?.[1] === 'true',
+        }
+      : undefined
+
+    if (route) {
+      routes.push(route)
+    }
+    if (!selfClosing) {
+      ancestors.push({ route, url })
+    }
   }
 
-  normalizedRoutes.sort()
-  return normalizedRoutes.join('\n')
+  return routes
+}
+
+/**
+ * Reduces `react-router routes` output to one line per route that ignores
+ * convention-only file renames but keeps what users observe: the full URL and
+ * the (normalized) parent route that renders it.
+ */
+export function normalizeSnapshot(snapshot: string): string {
+  return parseSnapshot(snapshot)
+    .map((route) =>
+      [
+        `file=${route.file}`,
+        `parent=${route.parent?.file ?? ''}`,
+        `path=${route.url || '/'}`,
+        `index=${route.index ? '1' : '0'}`,
+        `caseSensitive=${route.caseSensitive ? '1' : '0'}`,
+      ].join('|'),
+    )
+    .sort()
+    .join('\n')
+}
+
+/**
+ * Groups of distinct files that normalize to the same name while that name is
+ * used as a parent (e.g. `foo.tsx` and `foo/_layout.tsx` side by side). The
+ * normalized comparison cannot tell which of them renders the children, so a
+ * migration involving them cannot be verified.
+ */
+export function findAmbiguousParents(snapshot: string): string[][] {
+  const routes = parseSnapshot(snapshot)
+  const filesByName = new Map<string, Set<string>>()
+  for (const route of routes) {
+    const files = filesByName.get(route.file) ?? new Set<string>()
+    files.add(route.rawFile)
+    filesByName.set(route.file, files)
+  }
+
+  const parentNames = new Set(
+    routes.flatMap((route) => (route.parent ? [route.parent.file] : [])),
+  )
+  return [...parentNames]
+    .map((name) => [...filesByName.get(name)!].sort())
+    .filter((files) => files.length > 1)
+    .sort()
+}
+
+function joinUrl(parentUrl: string, routePath: string | undefined): string {
+  if (!routePath) {
+    return parentUrl
+  }
+  if (routePath.startsWith('/')) {
+    return routePath.replace(/\/+$/, '')
+  }
+  return `${parentUrl}/${routePath}`.replace(/\/+$/, '')
 }
 
 type DiffEntry = { type: 'same' | 'remove' | 'add'; line: string }
