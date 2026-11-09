@@ -92,6 +92,18 @@ function validateMigrationPaths(paths: MigrationPaths): boolean {
     return false
   }
 
+  // The target is removed recursively before migrating; a file there (e.g.
+  // `app/routes.ts`) would be lost.
+  if (!fs.statSync(resolvedSource).isDirectory()) {
+    logError(`source '${sourceArg}' is not a directory`)
+    return false
+  }
+  const targetStats = fs.statSync(resolvedTarget, { throwIfNoEntry: false })
+  if (targetStats && !targetStats.isDirectory()) {
+    logError(`target '${paths.targetArg}' is not a directory`)
+    return false
+  }
+
   // The target is deleted and the source/backup are renamed, so none of them
   // may overlap — neither as spelled (the entries being moved) nor on disk
   // (symlinks, case-insensitive names).

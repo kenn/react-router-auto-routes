@@ -624,6 +624,30 @@ describe('runCli', () => {
     ).toBe(STUB)
   })
 
+  it('refuses a target that is an existing file and leaves it intact', () => {
+    const { fixture, entryPath } = createRollbackFixture()
+    const runner = runnerReturning('ROUTES\n')
+
+    expect(runCliIn(fixture, ['app/routes', 'app/routes.ts'], { runner })).toBe(
+      1,
+    )
+    expect(runner).not.toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("target 'app/routes.ts' is not a directory"),
+    )
+    expect(fs.readFileSync(entryPath, 'utf8')).toBe(LEGACY_ENTRY)
+  })
+
+  it('refuses a source that is a file', () => {
+    const { fixture, entryPath } = createRollbackFixture()
+
+    expect(runCliIn(fixture, ['app/routes.ts', 'app/new-routes'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("source 'app/routes.ts' is not a directory"),
+    )
+    expect(fs.readFileSync(entryPath, 'utf8')).toBe(LEGACY_ENTRY)
+  })
+
   it.each(['app/old-routes/staging', 'app/OLD-ROUTES'])(
     'refuses target %s that overlaps the backup directory',
     (target) => {
