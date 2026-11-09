@@ -1,19 +1,22 @@
-import path from 'path'
-import { SPECIAL_ROUTE_FILES } from './constants'
-
 const ESCAPE_START = '['
 const ESCAPE_END = ']'
 const OPTIONAL_START = '('
 const OPTIONAL_END = ')'
-const WINDOWS_SEPARATOR = path.win32.sep
 
+// Trailing `route` markers never contribute a URL segment.
 const STRIP_ALWAYS = new Set(['route', '_route'])
+// Trailing special files are stripped when deriving nesting segments.
+const SPECIAL_ROUTE_FILES = new Set([
+  ...STRIP_ALWAYS,
+  'index',
+  '_index',
+  '_layout',
+])
 
 type State = 'NORMAL' | 'ESCAPE' | 'OPTIONAL' | 'OPTIONAL_ESCAPE'
 
 function isSegmentSeparator(char: string | undefined): boolean {
-  if (!char) return false
-  return char === '/' || char === '.' || char === WINDOWS_SEPARATOR
+  return char === '/' || char === '.' || char === '\\'
 }
 
 function pushRouteSegment(
@@ -25,13 +28,13 @@ function pushRouteSegment(
 ): void {
   if (!segment) return
 
-  const checks: Array<[string, string, string]> = [
-    [rawSegment, '*', rawSegment],
-    [rawSegment, ':', rawSegment],
-    [rawSegment, '/', segment],
+  const invalid: Array<[string, string]> = [
+    [rawSegment, '*'],
+    [rawSegment, ':'],
+    [segment, '/'],
   ]
-  for (const [testValue, char, value] of checks) {
-    if (testValue.includes(char)) {
+  for (const [value, char] of invalid) {
+    if (value.includes(char)) {
       throw new Error(
         `Route segment "${value}" for "${routeId}" cannot contain "${char}".\n` +
           `If this is something you need, upvote this proposal for React Router https://github.com/remix-run/react-router/discussions/9822.`,
@@ -52,12 +55,7 @@ function stripTrailingSpecialSegments(
     return
   }
 
-  while (routeSegments.length > 0 && rawRouteSegments.length > 0) {
-    const lastRaw = rawRouteSegments[rawRouteSegments.length - 1]
-    if (!lastRaw || !STRIP_ALWAYS.has(lastRaw)) {
-      break
-    }
-
+  while (STRIP_ALWAYS.has(rawRouteSegments[rawRouteSegments.length - 1])) {
     routeSegments.pop()
     rawRouteSegments.pop()
   }
@@ -152,7 +150,7 @@ export function getRouteSegments(
   stripTrailingSpecialSegments(routeId, routeSegments, rawRouteSegments)
 
   const path = createRoutePath(routeSegments, rawRouteSegments, isIndex)
-  const segments = deriveNameSegments(routeId, rawRouteSegments)
+  const segments = deriveNameSegments(rawRouteSegments)
 
   return { segments, path }
 }
@@ -191,23 +189,10 @@ function createRoutePath(
   return parts.length > 0 ? parts.join('/') : undefined
 }
 
-function deriveNameSegments(
-  routeId: string,
-  rawSegments: readonly string[],
-): string[] {
-  // if (!routeId.includes('/')) {
-  //   return [...rawSegments]
-  // }
-
+function deriveNameSegments(rawSegments: readonly string[]): string[] {
   const segments = [...rawSegments]
-
-  while (segments.length > 0) {
-    const last = segments[segments.length - 1]
-    if (!last || !SPECIAL_ROUTE_FILES.includes(last)) {
-      break
-    }
+  while (SPECIAL_ROUTE_FILES.has(segments[segments.length - 1])) {
     segments.pop()
   }
-
   return segments
 }

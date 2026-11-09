@@ -1,63 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { convertToRoute } from '../src/migration/migrate'
-import { normalizeSnapshotRouteFilePath } from '../src/migration/normalizers'
-import type { RouteManifest } from '../src/migration/route-definition'
+import {
+  convertToRoute,
+  normalizeSnapshotRouteFilePath,
+} from '../src/migration/normalizers'
 
 describe('convertToRoute', () => {
   it('turns parent routes into layout files', () => {
-    const routes: RouteManifest = {
-      'app/routes/admin': {
-        id: 'app/routes/admin',
-        parentId: 'root',
-        file: 'app/routes/admin.tsx',
-        path: 'admin',
-      },
-      'app/routes/admin/dashboard': {
-        id: 'app/routes/admin/dashboard',
-        parentId: 'app/routes/admin',
-        file: 'app/routes/admin/dashboard.tsx',
-        path: 'admin/dashboard',
-      },
-    }
-
+    expect(convertToRoute('app/routes', 'app/routes/admin', true)).toBe(
+      'admin/_layout',
+    )
     expect(
-      convertToRoute(routes, 'app/routes', 'app/routes/admin', 'root'),
-    ).toBe('admin/_layout')
+      convertToRoute('app/routes', 'app/routes/admin/dashboard', false),
+    ).toBe('admin/dashboard')
   })
 
   it('normalizes + suffix legacy folders', () => {
-    const routes: RouteManifest = {
-      'app/routes/app+/reports+/$id+': {
-        id: 'app/routes/app+/reports+/$id+',
-        parentId: 'root',
-        file: 'app/routes/app+/reports+/$id+.tsx',
-        path: 'app/reports/:id',
-      },
-    }
-
     expect(
-      convertToRoute(
-        routes,
-        'app/routes',
-        'app/routes/app+/reports+/$id+',
-        'root',
-      ),
+      convertToRoute('app/routes', 'app/routes/app+/reports+/$id+', false),
     ).toBe('app/reports/$id+')
   })
 
   it('reduces double underscore prefixes to single underscores', () => {
-    const routes: RouteManifest = {
-      'app/routes/__auth': {
-        id: 'app/routes/__auth',
-        parentId: 'root',
-        file: 'app/routes/__auth.tsx',
-        path: undefined,
-      },
-    }
-
-    expect(
-      convertToRoute(routes, 'app/routes', 'app/routes/__auth', 'root'),
-    ).toBe('_auth')
+    expect(convertToRoute('app/routes', 'app/routes/__auth', false)).toBe(
+      '_auth',
+    )
   })
 })
 

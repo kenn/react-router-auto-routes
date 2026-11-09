@@ -1,20 +1,39 @@
-import * as path from 'path'
+import fs from 'node:fs'
+import * as path from 'node:path'
 import { NormalizedRoutesDir, RoutesDirInput } from './core/types'
-import { visitFiles as walkFiles } from './fs/visit-files'
 
-export function defaultVisitFiles(
-  dir: string,
-  visitor: (file: string) => void,
-) {
-  walkFiles(dir, visitor)
+export function toPosixPath(file: string): string {
+  return file.split(path.win32.sep).join('/')
 }
 
 export function createRouteId(file: string): string {
-  const normalized = file.split(path.win32.sep).join('/')
-  return normalized.replace(/\.[a-z0-9]+$/i, '')
+  return toPosixPath(file).replace(/\.[a-z0-9]+$/i, '')
 }
 
-export function normalizeRoutesDir(routeDir: string) {
+export function visitFiles(
+  dir: string,
+  visitor: (file: string) => void,
+  { followSymlinks = true }: { followSymlinks?: boolean } = {},
+): void {
+  const readStat = followSymlinks ? fs.statSync : fs.lstatSync
+
+  const walk = (currentDir: string) => {
+    for (const filename of fs.readdirSync(currentDir)) {
+      const file = path.resolve(currentDir, filename)
+      const stat = readStat(file)
+
+      if (stat.isDirectory()) {
+        walk(file)
+      } else if (stat.isFile()) {
+        visitor(path.relative(dir, file))
+      }
+    }
+  }
+
+  walk(dir)
+}
+
+function normalizeRoutesDir(routeDir: string): string {
   const trimmed = routeDir.trim()
 
   if (!trimmed) {
@@ -23,12 +42,10 @@ export function normalizeRoutesDir(routeDir: string) {
     )
   }
 
-  let normalized = trimmed.replace(/\\/g, '/')
-  normalized = normalized.replace(/\/+/g, '/')
-
-  while (normalized.endsWith('/')) {
-    normalized = normalized.slice(0, -1)
-  }
+  const normalized = trimmed
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/\/+$/, '')
 
   if (!normalized) {
     throw new Error(
@@ -42,8 +59,7 @@ export function normalizeRoutesDir(routeDir: string) {
     )
   }
 
-  const segments = normalized.split('/')
-  if (segments.some((segment) => segment === '' || segment === '.')) {
+  if (normalized.split('/').includes('.')) {
     throw new Error(
       `routesDir entries cannot contain '.' segments. Got: '${routeDir}'`,
     )
@@ -53,11 +69,11 @@ export function normalizeRoutesDir(routeDir: string) {
 }
 
 function normalizeMountPath(mountPath: string): string {
-  if (!mountPath.trim()) {
+  const normalized = mountPath.trim()
+
+  if (!normalized) {
     throw new Error('routesDir mount paths must be non-empty strings.')
   }
-
-  const normalized = mountPath.trim()
 
   if (!normalized.startsWith('/')) {
     throw new Error(
@@ -74,94 +90,59 @@ function normalizeMountPath(mountPath: string): string {
   return normalized
 }
 
-type RoutesDirEntry = {
-  mountPath: string
-  dir: string
-}
-
-function toRoutesDirEntries(
-  routesDir: RoutesDirInput | undefined,
-): RoutesDirEntry[] {
-  if (routesDir === undefined) {
-    return [{ mountPath: '/', dir: 'routes' }]
-  }
-
-  if (typeof routesDir === 'string') {
-    return [{ mountPath: '/', dir: routesDir }]
-  }
-
-  const entries: RoutesDirEntry[] = []
-  for (const [mountPath, dir] of Object.entries(routesDir)) {
-    entries.push({ mountPath, dir })
-  }
-
-  if (entries.length === 0) {
-    throw new Error('routesDir object must contain at least one entry.')
-  }
-
-  return entries
-}
-
-// inspired by @react-router/dev/routes
-function getRootDirectory(): string {
-  return process.cwd()
-}
-
 // inspired by @react-router/dev/routes
 function getAppDirectory(): string {
   return (
     (globalThis as any).__reactRouterAppDirectory ??
-    path.resolve(getRootDirectory(), 'app')
+    path.resolve(process.cwd(), 'app')
   )
 }
 
-function resolveBaseDirFor(routesDir: RoutesDirInput | undefined): string {
-  return routesDir === undefined || typeof routesDir === 'string'
-    ? getAppDirectory()
-    : getRootDirectory()
-}
-
 export function normalizeRoutesDirOption(
-  routesDir: RoutesDirInput | undefined,
+  routesDir: RoutesDirInput = 'routes',
 ): NormalizedRoutesDir[] {
-  const resolvedBase = resolveBaseDirFor(routesDir)
+  const isMapping = typeof routesDir !== 'string'
+  const entries = Object.entries(isMapping ? routesDir : { '/': routesDir })
+  if (entries.length === 0) {
+    throw new Error('routesDir object must contain at least one entry.')
+  }
+
+  // A plain string is relative to the app directory; a mapping is relative to
+  // the project root.
+  const baseDir = isMapping ? process.cwd() : getAppDirectory()
   const seenMountPaths = new Set<string>()
 
-  const entries = toRoutesDirEntries(routesDir).map(({ mountPath, dir }) => {
-    const normalizedMount = normalizeMountPath(mountPath)
-    if (seenMountPaths.has(normalizedMount)) {
+  const normalized = entries.map(([rawMountPath, dir]) => {
+    const mountPath = normalizeMountPath(rawMountPath)
+    if (seenMountPaths.has(mountPath)) {
       throw new Error(
-        `Duplicate routesDir mount path detected: '${normalizedMount}'.`,
+        `Duplicate routesDir mount path detected: '${mountPath}'.`,
       )
     }
-    seenMountPaths.add(normalizedMount)
+    seenMountPaths.add(mountPath)
 
     const normalizedDir = normalizeRoutesDir(dir)
-    const fsDir = path.resolve(resolvedBase, normalizedDir)
-
-    const idPrefix =
-      normalizedMount === '/' && normalizedDir === 'app/routes'
-        ? 'routes'
-        : normalizedDir
-
     return {
-      mountPath: normalizedMount,
-      fsDir,
-      idPrefix,
-      importPrefix: normalizedDir,
+      mountPath,
+      normalizedDir,
+      fsDir: path.resolve(baseDir, normalizedDir),
     }
   })
 
-  const rootEntry = entries.find((entry) => entry.mountPath === '/')
+  const rootEntry = normalized.find((entry) => entry.mountPath === '/')
   const appDir = rootEntry ? path.dirname(rootEntry.fsDir) : getAppDirectory()
 
-  return entries.map((entry) => {
-    const relativeImport = path.relative(appDir, entry.fsDir) || '.'
-    const normalizedImport = relativeImport.split(path.sep).join('/')
+  return normalized.map(({ mountPath, normalizedDir, fsDir }) => {
+    const importPrefix = toPosixPath(path.relative(appDir, fsDir))
 
     return {
-      ...entry,
-      importPrefix: normalizedImport === '.' ? '' : normalizedImport,
+      mountPath,
+      fsDir,
+      idPrefix:
+        mountPath === '/' && normalizedDir === 'app/routes'
+          ? 'routes'
+          : normalizedDir,
+      importPrefix,
     }
   })
 }

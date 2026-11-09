@@ -4,9 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { diffSnapshots, normalizeSnapshot } from '../src/migration/cli/diff'
 import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
 import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
-import { createRoutesFromFolders } from '../src/migration/create-routes-from-folders'
 import { migrate } from '../src/migration/migrate'
-import { defineRoutes } from '../src/migration/route-definition'
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
@@ -27,6 +25,8 @@ import {
   cleanupTmpWorkspaces,
   createBasicRoutesFixture,
   createRoutesFixture,
+  type RoutesFixture,
+  writeFiles,
 } from './utils/tmp-workspace'
 
 afterEach(() => {
@@ -34,20 +34,44 @@ afterEach(() => {
   cleanupTmpWorkspaces()
 })
 
-describe('migrate CLI', () => {
+const STUB = 'export default function Route() { return null }\n'
+
+/** Route files with stub contents, keyed under `app/routes/`. */
+function stubRoutes(...files: string[]) {
+  return Object.fromEntries(files.map((file) => [`app/routes/${file}`, STUB]))
+}
+
+/** Runs `migrate()` from `app/routes` into `app/new-routes`. */
+function migrateFixture(
+  files: Record<string, string>,
+  options?: Parameters<typeof migrate>[2],
+) {
+  const fixture = createRoutesFixture(files)
+  const target = fixture.resolve('app', 'new-routes')
+  migrate(
+    fixture.toCwdRelativePath(fixture.sourceDir),
+    fixture.toCwdRelativePath(target),
+    options,
+  )
+
+  return {
+    target,
+    files: () => fixture.listRelativeFiles(target),
+    read: (file: string) => fs.readFileSync(path.join(target, file), 'utf8'),
+  }
+}
+
+describe('migrate', () => {
   it('normalizes trailing separators in provided directories', () => {
     const fixture = createBasicRoutesFixture()
+    const target = fixture.resolve('app', 'new-routes')
 
-    const sourceAbsolute = fixture.sourceDir
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
+    migrate(
+      fixture.toCwdRelativePath(fixture.sourceDir) + path.sep,
+      fixture.toCwdRelativePath(target) + path.sep,
+    )
 
-    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute) + path.sep
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute) + path.sep
-
-    migrate(sourceArg, targetArg, { force: true })
-
-    const files = fixture.listRelativeFiles(targetAbsolute)
-    expect(files).toEqual([
+    expect(fixture.listRelativeFiles(target)).toEqual([
       'admin/$id.tsx',
       'admin/dashboard.tsx',
       'admin/index.tsx',
@@ -56,45 +80,21 @@ describe('migrate CLI', () => {
   })
 
   it('migrates route files for each supported convention', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/index.tsx':
-        'export default function Index() { return null }\n',
-      'app/routes/about.tsx':
-        'export default function About() { return null }\n',
-      'app/routes/admin/_layout.tsx':
-        'import { Outlet } from "react-router"\nexport default function AdminLayout() { return <Outlet /> }\n',
-      'app/routes/admin/_index.tsx':
-        'export default function AdminIndex() { return null }\n',
-      'app/routes/admin/dashboard.tsx':
-        'export default function Dashboard() { return null }\n',
-      'app/routes/admin/users._index.tsx':
-        'export default function UsersIndex() { return null }\n',
-      'app/routes/admin/users.$id.tsx':
-        'export default function UserDetail() { return null }\n',
-      'app/routes/blog/_index.tsx':
-        'export default function BlogIndex() { return null }\n',
-      'app/routes/blog/$slug.tsx':
-        'export default function BlogPost() { return null }\n',
-      'app/routes/marketing/_layout.tsx':
-        'import { Outlet } from "react-router"\nexport default function MarketingLayout() { return <Outlet /> }\n',
-      'app/routes/marketing/_index.tsx':
-        'export default function MarketingIndex() { return null }\n',
-      'app/routes/marketing/pricing.tsx':
-        'export default function Pricing() { return null }\n',
-    })
+    const result = migrateFixture(
+      stubRoutes(
+        'index.tsx',
+        'about.tsx',
+        'admin/_layout.tsx',
+        'admin/_index.tsx',
+        'admin/dashboard.tsx',
+        'admin/users._index.tsx',
+        'admin/users.$id.tsx',
+        'blog/_index.tsx',
+        'blog/$slug.tsx',
+      ),
+    )
 
-    const sourceAbsolute = fixture.sourceDir
-    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
-
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const files = fixture.listRelativeFiles(targetAbsolute)
-    expect(files).toEqual([
+    expect(result.files()).toEqual([
       'about.tsx',
       'admin/_index.tsx',
       'admin/_layout.tsx',
@@ -104,375 +104,128 @@ describe('migrate CLI', () => {
       'blog/$slug.tsx',
       'blog/_index.tsx',
       'index.tsx',
-      'marketing/_index.tsx',
-      'marketing/_layout.tsx',
-      'marketing/pricing.tsx',
     ])
   })
 
-  it('migrates colocated files with + prefix', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/app+/index.tsx':
-        'export default function AppHome() { return null }\n',
-      'app/routes/app+/reports+/$id+/index.tsx':
-        'export default function Report() { return null }\n',
-      'app/routes/app+/reports+/$id+/assets/template.mustache':
-        'ignored mustache\n',
-      'app/routes/app+/reports+/$id+/assets/support.ts':
-        'export const helper = () => null\n',
+  it('moves colocated files into + folders and keeps route entries', () => {
+    const result = migrateFixture({
+      ...stubRoutes(
+        'app+/index.tsx',
+        'app+/reports+/$id+/index.tsx',
+        '_auth+/login/_login.tsx',
+      ),
+      'app/routes/app+/reports+/$id+/assets/template.mustache': 'mustache\n',
+      'app/routes/app+/reports+/$id+/assets/support.ts': 'export {}\n',
+      'app/routes/_auth+/login/schema.ts': 'export {}\n',
     })
 
-    const sourceAbsolute = fixture.sourceDir
-    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
-
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const files = fixture.listRelativeFiles(targetAbsolute)
-    expect(files).toContain('app/reports/$id/+assets/template.mustache')
-    expect(files).toContain('app/reports/$id/+assets/support.ts')
-    expect(files).toContain('app/index.tsx')
-    expect(files).toContain('app/reports/$id/index.tsx')
+    expect(result.files()).toEqual([
+      '_auth/+login/schema.ts',
+      '_auth/login/_login.tsx',
+      'app/index.tsx',
+      'app/reports/$id/+assets/support.ts',
+      'app/reports/$id/+assets/template.mustache',
+      'app/reports/$id/index.tsx',
+    ])
   })
 
-  it('migrates extended route filenames as route entries instead of colocated files', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/_auth+/login/_login.tsx':
-        'export default function Login() { return null }\n',
-      'app/routes/_auth+/login/schema.ts': 'export const schema = {}\n',
+  it('converts folder routes (route.tsx) to flat files', () => {
+    const result = migrateFixture({
+      ...stubRoutes(
+        'demo+/_layout/route.tsx',
+        'demo+/_index/route.tsx',
+        'demo+/conform.nested-array/route.tsx',
+      ),
+      'app/routes/demo+/about/route.tsx':
+        "import type { Route } from './+types/route'\nexport default function About({ loaderData }: Route.ComponentProps) { return null }\n",
+      'app/routes/demo+/conform.nested-array/schema.ts': 'export {}\n',
+      'app/routes/demo+/conform.nested-array/components/field.tsx':
+        'export {}\n',
     })
 
-    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const files = fixture.listRelativeFiles(targetAbsolute)
-    expect(files).toContain('_auth/+login/schema.ts')
-    expect(files).toContain('_auth/login/_login.tsx')
-    expect(files).not.toContain('_auth/+login/_login.tsx')
+    expect(result.files()).toEqual([
+      'demo/+conform.nested-array/components/field.tsx',
+      'demo/+conform.nested-array/schema.ts',
+      'demo/_index.tsx',
+      'demo/_layout.tsx',
+      'demo/about.tsx',
+      'demo/conform.nested-array.tsx',
+    ])
+    expect(result.read('demo/about.tsx')).toContain("from './+types/about'")
   })
 
-  it('ignores macOS metadata files', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/.DS_Store': '',
-      'app/routes/index.tsx':
-        'export default function Index() { return null }\n',
-    })
-
-    const sourceAbsolute = fixture.sourceDir
-    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
-
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const files = fixture.listRelativeFiles(targetAbsolute)
-    expect(files).toEqual(['index.tsx'])
-  })
-
-  it('keeps ignoring .DS_Store when custom ignore patterns are provided', () => {
-    const fixture = createRoutesFixture({
+  it('ignores .DS_Store, also alongside custom ignore patterns', () => {
+    const files = {
+      ...stubRoutes('about.tsx'),
       'app/routes/.DS_Store': '',
       'app/routes/about.ignoreme': 'ignored\n',
-      'app/routes/about.tsx':
-        'export default function About() { return null }\n',
-    })
+    }
 
-    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-      ignoredRouteFiles: ['**/*.ignoreme'],
-    })
-
-    const files = fixture.listRelativeFiles(targetAbsolute)
-    expect(files).toEqual(['about.tsx'])
+    expect(
+      migrateFixture(files, { ignoredRouteFiles: ['**/*.ignoreme'] }).files(),
+    ).toEqual(['about.tsx'])
+    expect(() => migrateFixture(files)).toThrow(/about\.ignoreme/)
   })
 
   it('rewrites relative imports for migrated parent routes', () => {
-    const fixture = createRoutesFixture({
+    const result = migrateFixture({
+      ...stubRoutes('admin/dashboard.tsx'),
       'app/routes/admin.tsx':
         "import { AdminShell } from '../components/AdminShell'\nexport default function AdminLayout() { return <AdminShell /> }\n",
-      'app/routes/admin/dashboard.tsx':
-        'export default function Dashboard() { return null }\n',
-      'app/components/AdminShell.tsx':
-        'export function AdminShell() { return null }\n',
+      'app/components/AdminShell.tsx': 'export function AdminShell() {}\n',
     })
 
-    const sourceAbsolute = fixture.sourceDir
-    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
-
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const layoutPath = path.join(targetAbsolute, 'admin', '_layout.tsx')
-    const contents = fs.readFileSync(layoutPath, 'utf8')
-    expect(contents).toContain("from '../../components/AdminShell'")
+    expect(result.read('admin/_layout.tsx')).toContain(
+      "from '../../components/AdminShell'",
+    )
   })
 
-  it('updates legacy alias imports that reference + suffixed folders', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/_top+/_layout.tsx':
-        'export default function TopLayout() { return null }\n',
+  it('rewrites alias imports that reference legacy + folders', () => {
+    const result = migrateFixture({
+      ...stubRoutes('_top+/_layout.tsx', 'alternatives/index.tsx'),
       'app/routes/alternatives/_layout.tsx':
         "import TopLayout from '~/routes/_top+/_layout'\nexport default TopLayout\n",
-      'app/routes/alternatives/index.tsx':
-        'export default function AlternativesIndex() { return null }\n',
-    })
-
-    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const layoutPath = path.join(targetAbsolute, 'alternatives', '_layout.tsx')
-    const contents = fs.readFileSync(layoutPath, 'utf8')
-    expect(contents).toContain("import TopLayout from '~/routes/_top/_layout'")
-  })
-
-  it('rewrites alias imports for colocated modules with + prefix', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/scribe+/_layout.tsx':
-        'import { Outlet } from "react-router"\nexport default function ScribeLayout() { return <Outlet /> }\n',
-      'app/routes/scribe+/_modules/transcription.tsx':
-        'export const transcribe = () => null\n',
+      'app/routes/scribe+/_layout.tsx': STUB,
+      'app/routes/scribe+/_modules/transcription.tsx': 'export {}\n',
       'app/routes/dash+/scribe+/index.tsx':
-        "import { transcribe } from '~/routes/scribe+/_modules/transcription'\nexport default function ScribeIndex() { return transcribe() }\n",
+        "import { transcribe } from '~/routes/scribe+/_modules/transcription'\nexport default transcribe\n",
     })
 
-    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const routePath = path.join(targetAbsolute, 'dash', 'scribe', 'index.tsx')
-    const contents = fs.readFileSync(routePath, 'utf8')
-    expect(contents).toContain(
-      "import { transcribe } from '~/routes/scribe/+_modules/transcription'",
+    expect(result.read('alternatives/_layout.tsx')).toContain(
+      "import TopLayout from '~/routes/_top/_layout'",
+    )
+    expect(result.read('dash/scribe/index.tsx')).toContain(
+      "from '~/routes/scribe/+_modules/transcription'",
     )
   })
 
   it('rewrites alias imports for parent routes promoted to _layout', () => {
-    const fixture = createRoutesFixture({
+    const result = migrateFixture({
       'app/routes/settings/profile.two-factor.tsx':
         'export function TwoFactorLayout() { return null }\n',
       'app/routes/settings/profile.two-factor.index.tsx':
-        "import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor.tsx'\nexport default function TwoFactorIndex() { return <TwoFactorLayout /> }\n",
+        "import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor.tsx'\nexport default TwoFactorLayout\n",
     })
 
-    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const generatedFiles = fixture.listRelativeFiles(targetAbsolute)
-    const indexFile = generatedFiles.find((file) =>
-      /settings\/profile\.two-factor(\/|\.index\.tsx$)/.test(file),
+    expect(result.read('settings/profile.two-factor.index.tsx')).toContain(
+      "from '#app/routes/settings/profile.two-factor/_layout.tsx'",
     )
-    expect(indexFile).toBeDefined()
-
-    const routePath = path.join(targetAbsolute, indexFile!)
-    const contents = fs.readFileSync(routePath, 'utf8')
-    expect(contents).toContain(
-      "import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor/_layout.tsx'",
-    )
-  })
-
-  it('migrates folder route pattern (route.tsx) correctly', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/demo+/_layout/route.tsx':
-        'import { Outlet } from "react-router"\nexport default function DemoLayout() { return <Outlet /> }\n',
-      'app/routes/demo+/_index/route.tsx':
-        'export default function DemoIndex() { return null }\n',
-      'app/routes/demo+/about/route.tsx':
-        "import type { Route } from './+types/route'\nexport default function About() { return null }\n",
-      'app/routes/demo+/conform.nested-array/route.tsx':
-        "import { schema } from './schema'\nexport default function ConformNestedArray() { return null }\n",
-      'app/routes/demo+/conform.nested-array/schema.ts':
-        'export const schema = {}\n',
-      'app/routes/demo+/conform.nested-array/components/field.tsx':
-        'export function Field() { return null }\n',
-    })
-
-    const sourceAbsolute = fixture.sourceDir
-    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
-
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, {
-      force: true,
-    })
-
-    const files = fixture.listRelativeFiles(targetAbsolute)
-
-    // route.tsx files should become flat files or index.tsx, not +prefixed folders
-    expect(files).toContain('demo/_layout.tsx')
-    expect(files).toContain('demo/_index.tsx')
-    expect(files).toContain('demo/about.tsx')
-    expect(files).toContain('demo/conform.nested-array.tsx')
-
-    // Colocated files should get + prefix
-    expect(files).toContain('demo/+conform.nested-array/schema.ts')
-    expect(files).toContain('demo/+conform.nested-array/components/field.tsx')
-
-    // No route.tsx files should remain at the top level
-    expect(files).not.toContain('demo/+_layout/route.tsx')
-    expect(files).not.toContain('demo/+_index/route.tsx')
-    expect(files).not.toContain('demo/+about/route.tsx')
-  })
-
-  it('rewrites +types/route imports when migrating folder routes', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/demo+/about/route.tsx':
-        "import type { Route } from './+types/route'\nexport default function About({ loaderData }: Route.ComponentProps) { return null }\n",
-    })
-
-    const sourceAbsolute = fixture.sourceDir
-    const sourceArg = fixture.toCwdRelativePath(sourceAbsolute)
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
-
-    migrate(sourceArg, targetArg, { force: true })
-
-    const aboutPath = path.join(targetAbsolute, 'demo', 'about.tsx')
-    const contents = fs.readFileSync(aboutPath, 'utf8')
-    expect(contents).toContain("from './+types/about'")
-    expect(contents).not.toContain("from './+types/route'")
   })
 
   it('writes nothing when planning fails for any source file', () => {
     const fixture = createRoutesFixture({
-      'app/routes/a.tsx': 'export default function A() { return null }\n',
+      'app/routes/a.tsx': STUB,
       'app/routes/z.tsx': 'export default function Z( {\n',
     })
-    const sourceArg = fixture.toCwdRelativePath(fixture.sourceDir)
-    const targetAbsolute = fixture.resolve('app', 'new-routes')
-    const targetArg = fixture.toCwdRelativePath(targetAbsolute)
+    const target = fixture.resolve('app', 'new-routes')
 
-    expect(() => migrate(sourceArg, targetArg, { force: true })).toThrow(
-      /z\.tsx.*Oxc could not parse.*Fix the syntax errors/s,
-    )
-    expect(fs.existsSync(targetAbsolute)).toBe(false)
-  })
-
-  it('treats folder route (route.tsx) as equivalent to flat file in snapshots', () => {
-    const before = normalizeSnapshot(
-      `<Routes>
-  <Route file="root.tsx">
-    <Route file="routes/demo+/about/route.tsx" />
-    <Route file="routes/demo+/_index/route.tsx" index />
-  </Route>
-</Routes>
-`,
-    )
-
-    const after = normalizeSnapshot(
-      `<Routes>
-  <Route file="root.tsx">
-    <Route file="routes/demo/about.tsx" />
-    <Route file="routes/demo/_index.tsx" index />
-  </Route>
-</Routes>
-`,
-    )
-
-    expect(before).toBe(after)
-  })
-
-  it('treats dot notation index files as index routes', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/settings+/profile.two-factor.tsx':
-        'export default function TwoFactor() { return null }\n',
-      'app/routes/settings+/profile.two-factor.index.tsx':
-        'export default function TwoFactorIndex() { return null }\n',
-    })
-
-    const routes = createRoutesFromFolders(defineRoutes, {
-      appDirectory: fixture.resolve('app'),
-      routesDirectory: 'routes',
-    })
-
-    const parentRouteId = 'routes/settings+/profile.two-factor'
-    const indexRouteId = 'routes/settings+/profile.two-factor.index'
-
-    expect(routes[parentRouteId]).toBeDefined()
-    expect(routes[indexRouteId]).toBeDefined()
-    expect(routes[indexRouteId].index).toBe(true)
-    expect(routes[indexRouteId].path).toBeUndefined()
-    expect(routes[indexRouteId].parentId).toBe(parentRouteId)
-  })
-
-  it('treats dot underscore index files as index routes', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/newsletter.tsx':
-        'import { Outlet } from "react-router"\nexport default function Newsletter() { return <Outlet /> }\n',
-      'app/routes/newsletter._index.tsx':
-        'export default function NewsletterIndex() { return null }\n',
-    })
-
-    const routes = createRoutesFromFolders(defineRoutes, {
-      appDirectory: fixture.resolve('app'),
-      routesDirectory: 'routes',
-    })
-
-    const parentRouteId = 'routes/newsletter'
-    const indexRouteId = 'routes/newsletter._index'
-
-    expect(routes[parentRouteId]).toBeDefined()
-    expect(routes[indexRouteId]).toBeDefined()
-    expect(routes[indexRouteId].index).toBe(true)
-    expect(routes[indexRouteId].path).toBeUndefined()
-    expect(routes[indexRouteId].parentId).toBe(parentRouteId)
-  })
-
-  it('treats dot underscore index folders as index routes', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/products.tsx':
-        'import { Outlet } from "react-router"\nexport default function Products() { return <Outlet /> }\n',
-      'app/routes/products._index/route.tsx':
-        'export default function ProductsIndex() { return null }\n',
-    })
-
-    const routes = createRoutesFromFolders(defineRoutes, {
-      appDirectory: fixture.resolve('app'),
-      routesDirectory: 'routes',
-    })
-
-    const parentRouteId = 'routes/products'
-    const indexRouteId = 'routes/products._index'
-
-    expect(routes[parentRouteId]).toBeDefined()
-    expect(routes[indexRouteId]).toBeDefined()
-    expect(routes[indexRouteId].index).toBe(true)
-    expect(routes[indexRouteId].path).toBeUndefined()
-    expect(routes[indexRouteId].parentId).toBe(parentRouteId)
+    expect(() =>
+      migrate(
+        fixture.toCwdRelativePath(fixture.sourceDir),
+        fixture.toCwdRelativePath(target),
+      ),
+    ).toThrow(/z\.tsx.*Oxc could not parse.*Fix the syntax errors/s)
+    expect(fs.existsSync(target)).toBe(false)
   })
 })
 
@@ -607,6 +360,67 @@ export default flatRoutes('routes', defineRoutes, { ignoredRouteFiles: ['**/*.cs
   })
 })
 
+const BASIC_ROUTE_FILES = [
+  'admin/$id.tsx',
+  'admin/dashboard.tsx',
+  'admin/index.tsx',
+  'index.tsx',
+]
+const LEGACY_ENTRY = `import { createRoutesFromFolders } from 'remix-flat-routes'\nexport default function routes() {\n  return createRoutesFromFolders(() => {})\n}\n`
+const MISMATCHED_SNAPSHOTS = [
+  `<Routes>\n  <Route file="routes/foo.tsx" />\n</Routes>\n`,
+  `<Routes>\n  <Route file="routes/bar.tsx" />\n</Routes>\n`,
+]
+
+/** A runner that returns `outputs` in order, repeating the last one. */
+function runnerReturning(...outputs: string[]) {
+  let call = 0
+  return vi.fn<CommandRunner>(() => ({
+    status: 0,
+    stdout: outputs[Math.min(call++, outputs.length - 1)],
+    stderr: '',
+  }))
+}
+
+function runCliIn(
+  fixture: RoutesFixture,
+  argv: string[],
+  options?: Parameters<typeof runCli>[1],
+): number {
+  const previousCwd = process.cwd()
+  process.chdir(fixture.workspace)
+  try {
+    return runCli(argv, options)
+  } finally {
+    process.chdir(previousCwd)
+  }
+}
+
+/**
+ * A legacy workspace whose route file is renamed by the migration, so a
+ * rollback can be told apart from a completed migration.
+ */
+function createRollbackFixture() {
+  const fixture = createRoutesFixture({
+    ...stubRoutes('index.tsx', 'demo+/about/route.tsx'),
+    'app/routes.ts': LEGACY_ENTRY,
+  })
+  return { fixture, entryPath: fixture.resolve('app', 'routes.ts') }
+}
+
+/** The original tree and entry are restored; the migrated tree is kept aside. */
+function expectRolledBack(fixture: RoutesFixture, entryPath: string) {
+  expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual([
+    path.join('demo+', 'about', 'route.tsx'),
+    'index.tsx',
+  ])
+  expect(
+    fixture.listRelativeFiles(fixture.resolve('app', 'new-routes')),
+  ).toEqual([path.join('demo', 'about.tsx'), 'index.tsx'])
+  expect(fs.existsSync(fixture.resolve('app', 'old-routes'))).toBe(false)
+  expect(fs.readFileSync(entryPath, 'utf8')).toBe(LEGACY_ENTRY)
+}
+
 describe('runCli', () => {
   it('prints help without validating the workspace', () => {
     expect(runCli(['--help'])).toBe(0)
@@ -625,438 +439,372 @@ describe('runCli', () => {
       expect.stringContaining("Unknown option '--dry-run'."),
     )
   })
-  it('migrates routes using default source and target and cleans up backup on success', () => {
+
+  it('migrates with default directories, logs the swap, and removes the backup', () => {
     const fixture = createBasicRoutesFixture('run-cli-success')
 
-    const snapshots = ['ROUTES\n', 'ROUTES\n']
-    const runner: CommandRunner = () => {
-      const stdout = snapshots.shift() ?? 'ROUTES\n'
-      return { status: 0, stdout, stderr: '' }
-    }
-
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    try {
-      const exitCode = runCli([], { runner })
-      expect(exitCode).toBe(0)
-    } finally {
-      process.chdir(previousCwd)
-    }
+    expect(runCliIn(fixture, [], { runner: runnerReturning('ROUTES\n') })).toBe(
+      0,
+    )
 
     expect(consoleErrorSpy.mock.calls).toEqual([])
-
-    const backupDir = path.join(fixture.workspace, 'app', 'old-routes')
-    expect(fs.existsSync(backupDir)).toBe(false)
-    expect(fs.existsSync(fixture.sourceDir)).toBe(true)
-    expect(
-      fs.existsSync(path.join(fixture.workspace, 'app', 'new-routes')),
-    ).toBe(false)
-
-    const migratedFiles = fixture.listRelativeFiles(fixture.sourceDir)
-    expect(migratedFiles).toEqual([
-      'admin/$id.tsx',
-      'admin/dashboard.tsx',
-      'admin/index.tsx',
-      'index.tsx',
-    ])
-
-    const backupFiles = fixture.listRelativeFiles(backupDir)
-    expect(backupFiles).toEqual([])
-  })
-
-  it('logs directory renames during successful swaps', () => {
-    const fixture = createBasicRoutesFixture('run-cli-logs')
-
-    const snapshots = ['ROUTES\n', 'ROUTES\n']
-    const runner: CommandRunner = () => {
-      const stdout = snapshots.shift() ?? 'ROUTES\n'
-      return { status: 0, stdout, stderr: '' }
-    }
-
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    try {
-      const exitCode = runCli(['app/routes'], { runner })
-      expect(exitCode).toBe(0)
-    } finally {
-      process.chdir(previousCwd)
-    }
+    expect(fs.existsSync(fixture.resolve('app', 'old-routes'))).toBe(false)
+    expect(fs.existsSync(fixture.resolve('app', 'new-routes'))).toBe(false)
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+      BASIC_ROUTE_FILES,
+    )
 
     const messages = getStringMessages(consoleLogSpy.mock.calls)
-
     const backupIndex = messages.findIndex((message) =>
       message.includes("Backed up 'app/routes' to 'app/old-routes'"),
     )
     const promotedIndex = messages.findIndex((message) =>
       message.includes("Promoted 'app/new-routes' to 'app/routes'"),
     )
-
     expect(backupIndex).toBeGreaterThanOrEqual(0)
     expect(promotedIndex).toBeGreaterThan(backupIndex)
   })
 
-  it('treats + suffix renames as equivalent in route snapshots', () => {
+  it('accepts route output that differs only by convention renames', () => {
     const fixture = createRoutesFixture({
       'app/routes/root.tsx': 'export default function Root() { return null }\n',
       'app/routes/_auth+/_layout.tsx':
-        'import { Outlet } from "react-router"\nexport default function Layout() { return <Outlet /> }\n',
+        'export default function Layout() { return null }\n',
       'app/routes/_auth+/login.tsx':
         'export default function Login() { return null }\n',
     })
-
-    const snapshots = [
+    const runner = runnerReturning(
       `<Routes>\n  <Route file="root.tsx">\n    <Route file="routes/_auth+/_layout.tsx">\n      <Route path="login" file="routes/_auth+/login.tsx" />\n    </Route>\n  </Route>\n</Routes>\n`,
       `<Routes>\n  <Route file="root.tsx">\n    <Route file="routes/_auth/_layout.tsx">\n      <Route path="login" file="routes/_auth/login.tsx" />\n    </Route>\n  </Route>\n</Routes>\n`,
-    ]
-
-    let callCount = 0
-    const runner: CommandRunner = () => {
-      const stdout = snapshots[Math.min(callCount, snapshots.length - 1)]
-      callCount += 1
-      return { status: 0, stdout, stderr: '' }
-    }
-
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    try {
-      const beforeNormalized = normalizeSnapshot(snapshots[0])
-      const afterNormalized = normalizeSnapshot(snapshots[1])
-      if (beforeNormalized !== afterNormalized) {
-        const diff = diffSnapshots(beforeNormalized, afterNormalized)
-        throw new Error(`normalized snapshots differ:\n${diff}`)
-      }
-
-      const exitCode = runCli(['app/routes', 'app/new-routes'], { runner })
-      if (exitCode !== 0) {
-        const messages = getStringMessages(consoleErrorSpy.mock.calls)
-        throw new Error(
-          `CLI failed with exit ${exitCode}:\n${messages.join('\n')}`,
-        )
-      }
-    } finally {
-      process.chdir(previousCwd)
-    }
-
-    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
-      expect.stringContaining('Route output changed'),
     )
 
-    const migratedFiles = fixture.listRelativeFiles(
-      fixture.resolve('app', 'routes'),
-    )
-    expect(migratedFiles).toEqual([
+    expect(
+      runCliIn(fixture, ['app/routes', 'app/new-routes'], { runner }),
+    ).toBe(0)
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual([
       '_auth/_layout.tsx',
       '_auth/login.tsx',
       'root.tsx',
     ])
-
-    const backupFiles = fixture.listRelativeFiles(
-      fixture.resolve('app', 'old-routes'),
-    )
-    expect(backupFiles).toEqual([])
-  })
-
-  it('treats parent route -> _layout renames as equivalent in route snapshots', () => {
-    const fixture = createRoutesFixture({
-      'app/routes/root.tsx': 'export default function Root() { return null }\n',
-    })
-
-    const snapshots = [
-      `<Routes>
-  <Route file="root.tsx">
-    <Route file="routes/settings/profile.tsx">
-      <Route file="routes/settings/profile.index.tsx" index />
-      <Route file="routes/settings/profile.two-factor.tsx" />
-      <Route file="routes/settings/profile.two-factor.index.tsx" index />
-    </Route>
-  </Route>
-</Routes>
-`,
-      `<Routes>
-  <Route file="root.tsx">
-    <Route file="routes/settings/profile/_layout.tsx">
-      <Route file="routes/settings/profile/index.tsx" index />
-      <Route file="routes/settings/profile.two-factor/_layout.tsx">
-        <Route file="routes/settings/profile.two-factor/index.tsx" index />
-      </Route>
-    </Route>
-  </Route>
-</Routes>
-`,
-    ]
-
-    let callCount = 0
-    const runner: CommandRunner = () => {
-      const stdout = snapshots[Math.min(callCount, snapshots.length - 1)]
-      callCount += 1
-      return { status: 0, stdout, stderr: '' }
-    }
-
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    try {
-      const beforeNormalized = normalizeSnapshot(snapshots[0])
-      const afterNormalized = normalizeSnapshot(snapshots[1])
-      if (beforeNormalized !== afterNormalized) {
-        const diff = diffSnapshots(beforeNormalized, afterNormalized)
-        throw new Error(`normalized snapshots differ:\n${diff}`)
-      }
-
-      const exitCode = runCli(['app/routes', 'app/new-routes'], { runner })
-      if (exitCode !== 0) {
-        const messages = getStringMessages(consoleErrorSpy.mock.calls)
-        throw new Error(
-          `CLI failed with exit ${exitCode}:\n${messages.join('\n')}`,
-        )
-      }
-    } finally {
-      process.chdir(previousCwd)
-    }
-
-    const backupDir = fixture.resolve('app', 'old-routes')
-    expect(fs.existsSync(backupDir)).toBe(false)
+    expect(fs.existsSync(fixture.resolve('app', 'old-routes'))).toBe(false)
   })
 
   it('rewrites legacy remix-flat-routes entry to autoRoutes()', () => {
     const fixture = createBasicRoutesFixture('run-cli-legacy')
     const entryPath = fixture.resolve('app', 'routes.ts')
-    fs.writeFileSync(
-      entryPath,
-      `import { createRoutesFromFolders } from 'remix-flat-routes'\nexport default function routes() {\n  return createRoutesFromFolders(() => {})\n}\n`,
-    )
+    fs.writeFileSync(entryPath, LEGACY_ENTRY)
     fixture.git('add', 'app/routes.ts')
     fixture.git('commit', '-m', 'legacy entry')
+    const runner = runnerReturning('ROUTES\n')
 
-    const runnerMock = vi.fn(() => ({
-      status: 0,
-      stdout: 'ROUTES\n',
-      stderr: '',
-    }))
-    const runner = runnerMock as unknown as CommandRunner
+    expect(runCliIn(fixture, ['app/routes'], { runner })).toBe(0)
 
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    try {
-      const exitCode = runCli(['app/routes'], { runner })
-      expect(exitCode).toBe(0)
-    } finally {
-      process.chdir(previousCwd)
-    }
-
-    expect(runnerMock).toHaveBeenCalledTimes(2)
-
-    const backupDir = fixture.resolve('app', 'old-routes')
-    expect(fs.existsSync(backupDir)).toBe(false)
-
-    const updatedEntry = fs.readFileSync(entryPath, 'utf8')
-    expect(updatedEntry).toBe(
+    expect(runner).toHaveBeenCalledTimes(2)
+    expect(fs.readFileSync(entryPath, 'utf8')).toBe(
       "import { autoRoutes } from 'react-router-auto-routes'\n" +
         "import { type RouteConfig } from '@react-router/dev/routes'\n\n" +
         'export default autoRoutes() satisfies RouteConfig\n',
     )
-
-    const migratedFiles = fixture.listRelativeFiles(fixture.sourceDir)
-    expect(migratedFiles).toEqual([
-      'admin/$id.tsx',
-      'admin/dashboard.tsx',
-      'admin/index.tsx',
-      'index.tsx',
-    ])
-  })
-
-  it('treats trailing underscore folder with leading underscore file as dot notation rename', () => {
-    const before = normalizeSnapshot(
-      `<Routes>
-  <Route file="root.tsx">
-    <Route file="routes/users/$username_.note-editor.tsx" />
-  </Route>
-</Routes>
-`,
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+      BASIC_ROUTE_FILES,
     )
-
-    const after = normalizeSnapshot(
-      `<Routes>
-  <Route file="root.tsx">
-    <Route file="routes/users/$username_/_note-editor.tsx" />
-  </Route>
-</Routes>
-`,
-    )
-
-    expect(before).toBe(after)
   })
 
   it('refuses to run when not inside a git repository', () => {
     const fixture = createBasicRoutesFixture('run-cli-no-git')
-    fs.rmSync(path.join(fixture.workspace, '.git'), {
-      recursive: true,
-      force: true,
-    })
+    fs.rmSync(path.join(fixture.workspace, '.git'), { recursive: true })
 
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    let exitCode = -1
-    try {
-      exitCode = runCli(['app/routes'])
-    } finally {
-      process.chdir(previousCwd)
-    }
-
-    expect(exitCode).toBe(1)
+    expect(runCliIn(fixture, ['app/routes'])).toBe(1)
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Git repository not detected'),
     )
   })
 
-  it('refuses to run when git worktree is dirty', () => {
+  it('refuses to run when the source directory is dirty, but not for other files', () => {
     const fixture = createBasicRoutesFixture('run-cli-dirty')
+    fs.writeFileSync(fixture.resolve('NOTES.md'), 'notes\n')
     fs.writeFileSync(fixture.resolve('app', 'routes', 'dirty.tmp'), 'dirty\n')
 
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    let exitCode = -1
-    try {
-      exitCode = runCli(['app/routes'])
-    } finally {
-      process.chdir(previousCwd)
+    expect(runCliIn(fixture, ['app/routes'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Working tree must be clean for 'app/routes'"),
+    )
+
+    // An unstaged edit to a tracked route (` M app/routes/...`) also counts.
+    fs.rmSync(fixture.resolve('app', 'routes', 'dirty.tmp'))
+    fs.appendFileSync(
+      fixture.resolve('app', 'routes', 'index.tsx'),
+      '// edit\n',
+    )
+    consoleErrorSpy.mockClear()
+    expect(runCliIn(fixture, ['app/routes'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Working tree must be clean for 'app/routes'"),
+    )
+
+    fixture.git('checkout', '--', 'app/routes/index.tsx')
+    expect(
+      runCliIn(fixture, ['app/routes'], {
+        runner: runnerReturning('ROUTES\n'),
+      }),
+    ).toBe(0)
+  })
+
+  it.each([
+    ['./app/routes', 'source and target directories must be different'],
+    ['app/routes/new', 'target directory cannot be inside the source'],
+    ['app', 'source directory cannot be inside the target'],
+  ])('refuses target %s without touching the source', (target, message) => {
+    const fixture = createBasicRoutesFixture('run-cli-same-dir')
+
+    expect(
+      runCliIn(fixture, ['app/routes', target], {
+        runner: runnerReturning('ROUTES\n'),
+      }),
+    ).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(message),
+    )
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+      BASIC_ROUTE_FILES,
+    )
+  })
+
+  it('refuses a target that reaches the source through a symlinked alias', () => {
+    const fixture = createBasicRoutesFixture('run-cli-alias')
+    fs.symlinkSync(fixture.resolve('app'), fixture.resolve('alias'), 'dir')
+
+    expect(runCliIn(fixture, ['app/routes', 'alias/routes'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'source and target directories must be different',
+      ),
+    )
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+      BASIC_ROUTE_FILES,
+    )
+  })
+
+  it('refuses a target that contains the source link itself', () => {
+    const fixture = createRoutesFixture({
+      ...stubRoutes('index.tsx'),
+      'links/notes.md': 'notes\n',
+    })
+    fs.symlinkSync('../app/routes', fixture.resolve('links', 'routes'), 'dir')
+
+    expect(runCliIn(fixture, ['links/routes', 'links'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('source directory cannot be inside the target'),
+    )
+    expect(fs.existsSync(fixture.resolve('links', 'notes.md'))).toBe(true)
+  })
+
+  it.for([
+    ['links/app', 'links'],
+    ['links/../app', 'links'],
+    ['links/app', 'LINKS'],
+  ])('protects source link %s when the target is %s', ([link, target], ctx) => {
+    const fixture = createRoutesFixture(stubRoutes('index.tsx'))
+    writeFiles(fixture.workspace, { 'links/notes.md': 'local notes' })
+    if (!fs.existsSync(fixture.resolve(target))) ctx.skip()
+    fs.symlinkSync('../app', fixture.resolve('links', 'app'), 'dir')
+    fs.symlinkSync(link, fixture.resolve('alias'), 'dir')
+    const runner = runnerReturning('ROUTES')
+
+    expect(runCliIn(fixture, ['alias/routes', target], { runner })).toBe(1)
+    expect(runner).not.toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('source directory cannot be inside the target'),
+    )
+    expect(fs.readFileSync(fixture.resolve('links', 'notes.md'), 'utf8')).toBe(
+      'local notes',
+    )
+    expect(
+      fs.readFileSync(fixture.resolve('alias/routes/index.tsx'), 'utf8'),
+    ).toBe(STUB)
+  })
+
+  it.each(['app/old-routes/staging', 'app/OLD-ROUTES'])(
+    'refuses target %s that overlaps the backup directory',
+    (target) => {
+      const fixture = createBasicRoutesFixture('run-cli-backup')
+
+      expect(runCliIn(fixture, ['app/routes', target])).toBe(1)
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('backup directory old-routes'),
+      )
+      expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+        BASIC_ROUTE_FILES,
+      )
+    },
+  )
+
+  it('restores the source when promoting the new routes fails', () => {
+    const fixture = createBasicRoutesFixture('run-cli-promote-fail')
+    const rename = fs.renameSync
+    let calls = 0
+    vi.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+      if (++calls === 2) {
+        throw new Error('EXDEV: cross-device link not permitted')
+      }
+      rename(from, to)
+    })
+
+    expect(
+      runCliIn(fixture, ['app/routes'], {
+        runner: runnerReturning('ROUTES\n'),
+      }),
+    ).toBe(1)
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+      BASIC_ROUTE_FILES,
+    )
+    expect(fs.existsSync(fixture.resolve('app', 'old-routes'))).toBe(false)
+  })
+
+  it('refuses a case-variant target on case-insensitive filesystems', (ctx) => {
+    const fixture = createBasicRoutesFixture('run-cli-case')
+    if (!fs.existsSync(fixture.resolve('app', 'ROUTES'))) {
+      ctx.skip()
     }
 
-    expect(exitCode).toBe(1)
+    expect(runCliIn(fixture, ['app/routes', 'app/ROUTES'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'source and target directories must be different',
+      ),
+    )
+    expect(fixture.listRelativeFiles(fixture.sourceDir)).toEqual(
+      BASIC_ROUTE_FILES,
+    )
+  })
+
+  it('treats a ..-prefixed directory name as a child, not a parent', () => {
+    const fixture = createRoutesFixture({ 'app/..routes/index.tsx': STUB })
+
+    expect(runCliIn(fixture, ['app/..routes', 'app'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('source directory cannot be inside the target'),
+    )
+    expect(
+      fixture.listRelativeFiles(fixture.resolve('app', '..routes')),
+    ).toEqual(['index.tsx'])
+  })
+
+  it('detects dirty files whose paths git would quote', () => {
+    const fixture = createRoutesFixture({ 'app/画面/about.tsx': STUB })
+    fs.appendFileSync(fixture.resolve('app', '画面', 'about.tsx'), '// edit\n')
+
+    expect(runCliIn(fixture, ['app/画面'])).toBe(1)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Working tree must be clean'),
+    )
+  })
+
+  it('detects a source inside an untracked parent directory', () => {
+    const fixture = createRoutesFixture({ 'README.md': 'readme\n' })
+    writeFiles(fixture.workspace, stubRoutes('index.tsx'))
+
+    expect(runCliIn(fixture, ['app/routes'])).toBe(1)
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Working tree must be clean for 'app/routes'"),
     )
   })
 
-  it('allows dirty files outside the source directory', () => {
-    const fixture = createBasicRoutesFixture('run-cli-dirty-outside')
-    fs.writeFileSync(fixture.resolve('NOTES.md'), 'notes\n')
+  it('reverts routes and the legacy entry when route generation differs', () => {
+    const { fixture, entryPath } = createRollbackFixture()
 
-    const runner: CommandRunner = () => ({
-      status: 0,
-      stdout: 'ROUTES\n',
-      stderr: '',
-    })
+    expect(
+      runCliIn(fixture, ['app/routes'], {
+        runner: runnerReturning(...MISMATCHED_SNAPSHOTS),
+      }),
+    ).toBe(1)
 
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    try {
-      const exitCode = runCli(['app/routes'], { runner })
-      expect(exitCode).toBe(0)
-    } finally {
-      process.chdir(previousCwd)
-    }
-  })
-
-  it('reverts when route generation differs', () => {
-    const fixture = createBasicRoutesFixture('run-cli-diff')
-
-    const snapshots = [
-      `<Routes>\n  <Route file="routes/foo.tsx" />\n</Routes>\n`,
-      `<Routes>\n  <Route file="routes/bar.tsx" />\n</Routes>\n`,
-    ]
-    const runner: CommandRunner = () => {
-      const stdout = snapshots.shift() ?? ''
-      return { status: 0, stdout, stderr: '' }
-    }
-
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    let exitCode = -1
-    try {
-      exitCode = runCli(['app/routes'], { runner })
-    } finally {
-      process.chdir(previousCwd)
-    }
-    expect(exitCode).toBe(1)
-
-    const backupDir = path.join(fixture.workspace, 'app', 'old-routes')
-    expect(fs.existsSync(backupDir)).toBe(false)
-
-    const newDir = path.join(fixture.workspace, 'app', 'new-routes')
-    expect(fs.existsSync(newDir)).toBe(true)
-
-    const restoredFiles = fixture.listRelativeFiles(fixture.sourceDir)
-    expect(restoredFiles).toEqual([
-      'admin/$id.tsx',
-      'admin/dashboard.tsx',
-      'admin/index.tsx',
-      'index.tsx',
-    ])
-
-    const migratedFiles = fixture.listRelativeFiles(newDir)
-    expect(migratedFiles).toEqual([
-      'admin/$id.tsx',
-      'admin/dashboard.tsx',
-      'admin/index.tsx',
-      'index.tsx',
-    ])
-
-    const diffCall = consoleErrorSpy.mock.calls.find(
-      (call: unknown[]) =>
-        typeof call[0] === 'string' &&
-        call[0].includes('--- react-router routes (before)'),
+    expectRolledBack(fixture, entryPath)
+    expect(getStringMessages(consoleErrorSpy.mock.calls)).toContainEqual(
+      expect.stringContaining('--- react-router routes (before)'),
     )
-    expect(diffCall).toBeDefined()
   })
 
-  it('restores legacy route entry when route diff does not match', () => {
-    const fixture = createBasicRoutesFixture('run-cli-diff-entry')
-    const entryPath = fixture.resolve('app', 'routes.ts')
-    const legacyEntry = `import { createRoutesFromFolders } from 'remix-flat-routes'\nexport default function routes() {\n  return createRoutesFromFolders(() => {})\n}\n`
-    fs.writeFileSync(entryPath, legacyEntry)
+  it('reverts routes and the legacy entry when the second snapshot fails', () => {
+    const { fixture, entryPath } = createRollbackFixture()
+    const runner = vi
+      .fn<CommandRunner>()
+      .mockReturnValueOnce({ status: 0, stdout: 'ROUTES\n', stderr: '' })
+      .mockReturnValueOnce({ status: 1, stdout: '', stderr: 'boom' })
 
-    const snapshots = [
-      `<Routes>\n  <Route file="routes/foo.tsx" />\n</Routes>\n`,
-      `<Routes>\n  <Route file="routes/bar.tsx" />\n</Routes>\n`,
-    ]
+    expect(runCliIn(fixture, ['app/routes'], { runner })).toBe(1)
 
-    const runner: CommandRunner = () => {
-      const stdout = snapshots.shift() ?? ''
-      return { status: 0, stdout, stderr: '' }
-    }
-
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    let exitCode = -1
-    try {
-      exitCode = runCli(['app/routes'], { runner })
-    } finally {
-      process.chdir(previousCwd)
-    }
-
-    expect(exitCode).toBe(1)
-
-    const entryContents = fs.readFileSync(entryPath, 'utf8')
-    expect(entryContents).toBe(legacyEntry)
+    expectRolledBack(fixture, entryPath)
   })
 
   it('supports dry run mode without swapping directories', () => {
     const fixture = createBasicRoutesFixture('run-cli-dry-run')
 
-    const runner: CommandRunner = () => ({
-      status: 0,
-      stdout: 'ROUTES\n',
-      stderr: '',
-    })
-
-    const previousCwd = process.cwd()
-    process.chdir(fixture.workspace)
-    try {
-      const exitCode = runCli([], { runner, dryRun: true })
-      expect(exitCode).toBe(0)
-    } finally {
-      process.chdir(previousCwd)
-    }
-
-    const messages = getStringMessages(consoleLogSpy.mock.calls)
-
     expect(
-      messages.some((message) => message.includes('Dry run complete')),
-    ).toBe(true)
+      runCliIn(fixture, [], {
+        runner: runnerReturning('ROUTES\n'),
+        dryRun: true,
+      }),
+    ).toBe(0)
 
-    const backupDir = fixture.resolve('app', 'old-routes')
-    expect(fs.existsSync(backupDir)).toBe(false)
+    expect(getStringMessages(consoleLogSpy.mock.calls)).toContainEqual(
+      expect.stringContaining('Dry run complete'),
+    )
+    expect(fs.existsSync(fixture.resolve('app', 'old-routes'))).toBe(false)
     expect(fs.existsSync(fixture.sourceDir)).toBe(true)
     expect(fs.existsSync(fixture.resolve('app', 'new-routes'))).toBe(true)
+  })
+})
+
+describe('normalizeSnapshot', () => {
+  const routes = (...lines: string[]) =>
+    `<Routes>\n  <Route file="root.tsx">\n${lines.map((line) => `    ${line}\n`).join('')}  </Route>\n</Routes>\n`
+
+  it.each([
+    [
+      'folder routes (route.tsx) and flat files',
+      routes(
+        '<Route file="routes/demo+/about/route.tsx" />',
+        '<Route file="routes/demo+/_index/route.tsx" index />',
+      ),
+      routes(
+        '<Route file="routes/demo/about.tsx" />',
+        '<Route file="routes/demo/_index.tsx" index />',
+      ),
+    ],
+    [
+      'parent routes and promoted _layout files',
+      routes(
+        '<Route file="routes/settings/profile.tsx">',
+        '  <Route file="routes/settings/profile.index.tsx" index />',
+        '  <Route file="routes/settings/profile.two-factor.tsx" />',
+        '  <Route file="routes/settings/profile.two-factor.index.tsx" index />',
+        '</Route>',
+      ),
+      routes(
+        '<Route file="routes/settings/profile/_layout.tsx">',
+        '  <Route file="routes/settings/profile/index.tsx" index />',
+        '  <Route file="routes/settings/profile.two-factor/_layout.tsx">',
+        '    <Route file="routes/settings/profile.two-factor/index.tsx" index />',
+        '  </Route>',
+        '</Route>',
+      ),
+    ],
+    [
+      'trailing underscore folders and dot notation',
+      routes('<Route file="routes/users/$username_.note-editor.tsx" />'),
+      routes('<Route file="routes/users/$username_/_note-editor.tsx" />'),
+    ],
+  ])('treats %s as equivalent', (_name, before, after) => {
+    expect(normalizeSnapshot(before)).toBe(normalizeSnapshot(after))
+  })
+
+  it('renders a line diff for mismatched snapshots', () => {
+    const diff = diffSnapshots(
+      normalizeSnapshot(MISMATCHED_SNAPSHOTS[0]),
+      normalizeSnapshot(MISMATCHED_SNAPSHOTS[1]),
+    )
+    expect(diff).toContain('-file=routes/foo.tsx')
+    expect(diff).toContain('+file=routes/bar.tsx')
   })
 })

@@ -1,5 +1,4 @@
 import path from 'node:path'
-import type { RouteManifest } from './route-definition'
 
 function cleanLegacySegment(segment: string, dropTrailingPlus = true): string {
   const withoutPlus = dropTrailingPlus ? segment.replace(/\+$/g, '') : segment
@@ -10,26 +9,17 @@ function cleanLegacySegment(segment: string, dropTrailingPlus = true): string {
 }
 
 export function convertToRoute(
-  routes: RouteManifest,
   sourceDir: string,
   id: string,
-  parentId: string,
+  hasChildren: boolean,
 ) {
-  let routeId = id.substring(sourceDir.length + 1)
-  parentId =
-    parentId === 'root' ? parentId : parentId.substring(sourceDir.length + 1)
-
+  const routeId = id.substring(sourceDir.length + 1)
   const segments = routeId.split('/')
   const normalizedSegments = segments.map((segment, index) =>
     cleanLegacySegment(segment, index < segments.length - 1),
   )
-  let flat = normalizedSegments.join('/')
-
-  if (Object.values(routes).some((route) => route.parentId === id)) {
-    flat = flat + '/_layout'
-  }
-
-  return flat
+  const flat = normalizedSegments.join('/')
+  return hasChildren ? `${flat}/_layout` : flat
 }
 
 export function convertColocatedPath(file: string): string {

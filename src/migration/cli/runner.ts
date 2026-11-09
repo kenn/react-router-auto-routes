@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -17,77 +17,51 @@ const TEMP_PREFIX = 'react-router-auto-routes-'
 
 export function defaultRunner(): CommandResult {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), TEMP_PREFIX))
-  const stdoutPath = path.join(tempDir, 'stdout.txt')
-
-  let stdoutFd: number | null = null
-  let result: ReturnType<typeof spawnSync> | null = null
-  let extraError: Error | undefined
+  const result = runRoutesCommand(path.join(tempDir, 'stdout.txt'))
 
   try {
-    stdoutFd = fs.openSync(stdoutPath, 'w')
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  } catch (cleanupError) {
+    // Report cleanup failures without hiding an earlier error.
+    result.error ??= toError(cleanupError)
+  }
+
+  return result
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error))
+}
+
+function runRoutesCommand(stdoutPath: string): CommandResult {
+  try {
     // Keep stdout out of spawnSync's in-memory buffer: large route manifests
     // can otherwise exceed maxBuffer before the migration can compare them.
-    result = spawnSync('npx', ['react-router', 'routes'], {
-      encoding: 'utf8',
-      maxBuffer: 50 * 1024 * 1024, // 50MB buffer for stderr
-      stdio: ['ignore', stdoutFd, 'pipe'],
-    })
-  } catch (error) {
-    extraError = error instanceof Error ? error : new Error(String(error))
-  } finally {
-    if (stdoutFd !== null) {
-      try {
-        fs.closeSync(stdoutFd)
-      } catch (closeError) {
-        if (!extraError && closeError instanceof Error) {
-          extraError = closeError
-        }
-      }
-    }
-  }
-
-  let stdout = ''
-  try {
-    if (fs.existsSync(stdoutPath)) {
-      stdout = fs.readFileSync(stdoutPath, 'utf8')
-    }
-  } catch (readError) {
-    if (!extraError && readError instanceof Error) {
-      extraError = readError
-    }
-  } finally {
+    const stdoutFd = fs.openSync(stdoutPath, 'w')
+    let result: SpawnSyncReturns<string>
     try {
-      fs.rmSync(tempDir, { recursive: true, force: true })
-    } catch (cleanupError) {
-      if (!extraError && cleanupError instanceof Error) {
-        extraError = cleanupError
-      }
+      result = spawnSync('npx', ['react-router', 'routes'], {
+        encoding: 'utf8',
+        maxBuffer: 50 * 1024 * 1024, // 50MB buffer for stderr
+        stdio: ['ignore', stdoutFd, 'pipe'],
+      })
+    } finally {
+      fs.closeSync(stdoutFd)
     }
-  }
 
-  if (result === null) {
+    return {
+      status: result.status ?? 1,
+      stdout: fs.readFileSync(stdoutPath, 'utf8'),
+      stderr: result.stderr ?? '',
+      error: result.error,
+    }
+  } catch (error) {
     return {
       status: 1,
-      stdout,
+      stdout: '',
       stderr: '',
-      error: extraError,
+      error: toError(error),
     }
-  }
-
-  const stderr = (() => {
-    const value = result.stderr
-    if (value === undefined || value === null) {
-      return ''
-    }
-
-    return typeof value === 'string' ? value : value.toString('utf8')
-  })()
-
-  return {
-    status: result.status ?? 1,
-    stdout,
-    stderr,
-    error: extraError ?? result.error ?? undefined,
   }
 }
 

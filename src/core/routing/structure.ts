@@ -1,5 +1,6 @@
 import { RouteConfig, RouteInfo } from '../types'
-import { ROOT_PARENT } from './constants'
+
+const ROOT_PARENT = 'root'
 
 function isLayoutRoute(route: RouteInfo): boolean {
   const fileName = route.file.split('/').pop() ?? ''
@@ -8,17 +9,12 @@ function isLayoutRoute(route: RouteInfo): boolean {
   return normalized === '_layout' || normalized.endsWith('._layout')
 }
 
-function isParentCandidate(route: RouteInfo): boolean {
-  return isLayoutRoute(route)
-}
-
 const ROUTE_PRIORITY = 2
 const LAYOUT_PRIORITY = 3
 const ROUTE_DIR_PRIORITY = 4
 
 function parentScore(route: RouteInfo): number {
-  const normalizedFile = route.file.replace(/\\/g, '/')
-  if (normalizedFile.includes('/route/route.')) {
+  if (route.file.includes('/route/route.')) {
     return ROUTE_DIR_PRIORITY
   }
 
@@ -117,105 +113,69 @@ function sortForAssembly(routes: readonly RouteInfo[]): RouteInfo[] {
 }
 
 export function buildRouteTree(routes: readonly RouteInfo[]): RouteConfig[] {
-  const sortedRoutes = sortForAssembly(routes)
   const configMap = new Map<string, RouteConfig>()
   const absolutePaths = new Map<string, string | undefined>()
-  const parentLookup = new Map<string, RouteInfo>()
+  // Layout routes keyed by mount + segments; children look up parents here.
+  const layouts = new Map<string, RouteInfo>()
   const roots: RouteConfig[] = []
 
   const resolveParentId = (route: RouteInfo): string => {
-    let parentId: string | undefined
+    // Index routes and segment-less routes may nest under a layout with the
+    // exact same segments; everything else looks at strict ancestors.
+    const start =
+      route.index || route.segments.length === 0
+        ? route.segments.length
+        : route.segments.length - 1
 
-    if (route.index) {
-      parentId = parentLookup.get(keyFor(route.mountPath, route.segments))?.id
-    }
-
-    if (!parentId) {
-      for (let length = route.segments.length - 1; length >= 0; length--) {
-        const candidate = parentLookup.get(
-          keyFor(route.mountPath, route.segments.slice(0, length)),
-        )
-        if (candidate && candidate.id !== route.id) {
-          parentId = candidate.id
-          break
-        }
-      }
-    }
-
-    if (!parentId && route.segments.length === 0) {
-      const candidate = parentLookup.get(keyFor(route.mountPath, []))
+    for (let length = start; length >= 0; length--) {
+      const candidate = layouts.get(
+        keyFor(route.mountPath, route.segments.slice(0, length)),
+      )
       if (candidate && candidate.id !== route.id) {
-        parentId = candidate.id
+        return candidate.id
       }
     }
 
-    return parentId ?? ROOT_PARENT
+    return ROOT_PARENT
   }
 
-  for (const route of sortedRoutes) {
+  for (const route of sortForAssembly(routes)) {
     const parentId = resolveParentId(route)
-    const parentPath =
-      parentId === ROOT_PARENT ? '/' : absolutePaths.get(parentId)
+    const parentConfig = configMap.get(parentId)
 
-    const config: RouteConfig = {
-      id: route.id,
-      file: route.file,
-    }
-
+    const config: RouteConfig = { id: route.id, file: route.file }
     const relativePath = resolveRelativePath(
       route,
-      parentPath === '/' ? undefined : parentPath,
+      parentConfig ? absolutePaths.get(parentId) : undefined,
     )
     if (relativePath !== undefined) {
       config.path = relativePath
     }
-
     if (route.index) {
       config.index = true
     }
 
-    if (!route.index && isParentCandidate(route)) {
+    if (!route.index && isLayoutRoute(route)) {
       const key = keyFor(route.mountPath, route.segments)
-      const current = parentLookup.get(key)
-      const score = parentScore(route)
-      if (!current) {
-        parentLookup.set(key, route)
-      } else {
-        const currentScore = parentScore(current)
-        if (
-          score > currentScore ||
-          (score === currentScore && route.id < current.id)
-        ) {
-          parentLookup.set(key, route)
-        }
+      // Competing layouts for the same segments: higher score wins, then id.
+      const current = layouts.get(key)
+      const scoreDiff = current ? parentScore(route) - parentScore(current) : 1
+      if (scoreDiff > 0 || (scoreDiff === 0 && route.id < current!.id)) {
+        layouts.set(key, route)
       }
     }
 
-    if (parentId === ROOT_PARENT) {
+    if (parentConfig) {
+      if (parentConfig.index) {
+        throw new Error(
+          `Child routes are not allowed in index routes. Please remove child routes of ${parentConfig.id}`,
+        )
+      }
+      ;(parentConfig.children ??= []).push(config)
+    } else {
       roots.push(config)
-      configMap.set(route.id, config)
-      absolutePaths.set(route.id, route.path)
-      continue
     }
 
-    const parentConfig = configMap.get(parentId)
-    if (!parentConfig) {
-      roots.push(config)
-      configMap.set(route.id, config)
-      absolutePaths.set(route.id, route.path)
-      continue
-    }
-
-    if (parentConfig.index) {
-      throw new Error(
-        `Child routes are not allowed in index routes. Please remove child routes of ${parentConfig.id}`,
-      )
-    }
-
-    if (!parentConfig.children) {
-      parentConfig.children = []
-    }
-    parentConfig.children.push(config)
     configMap.set(route.id, config)
     absolutePaths.set(route.id, route.path)
   }

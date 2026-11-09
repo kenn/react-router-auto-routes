@@ -1,10 +1,9 @@
 import * as path from 'path'
-import { getRouteRegex, isRouteModuleFile } from '../src/core/routing/files'
 import {
   createRoutesFromFiles,
-  ExpectedValues,
+  expectRoutes,
+  filesByRoutesDir,
   flattenRoutesById,
-  generateFlexRoutesAndVerifyResultWithExpected,
 } from './utils/route-test-helpers'
 
 describe('routing options', () => {
@@ -32,44 +31,14 @@ describe('routing options', () => {
   })
 
   describe('optional segments', () => {
-    const optionalSegmentCases = [
-      {
-        name: 'should generate correct paths with optional syntax',
-        files: ['parent.(child).tsx'],
-        expectedId: 'routes/parent.(child)',
-        expectedPath: 'parent/child?',
-      },
-      {
-        name: 'should generate correct paths with folders',
-        files: ['_folder.parent.(child)/index.tsx'],
-        expectedId: 'routes/_folder.parent.(child)/index',
-        expectedPath: 'parent/child?',
-      },
-      {
-        name: 'should generate correct paths with nested folder routes',
-        files: ['parent/(child)/route.tsx'],
-        expectedId: 'routes/parent/(child)/route',
-        expectedPath: 'parent/child?',
-      },
-      {
-        name: 'should generate correct paths with optional syntax and dynamic param',
-        files: ['parent.($child).tsx'],
-        expectedId: 'routes/parent.($child)',
-        expectedPath: 'parent/:child?',
-      },
-    ] as const
-
-    optionalSegmentCases.forEach(
-      ({ name, files, expectedId, expectedPath }) => {
-        it(name, () => {
-          const routes = createRoutesFromFiles([...files])
-          const manifest = flattenRoutesById(routes)
-
-          expect(manifest[expectedId]).toBeDefined()
-          expect(manifest[expectedId]?.path).toBe(expectedPath)
-        })
-      },
-    )
+    it('generates optional paths for flat files, folders, and params', () => {
+      expectRoutes([
+        ['parent.(child).tsx', 'root', 'parent/child?'],
+        ['_folder.parent.(child)/index.tsx', 'root', 'parent/child?', 'index'],
+        ['parent/(child)/route.tsx', 'root', 'parent/child?'],
+        ['parent.($child).tsx', 'root', 'parent/:child?'],
+      ])
+    })
   })
 
   describe('routesDir normalization', () => {
@@ -136,23 +105,11 @@ describe('routing options', () => {
           '/api': 'api/routes',
           '/docs': 'packages/docs/routes',
         },
-        visitFiles: (dir, visitor) => {
-          const normalized = dir.replace(/\\/g, '/')
-
-          if (normalized.endsWith('app/routes')) {
-            visitor('dashboard.tsx')
-            return
-          }
-
-          if (normalized.endsWith('packages/docs/routes')) {
-            visitor('overview.tsx')
-            return
-          }
-
-          if (normalized.endsWith('api/routes')) {
-            visitor('index.tsx')
-          }
-        },
+        visitFiles: filesByRoutesDir({
+          'app/routes': ['dashboard.tsx'],
+          'packages/docs/routes': ['overview.tsx'],
+          'api/routes': ['index.tsx'],
+        }),
       })
 
       const manifest = flattenRoutesById(routes)
@@ -171,25 +128,15 @@ describe('routing options', () => {
           '/api': 'api/routes',
           '/docs': 'packages/docs/routes',
         },
-        visitFiles: (dir, visitor) => {
-          const normalized = dir.replace(/\\/g, '/')
-
-          if (normalized.endsWith('app/routes')) {
-            visitor('_analytics.tsx')
-            return
-          }
-
-          if (normalized.endsWith('packages/docs/routes')) {
-            visitor('overview.tsx')
-            return
-          }
-
-          if (normalized.endsWith('api/routes')) {
-            visitor('index.tsx')
-            visitor('users/_layout.tsx')
-            visitor('users/settings.tsx')
-          }
-        },
+        visitFiles: filesByRoutesDir({
+          'app/routes': ['_analytics.tsx'],
+          'packages/docs/routes': ['overview.tsx'],
+          'api/routes': [
+            'index.tsx',
+            'users/_layout.tsx',
+            'users/settings.tsx',
+          ],
+        }),
       })
 
       const manifest = flattenRoutesById(routes)
@@ -212,19 +159,10 @@ describe('routing options', () => {
           '/': 'app/routes',
           '/shop': 'shop/routes',
         },
-        visitFiles: (dir, visitor) => {
-          const normalized = dir.replace(/\\/g, '/')
-
-          if (normalized.endsWith('app/routes')) {
-            visitor('_auth/_layout.tsx')
-            visitor('_auth/login.tsx')
-            return
-          }
-
-          if (normalized.endsWith('shop/routes')) {
-            visitor('index.tsx')
-          }
-        },
+        visitFiles: filesByRoutesDir({
+          'app/routes': ['_auth/_layout.tsx', '_auth/login.tsx'],
+          'shop/routes': ['index.tsx'],
+        }),
       })
 
       const manifest = flattenRoutesById(routes)
@@ -327,48 +265,124 @@ describe('routing options', () => {
 })
 
 describe('special character escaping', () => {
-  it('should escape underscore', () => {
-    const routesWithExpectedValues: Record<string, ExpectedValues> = {
-      '[__].tsx': {
-        id: 'routes/[__]',
-        path: '__',
-        parentId: 'root',
-      },
-      '[_].tsx': {
-        id: 'routes/[_]',
-        path: '_',
-        parentId: 'root',
-      },
-      '_layout.[___]/index.tsx': {
-        id: 'routes/_layout.[___]/index',
-        path: '___',
-        parentId: 'root',
-      },
-      '_layout.parent.[__]/index.tsx': {
-        id: 'routes/_layout.parent.[__]/index',
-        path: 'parent/__',
-        parentId: 'root',
-      },
-    }
-
-    generateFlexRoutesAndVerifyResultWithExpected(routesWithExpectedValues)
+  it('escapes underscores', () => {
+    expectRoutes([
+      ['[__].tsx', 'root', '__'],
+      ['[_].tsx', 'root', '_'],
+      ['_layout.[___]/index.tsx', 'root', '___', 'index'],
+      ['_layout.parent.[__]/index.tsx', 'root', 'parent/__', 'index'],
+    ])
   })
 })
 
-describe('route detection helpers', () => {
-  it('preserves custom regex flags when substituting the colocation placeholder', () => {
-    const colocationChar = '+' as const
-    const baseRegex = new RegExp(
-      '((\\${colocationChar}[\\/\\\\][^\\/\\\\:?*]+)|[\\/\\\\]((index|route)|(_[^\\/\\\\:?*]+)|([^\\/\\\\:?*]+\\.route)))\\.(TSX)$',
-      'i',
+describe('route detection boundaries', () => {
+  it('excludes nested files whose basename contains reserved characters', () => {
+    const routes = createRoutesFromFiles([
+      'admin/page?.tsx',
+      'admin/page.tsx',
+      'page?.tsx',
+    ])
+
+    expect(routes.map((route) => route.id)).toEqual([
+      'routes/page?',
+      'routes/admin/page',
+    ])
+  })
+
+  it('applies a custom colocation char without a custom regex', () => {
+    const routes = createRoutesFromFiles(
+      ['admin/~/x.tsx', 'admin/~c/y.tsx', 'admin/page.tsx'],
+      { colocationChar: '~' },
     )
 
-    const routeRegex = getRouteRegex(baseRegex, colocationChar)
+    expect(routes.map((route) => route.id)).toEqual(['routes/admin/page'])
+  })
 
-    expect(routeRegex.flags).toContain('i')
-    expect(routeRegex.test('admin/file.route.TSX')).toBe(true)
-    expect(
-      isRouteModuleFile('admin/file.route.TSX', colocationChar, routeRegex),
-    ).toBe(true)
+  it('applies a custom routeRegex to backslash-separated nested files', () => {
+    const routes = createRoutesFromFiles(
+      ['admin\\page.tsx', 'admin\\a.route.tsx'],
+      {
+        routeRegex: /\.route\.tsx$/,
+      },
+    )
+
+    expect(routes.map((route) => route.id)).toEqual(['routes/admin/a.route'])
+  })
+
+  it('honors flags on a custom routeRegex', () => {
+    const routes = createRoutesFromFiles(['admin/A.TSX', 'admin/b.tsx'], {
+      routeRegex: /\.tsx$/i,
+    })
+
+    expect(routes.map((route) => route.id)).toEqual([
+      'routes/admin/A',
+      'routes/admin/b',
+    ])
+  })
+
+  it('tests every file from the start with a global routeRegex', () => {
+    const routeRegex = /\.tsx$/g
+    const files = ['admin/a.tsx', 'admin/b.tsx']
+
+    const first = createRoutesFromFiles(files, { routeRegex })
+    const second = createRoutesFromFiles(files, { routeRegex })
+
+    expect(second).toEqual(first)
+    expect(second.map((route) => route.id)).toEqual([
+      'routes/admin/a',
+      'routes/admin/b',
+    ])
+    expect(routeRegex.lastIndex).toBe(0)
+  })
+
+  it('keeps a sticky routeRegex anchored to the start of each path', () => {
+    const routeRegex = /admin/y
+    const files = ['admin/a.tsx', 'other/admin.tsx', 'admin/b.tsx']
+
+    const first = createRoutesFromFiles(files, { routeRegex })
+    const second = createRoutesFromFiles(files, { routeRegex })
+
+    expect(second).toEqual(first)
+    expect(second.map((route) => route.id)).toEqual([
+      'routes/admin/a',
+      'routes/admin/b',
+    ])
+  })
+
+  it('rejects files that a custom visitFiles reports outside routesDir', () => {
+    expect(() => createRoutesFromFiles(['../escape.tsx'])).toThrow(
+      "Route id 'escape' does not start with expected prefix 'routes/'",
+    )
+  })
+
+  it('keeps a stable output order for siblings', () => {
+    const routes = createRoutesFromFiles([
+      'users/route/route.tsx',
+      'users/_layout.tsx',
+      'users.tsx',
+      'users/$id.tsx',
+      'users/index.tsx',
+      'users/(opt).tsx',
+      'users/$.tsx',
+      'users/new.tsx',
+      '_auth/_layout.tsx',
+      '_auth/login.tsx',
+      'index.tsx',
+    ])
+
+    expect(routes.map((route) => route.id)).toEqual([
+      'routes/index',
+      'routes/users/route/route',
+      'routes/_auth/_layout',
+      'routes/users/_layout',
+      'routes/users',
+    ])
+    expect(routes[3].children?.map((route) => route.id)).toEqual([
+      'routes/users/index',
+      'routes/users/new',
+      'routes/users/(opt)',
+      'routes/users/$id',
+      'routes/users/$',
+    ])
   })
 })

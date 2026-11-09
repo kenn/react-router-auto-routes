@@ -1,14 +1,13 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { visitFiles } from '../src/fs/visit-files'
-import { defaultVisitFiles } from '../src/utils'
+import { visitFiles } from '../src/utils'
 
 describe('visitFiles', () => {
   const symlinkFixture = path.resolve(__dirname, 'fixtures/symlinks')
 
   it('follows symlinks by default', () => {
     const files: string[] = []
-    defaultVisitFiles(symlinkFixture, (file) => files.push(file))
+    visitFiles(symlinkFixture, (file) => files.push(file))
 
     // Should see both routes/admin.tsx AND routes-link/admin.tsx
     expect(files).toContain('routes/admin.tsx')
