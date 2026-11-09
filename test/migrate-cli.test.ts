@@ -774,6 +774,14 @@ describe('runCli', () => {
 
     expect(runCliIn(fixture, ['app/routes'], { runner })).toBe(1)
     expectRolledBack(fixture, entryPath)
+    // Stopped by the ambiguity check, not by the ordinary route diff.
+    const errors = getStringMessages(consoleErrorSpy.mock.calls)
+    expect(errors).toContainEqual(
+      expect.stringContaining('routes/foo.tsx, routes/foo/_layout.tsx'),
+    )
+    expect(errors).not.toContainEqual(
+      expect.stringContaining('Route output changed'),
+    )
   })
 
   it('reverts routes and the legacy entry when route generation differs', () => {
