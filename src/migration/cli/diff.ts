@@ -1,37 +1,67 @@
 import { normalizeSnapshotRouteFilePath } from '../normalizers'
 
+/**
+ * Reduces `react-router routes` output to one line per route that ignores
+ * convention-only file renames but keeps what users observe: the full URL and
+ * the (normalized) parent route that renders it.
+ */
 export function normalizeSnapshot(snapshot: string): string {
   const normalizedRoutes: string[] = []
+  // Open <Route> elements; `file` is normalized, `url` is the absolute path.
+  const ancestors: Array<{ file: string; url: string }> = []
 
-  const lines = snapshot.replace(/\r\n/g, '\n').split('\n')
-  for (const line of lines) {
-    const routeMatch = line.match(/<Route\b([^>]*)>/)
+  for (const line of snapshot.replace(/\r\n/g, '\n').split('\n')) {
+    if (/<\/Route>/.test(line)) {
+      ancestors.pop()
+      continue
+    }
+
+    const routeMatch = line.match(/<Route\b([^>]*?)(\/?)>/)
     if (!routeMatch) {
       continue
     }
 
-    const attributes = routeMatch[1]
-    const fileMatch = attributes.match(/file="([^"]+)"/)
+    const [, attributes, selfClosing] = routeMatch
+    const parent = ancestors.at(-1)
+    const routePath = attributes.match(/\bpath="([^"]*)"/)?.[1]
+    const url = joinUrl(parent?.url ?? '', routePath)
+    const fileMatch = attributes.match(/\bfile="([^"]+)"/)
+    const file = fileMatch ? normalizeSnapshotRouteFilePath(fileMatch[1]) : ''
+
+    if (!selfClosing) {
+      ancestors.push({ file, url })
+    }
+
     if (!fileMatch) {
       continue
     }
 
-    const normalizedFile = normalizeSnapshotRouteFilePath(fileMatch[1])
     const isIndex = /(^|\s)index(\s|$)/.test(attributes)
-    const caseSensitiveMatch = attributes.match(
-      /caseSensitive="?(true|false)"?/,
+    const caseSensitive =
+      attributes.match(/caseSensitive="?(true|false)"?/)?.[1] === 'true'
+    normalizedRoutes.push(
+      [
+        `file=${file}`,
+        `parent=${parent?.file ?? ''}`,
+        `path=${url || '/'}`,
+        `index=${isIndex ? '1' : '0'}`,
+        `caseSensitive=${caseSensitive ? '1' : '0'}`,
+      ].join('|'),
     )
-    const caseSensitive = caseSensitiveMatch?.[1] === 'true'
-    const parts = [
-      `file=${normalizedFile}`,
-      `index=${isIndex ? '1' : '0'}`,
-      `caseSensitive=${caseSensitive ? '1' : '0'}`,
-    ]
-    normalizedRoutes.push(parts.join('|'))
   }
 
   normalizedRoutes.sort()
   return normalizedRoutes.join('\n')
+}
+
+function joinUrl(parentUrl: string, routePath: string | undefined): string {
+  if (!routePath) {
+    return parentUrl
+  }
+  if (routePath.startsWith('/')) {
+    return routePath.replace(/\/+$/, '')
+  }
+  return `${parentUrl}/${routePath}`.replace(/\/+$/, '')
 }
 
 type DiffEntry = { type: 'same' | 'remove' | 'add'; line: string }

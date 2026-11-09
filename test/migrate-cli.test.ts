@@ -799,18 +799,13 @@ describe('normalizeSnapshot', () => {
     [
       'parent routes and promoted _layout files',
       routes(
-        '<Route file="routes/settings/profile.tsx">',
+        '<Route path="settings/profile" file="routes/settings/profile.tsx">',
         '  <Route file="routes/settings/profile.index.tsx" index />',
-        '  <Route file="routes/settings/profile.two-factor.tsx" />',
-        '  <Route file="routes/settings/profile.two-factor.index.tsx" index />',
         '</Route>',
       ),
       routes(
-        '<Route file="routes/settings/profile/_layout.tsx">',
+        '<Route path="settings/profile" file="routes/settings/profile/_layout.tsx">',
         '  <Route file="routes/settings/profile/index.tsx" index />',
-        '  <Route file="routes/settings/profile.two-factor/_layout.tsx">',
-        '    <Route file="routes/settings/profile.two-factor/index.tsx" index />',
-        '  </Route>',
         '</Route>',
       ),
     ],
@@ -821,6 +816,70 @@ describe('normalizeSnapshot', () => {
     ],
   ])('treats %s as equivalent', (_name, before, after) => {
     expect(normalizeSnapshot(before)).toBe(normalizeSnapshot(after))
+  })
+
+  it.each([
+    [
+      'a URL change for the same file',
+      routes('<Route path="old" file="routes/about.tsx" />'),
+      routes('<Route path="new" file="routes/about.tsx" />'),
+    ],
+    [
+      'the same URL split differently across a new parent',
+      routes(
+        '<Route path="settings" file="routes/settings.tsx" />',
+        '<Route path="settings/profile" file="routes/settings.profile.tsx" />',
+      ),
+      routes(
+        '<Route path="settings" file="routes/settings.tsx">',
+        '  <Route path="profile" file="routes/settings.profile.tsx" />',
+        '</Route>',
+      ),
+    ],
+    [
+      // Real legacy vs migrated output: `profile.two-factor.tsx` is a root
+      // route in the folder convention, but its migrated `_layout` nests
+      // under `profile/_layout.tsx`.
+      'a dot-named sibling the migration nests under a promoted layout',
+      routes(
+        '<Route path="settings/profile" file="routes/settings/profile.tsx" />',
+        '<Route path="settings/profile/two-factor" file="routes/settings/profile.two-factor.tsx" />',
+      ),
+      routes(
+        '<Route path="settings/profile" file="routes/settings/profile/_layout.tsx">',
+        '  <Route path="two-factor" file="routes/settings/profile.two-factor/_layout.tsx" />',
+        '</Route>',
+      ),
+    ],
+    [
+      'a route moved out of its layout',
+      routes(
+        '<Route file="routes/_auth.tsx">',
+        '  <Route path="login" file="routes/_auth.login.tsx" />',
+        '</Route>',
+      ),
+      routes(
+        '<Route file="routes/_auth.tsx" />',
+        '<Route path="login" file="routes/_auth.login.tsx" />',
+      ),
+    ],
+  ])('treats %s as a mismatch', (_name, before, after) => {
+    expect(normalizeSnapshot(before)).not.toBe(normalizeSnapshot(after))
+  })
+
+  it('keeps the full URL and parent in each normalized line', () => {
+    expect(
+      normalizeSnapshot(
+        routes(
+          '<Route path="settings" file="routes/settings/_layout.tsx">',
+          '  <Route path="profile" file="routes/settings/profile.tsx" />',
+          '  <Route index file="routes/settings/index.tsx" />',
+          '</Route>',
+        ),
+      ).split('\n'),
+    ).toContain(
+      'file=routes/settings/profile.tsx|parent=routes/settings.tsx|path=/settings/profile|index=0|caseSensitive=0',
+    )
   })
 
   it('renders a line diff for mismatched snapshots', () => {
