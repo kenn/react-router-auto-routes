@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { toPosixPath } from '../../utils'
 import {
   defaultTargetDir,
   pathRelative,
@@ -8,7 +9,7 @@ import {
   swapRoutes,
 } from '../fs-helpers'
 import { logError, logInfo, logWarn } from '../logger'
-import { migrate, type MigrateOptions } from '../migrate'
+import { migrate } from '../migrate'
 import { diffSnapshots, normalizeSnapshot } from './diff'
 import type { RewriteLegacyRouteEntryResult } from './route-entry'
 import { detectLegacyRouteEntry, rewriteLegacyRouteEntry } from './route-entry'
@@ -45,7 +46,6 @@ type MigrationPaths = {
 
 type MigrationContext = MigrationPaths & {
   runner: CommandRunner
-  migrateOptions: MigrateOptions
   dryRun: boolean
 }
 
@@ -85,29 +85,35 @@ function buildMigrationPaths(args: CliArguments): MigrationPaths {
 }
 
 function validateMigrationPaths(paths: MigrationPaths): boolean {
-  const {
-    sourceArg,
-    targetArg,
-    resolvedSource,
-    resolvedTarget,
-    resolvedBackup,
-  } = paths
+  const { sourceArg, resolvedSource, resolvedTarget, resolvedBackup } = paths
+
+  if (!fs.existsSync(resolvedSource)) {
+    logError(`source directory '${sourceArg}' does not exist`)
+    return false
+  }
+
+  // The target is deleted and the source/backup are renamed, so none of them
+  // may overlap — neither as spelled (the entries being moved) nor on disk
+  // (symlinks, case-insensitive names).
+  const targetVsSource =
+    overlap(resolvedTarget, resolvedSource) ??
+    (sourceTraversesTarget(resolvedSource, resolvedTarget) ? 'contains' : null)
+  const messages: Record<Overlap, string> = {
+    same: 'source and target directories must be different',
+    inside: 'target directory cannot be inside the source directory',
+    contains: 'source directory cannot be inside the target directory',
+  }
+
   const checks: Array<[boolean, () => string]> = [
+    [targetVsSource !== null, () => messages[targetVsSource!]],
     [
-      sourceArg === targetArg,
-      () => 'source and target directories must be different',
+      overlap(resolvedSource, resolvedBackup) !== null,
+      () => 'source directory cannot overlap the backup directory old-routes',
     ],
     [
-      !fs.existsSync(sourceArg),
-      () => `source directory '${sourceArg}' does not exist`,
-    ],
-    [
-      resolvedSource === resolvedBackup,
-      () => 'source directory cannot be named old-routes',
-    ],
-    [
-      resolvedTarget === resolvedBackup,
-      () => 'target directory cannot be the backup directory old-routes',
+      // The backup name is reserved regardless of case.
+      overlap(resolvedTarget, resolvedBackup, { ignoreCase: true }) !== null,
+      () => 'target directory cannot overlap the backup directory old-routes',
     ],
     [
       fs.existsSync(resolvedBackup),
@@ -125,6 +131,92 @@ function validateMigrationPaths(paths: MigrationPaths): boolean {
   }
 
   return true
+}
+
+/** How `a` relates to `b`: the same entry, inside it, or containing it. */
+type Overlap = 'same' | 'inside' | 'contains'
+
+function overlap(
+  a: string,
+  b: string,
+  { ignoreCase = false } = {},
+): Overlap | null {
+  return (
+    lexicalOverlap(a, b, ignoreCase) ??
+    lexicalOverlap(realPathOf(a), realPathOf(b), ignoreCase)
+  )
+}
+
+function lexicalOverlap(
+  a: string,
+  b: string,
+  ignoreCase: boolean,
+): Overlap | null {
+  const left = ignoreCase ? a.toLowerCase() : a
+  const right = ignoreCase ? b.toLowerCase() : b
+  if (path.relative(right, left) === '') {
+    return 'same'
+  }
+  if (isDescendant(path.relative(right, left))) {
+    return 'inside'
+  }
+  return isDescendant(path.relative(left, right)) ? 'contains' : null
+}
+
+function isDescendant(relative: string): boolean {
+  return relative.split(path.sep)[0] !== '..' && !path.isAbsolute(relative)
+}
+
+/** Would removing the target entry break the path used to reach the source? */
+function sourceTraversesTarget(source: string, target: string): boolean {
+  const removed = fs.lstatSync(target, { bigint: true, throwIfNoEntry: false })
+  if (!removed) return false
+
+  const pending = segmentsBelowRoot(source)
+  let current = path.parse(source).root
+  let hops = 0
+  while (pending.length > 0) {
+    const entry = path.join(current, pending.shift()!)
+    const stat = fs.lstatSync(entry, { bigint: true })
+    if (stat.dev === removed.dev && stat.ino === removed.ino) return true
+
+    if (!stat.isSymbolicLink()) {
+      current = entry
+      continue
+    }
+
+    // Fail closed if a changing link chain cannot be fully checked.
+    if (++hops > 64) return true
+    const link = fs.readlinkSync(entry)
+    const root = path.parse(link).root
+    if (root) current = path.resolve(current, root)
+    // Keep '..' until every preceding component (including links) was visited.
+    pending.unshift(...segmentsBelowRoot(link))
+  }
+  return false
+}
+
+function segmentsBelowRoot(target: string): string[] {
+  const tail = target.slice(path.parse(target).root.length)
+  return tail.split(path.sep === '/' ? '/' : /[\\/]/).filter(Boolean)
+}
+
+/**
+ * Resolves symlinks (and, via the native call, on-disk casing) in the longest
+ * existing prefix of `target`.
+ */
+function realPathOf(target: string): string {
+  const missing: string[] = []
+  let current = target
+  while (!fs.existsSync(current)) {
+    const parent = path.dirname(current)
+    if (parent === current) {
+      break
+    }
+    missing.unshift(path.basename(current))
+    current = parent
+  }
+  return path.join(fs.realpathSync.native(current), ...missing)
 }
 
 export function runCli(argv: string[], options: RunOptions = {}): number {
@@ -145,20 +237,15 @@ export function runCli(argv: string[], options: RunOptions = {}): number {
     return 1
   }
 
-  const runner = options.runner ?? defaultRunner
-  const optionsForMigrate: MigrateOptions = { force: true }
-  const context: MigrationContext = {
-    ...paths,
-    runner,
-    migrateOptions: optionsForMigrate,
-    dryRun: options.dryRun ?? false,
-  }
-
-  if (!ensureCleanGitWorktree(context.resolvedSource)) {
+  if (!ensureCleanGitWorktree(paths.resolvedSource)) {
     return 1
   }
 
-  return runMigrationWorkflow(context)
+  return runMigrationWorkflow({
+    ...paths,
+    runner: options.runner ?? defaultRunner,
+    dryRun: options.dryRun ?? false,
+  })
 }
 
 function runMigrationWorkflow(context: MigrationContext): number {
@@ -169,7 +256,6 @@ function runMigrationWorkflow(context: MigrationContext): number {
     resolvedTarget,
     resolvedBackup,
     runner,
-    migrateOptions,
     dryRun,
   } = context
 
@@ -184,7 +270,7 @@ function runMigrationWorkflow(context: MigrationContext): number {
     if (fs.existsSync(resolvedTarget)) {
       fs.rmSync(resolvedTarget, { recursive: true, force: true })
     }
-    migrate(sourceArg, targetArg, migrateOptions)
+    migrate(sourceArg, targetArg)
   } catch (error) {
     logError(error)
     return 1
@@ -217,7 +303,7 @@ function runMigrationWorkflow(context: MigrationContext): number {
 
     const afterSnapshot = captureRoutesSnapshot(runner, 'after migration')
     if (afterSnapshot === null) {
-      entryRewrite = restoreLegacyEntry(entryPath, entryRewrite)
+      restoreLegacyEntry(entryPath, entryRewrite)
       revertMigration(context, swapped)
       return 1
     }
@@ -232,11 +318,11 @@ function runMigrationWorkflow(context: MigrationContext): number {
 
     logError('❌ Route output changed. Reverting migration.')
     logError(diffSnapshots(beforeNormalized, afterNormalized))
-    entryRewrite = restoreLegacyEntry(entryPath, entryRewrite)
+    restoreLegacyEntry(entryPath, entryRewrite)
     revertMigration(context, swapped)
     return 1
   } catch (error) {
-    entryRewrite = restoreLegacyEntry(entryPath, entryRewrite)
+    restoreLegacyEntry(entryPath, entryRewrite)
     revertMigration(context, swapped)
     logError(error)
     return 1
@@ -246,13 +332,9 @@ function runMigrationWorkflow(context: MigrationContext): number {
 function restoreLegacyEntry(
   entryPath: string | null,
   rewrite: RewriteLegacyRouteEntryResult | null,
-): RewriteLegacyRouteEntryResult | null {
-  if (
-    !rewrite?.updated ||
-    !entryPath ||
-    typeof rewrite.previousContents !== 'string'
-  ) {
-    return null
+): void {
+  if (!entryPath || typeof rewrite?.previousContents !== 'string') {
+    return
   }
 
   try {
@@ -264,8 +346,6 @@ function restoreLegacyEntry(
     )
     logWarn(String(restoreError))
   }
-
-  return null
 }
 
 function revertMigration(context: MigrationContext, swapped: boolean): void {
@@ -321,18 +401,35 @@ function ensureCleanGitWorktree(resolvedSource: string): boolean {
     return false
   }
 
-  const repoRoot = topLevelResult.stdout.trim()
-  const sourceRelative = path.relative(repoRoot, resolvedSource)
+  const repoRoot = fs.realpathSync.native(topLevelResult.stdout.trim())
+  const sourceRelative = path.relative(
+    repoRoot,
+    fs.realpathSync.native(resolvedSource),
+  )
 
-  if (sourceRelative.startsWith('..')) {
+  if (
+    sourceRelative.split(path.sep)[0] === '..' ||
+    path.isAbsolute(sourceRelative)
+  ) {
     logError('Source directory must be inside the git repository.')
     return false
   }
 
-  const status = spawnSync('git', ['status', '--porcelain'], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-  })
+  // Let git filter by the source itself: no parsing of quoted names, renames
+  // or collapsed untracked directories (`?? app/`).
+  const status = spawnSync(
+    'git',
+    [
+      '--literal-pathspecs',
+      'status',
+      '--porcelain=v1',
+      '-z',
+      '--untracked-files=all',
+      '--',
+      sourceRelative || '.',
+    ],
+    { cwd: repoRoot, encoding: 'utf8' },
+  )
 
   if (status.status !== 0) {
     logError(
@@ -341,44 +438,14 @@ function ensureCleanGitWorktree(resolvedSource: string): boolean {
     return false
   }
 
-  const dirtyEntries = status.stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => isWithinSources(line, sourceRelative))
-
-  if (dirtyEntries.length > 0) {
+  if (status.stdout.length > 0) {
     logError(
-      `Working tree must be clean for '${sourceRelative}'. Commit or stash changes affecting this directory and rerun.`,
+      `Working tree must be clean for '${toPosixPath(sourceRelative) || '.'}'. Commit or stash changes affecting this directory and rerun.`,
     )
     return false
   }
 
   return true
-}
-
-function isWithinSources(statusLine: string, sourceRelative: string): boolean {
-  if (!sourceRelative || sourceRelative === '.') {
-    return statusLine.length > 0
-  }
-
-  const indicator = statusLine.slice(0, 3)
-  let remainder = statusLine.slice(3)
-
-  if (indicator.startsWith('R')) {
-    const parts = remainder.split(' -> ')
-    return parts.some((part) => matchesSource(part, sourceRelative))
-  }
-
-  return matchesSource(remainder, sourceRelative)
-}
-
-function matchesSource(pathname: string, sourceRelative: string): boolean {
-  const normalized = pathname.replace(/"/g, '').trim()
-  if (normalized === sourceRelative) {
-    return true
-  }
-  return normalized.startsWith(`${sourceRelative}/`)
 }
 
 function usage(): void {

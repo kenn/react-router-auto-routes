@@ -1,13 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
-import { createRouteId, defaultVisitFiles } from '../utils'
-import { MIGRATION_ROUTE_EXTENSIONS } from './constants'
+import { ROUTE_EXTENSIONS } from '../core/routing/files'
+import { createRouteId, toPosixPath, visitFiles } from '../utils'
 import { isColocatedFile } from './fs-helpers'
-
-const ignoredFilenames = new Set(['.DS_Store'])
-
-export type RouteModuleMap = Record<string, string>
 
 export type ScanRouteModulesOptions = {
   appDirectory: string
@@ -17,7 +13,7 @@ export type ScanRouteModulesOptions = {
 
 export function scanRouteModules(
   options: ScanRouteModulesOptions,
-): RouteModuleMap {
+): Record<string, string> {
   const { appDirectory, routesDirectory, ignoredFilePatterns } = options
 
   const appRoutesDirectory = path.join(appDirectory, routesDirectory)
@@ -25,16 +21,10 @@ export function scanRouteModules(
     throw new Error(`Routes directory not found: ${appRoutesDirectory}`)
   }
 
-  const files: RouteModuleMap = {}
+  const files: Record<string, string> = {}
 
-  defaultVisitFiles(appRoutesDirectory, (file) => {
-    const basename = path.basename(file)
-    if (ignoredFilenames.has(basename)) {
-      return
-    }
-
+  visitFiles(appRoutesDirectory, (file) => {
     if (
-      ignoredFilePatterns.length > 0 &&
       ignoredFilePatterns.some((pattern) =>
         picomatch.isMatch(file, pattern, { dot: true }),
       )
@@ -47,7 +37,7 @@ export function scanRouteModules(
     }
 
     const extension = path.extname(file)
-    if (MIGRATION_ROUTE_EXTENSIONS.includes(extension)) {
+    if (ROUTE_EXTENSIONS.includes(extension)) {
       const relativePath = path.join(routesDirectory, file)
       const basename = path.basename(file, extension)
       // In the folder route convention, `route.tsx` inside a folder means
@@ -58,7 +48,7 @@ export function scanRouteModules(
         // Use directory path directly as route ID — don't use createRouteId
         // here because it strips dot-segments (e.g. `.biography` from
         // `($lang).biography`).
-        routeId = path.dirname(relativePath).split(path.win32.sep).join('/')
+        routeId = toPosixPath(path.dirname(relativePath))
       } else {
         routeId = createRouteId(relativePath)
       }

@@ -1,47 +1,37 @@
 import { getRouteSegments } from '../core/routing/segments'
-import { DOT_INDEX_SUFFIX, DOT_UNDERSCORE_INDEX_SUFFIX } from './constants'
-import {
-  DefineRouteFunction,
-  DefineRoutesFunction,
-  RouteManifest,
-} from './route-definition'
 import { scanRouteModules } from './route-scanner'
 
+const DOT_INDEX_SUFFIX = '.index'
+const DOT_UNDERSCORE_INDEX_SUFFIX = '._index'
+
+export type ConfigRoute = {
+  path?: string
+  index?: boolean
+  id: string
+  parentId: string
+  file: string
+}
+
+export type RouteManifest = Record<string, ConfigRoute>
+
 export type CreateRoutesFromFoldersOptions = {
-  /**
-   * The directory where your app lives. Defaults to `app`.
-   * @default "app"
-   */
+  /** The directory where your app lives. @default "app" */
   appDirectory?: string
-  /**
-   * A list of glob patterns to ignore when looking for route modules.
-   * Defaults to `[]`.
-   */
+  /** Glob patterns to ignore when looking for route modules. */
   ignoredFilePatterns?: string[]
-  /**
-   * The directory where your routes live. Defaults to `routes`.
-   * This is relative to `appDirectory`.
-   * @default "routes"
-   */
+  /** The routes directory, relative to `appDirectory`. @default "routes" */
   routesDirectory?: string
 }
 
 /**
- * Defines routes using the filesystem convention in `app/routes`. The rules are:
- *
- * - Route paths are derived from the file path. A `.` in the filename indicates
- *   a `/` in the URL (a "nested" URL, but no route nesting). A `$` in the
- *   filename indicates a dynamic URL segment.
- * - Subdirectories are used for nested routes.
- *
- * For example, a file named `app/routes/gists/$username.tsx` creates a route
- * with a path of `gists/:username`.
+ * Builds the legacy (remix-flat-routes folder convention) route manifest for
+ * `app/routes`. A `.` in a filename is a URL `/` without nesting, `$` is a
+ * dynamic segment, and subdirectories create nested routes.
  */
 export function createRoutesFromFolders(
-  defineRoutes: DefineRoutesFunction,
   options: CreateRoutesFromFoldersOptions = {},
 ): RouteManifest {
-  let {
+  const {
     appDirectory = 'app',
     ignoredFilePatterns = [],
     routesDirectory = 'routes',
@@ -53,107 +43,100 @@ export function createRoutesFromFolders(
     ignoredFilePatterns,
   })
 
-  let routeIds = Object.keys(files).sort(byLongestFirst)
-  let parentRouteIds = getParentRouteIds(routeIds)
-  let seenRoutes = new Map<string, string>()
+  const routeIds = Object.keys(files).sort(byLongestFirst)
+  const childrenByParent = groupByParent(routeIds)
+  const seenRoutes = new Map<string, string>()
+  const routes: RouteManifest = Object.create(null)
 
-  // Then, recurse through all routes using the public defineRoutes() API
-  function defineNestedRoutes(
-    defineRoute: DefineRouteFunction,
-    parentId?: string,
-  ): void {
-    let childRouteIds = routeIds.filter((id) => {
-      return parentRouteIds[id] === parentId
-    })
-
-    for (let routeId of childRouteIds) {
-      let routePath: string | undefined = createRoutePath(
+  const defineNestedRoutes = (parentId: string | undefined) => {
+    for (const routeId of childrenByParent.get(parentId) ?? []) {
+      const routePath = createRoutePath(
         routeId.slice((parentId || routesDirectory).length + 1),
       )
-
-      let isIndexRoute = isIndexRouteId(routeId)
-      let fullPath = createRoutePath(routeId.slice(routesDirectory.length + 1))
-      let uniqueRouteId = (fullPath || '') + (isIndexRoute ? '?index' : '')
-      let isPathlessLayoutRoute =
-        routeId.split('/').pop()?.startsWith('__') === true
+      const isIndexRoute = isIndexRouteId(routeId)
+      const fullPath = createRoutePath(
+        routeId.slice(routesDirectory.length + 1),
+      )
 
       ensureUniqueRoute(seenRoutes, {
         id: routeId,
         fullPath: fullPath || '/',
-        uniqueKey: uniqueRouteId,
-        isPathlessLayoutRoute,
+        uniqueKey: (fullPath || '') + (isIndexRoute ? '?index' : ''),
+        isPathlessLayoutRoute:
+          routeId.split('/').pop()?.startsWith('__') === true,
       })
 
-      if (isIndexRoute) {
-        let invalidChildRoutes = routeIds.filter(
-          (id) => parentRouteIds[id] === routeId,
+      if (isIndexRoute && childrenByParent.has(routeId)) {
+        throw new Error(
+          `Child routes are not allowed in index routes. Please remove child routes of ${routeId}`,
         )
+      }
 
-        if (invalidChildRoutes.length > 0) {
-          throw new Error(
-            `Child routes are not allowed in index routes. Please remove child routes of ${routeId}`,
-          )
-        }
+      routes[routeId] = {
+        path: routePath || undefined,
+        index: isIndexRoute || undefined,
+        id: routeId,
+        parentId: parentId ?? 'root',
+        file: files[routeId],
+      }
 
-        defineRoute(routePath, files[routeId], { index: true, id: routeId })
-      } else {
-        defineRoute(routePath, files[routeId], { id: routeId }, () => {
-          defineNestedRoutes(defineRoute, routeId)
-        })
+      if (!isIndexRoute) {
+        defineNestedRoutes(routeId)
       }
     }
   }
 
-  return defineRoutes(defineNestedRoutes)
+  defineNestedRoutes(undefined)
+  return routes
 }
 
 export { createRoutePath }
 
-function getParentRouteIds(
-  routeIds: string[],
-): Record<string, string | undefined> {
-  // We could use Array objects directly below, but Map is more performant,
-  // especially for larger arrays of routeIds,
-  // due to the faster lookups provided by the Map data structure.
-  const routeIdMap = new Map<string, string>()
+function findParentRouteId(
+  routeId: string,
+  knownIds: Set<string>,
+): string | undefined {
+  // The nearest folder ancestor wins.
+  for (
+    let index = routeId.lastIndexOf('/');
+    index > 0;
+    index = routeId.lastIndexOf('/', index - 1)
+  ) {
+    const candidate = routeId.slice(0, index)
+    if (knownIds.has(candidate)) {
+      return candidate
+    }
+  }
+
+  // Dot-notation index routes nest under their dotted parent.
+  for (const suffix of [DOT_INDEX_SUFFIX, DOT_UNDERSCORE_INDEX_SUFFIX]) {
+    if (routeId.endsWith(suffix)) {
+      const candidate = routeId.slice(0, -suffix.length)
+      if (knownIds.has(candidate)) {
+        return candidate
+      }
+    }
+  }
+
+  return undefined
+}
+
+/** Groups route ids by parent id, preserving the order of `routeIds`. */
+function groupByParent(routeIds: string[]): Map<string | undefined, string[]> {
+  const knownIds = new Set(routeIds)
+  const children = new Map<string | undefined, string[]>()
+
   for (const routeId of routeIds) {
-    routeIdMap.set(routeId, routeId)
+    const parentId = findParentRouteId(routeId, knownIds)
+    const siblings = children.get(parentId)
+    if (siblings) {
+      siblings.push(routeId)
+    } else {
+      children.set(parentId, [routeId])
+    }
   }
 
-  const parentRouteIdMap = new Map<string, string | undefined>()
-  for (const [childRouteId, _] of routeIdMap) {
-    let parentRouteId: string | undefined = undefined
-    for (const [potentialParentId, _] of routeIdMap) {
-      if (childRouteId.startsWith(`${potentialParentId}/`)) {
-        parentRouteId = potentialParentId
-        break
-      }
-    }
-
-    if (!parentRouteId && childRouteId.endsWith(DOT_INDEX_SUFFIX)) {
-      const dotNotationParentId = childRouteId.slice(
-        0,
-        -DOT_INDEX_SUFFIX.length,
-      )
-      if (routeIdMap.has(dotNotationParentId)) {
-        parentRouteId = dotNotationParentId
-      }
-    }
-
-    if (!parentRouteId && childRouteId.endsWith(DOT_UNDERSCORE_INDEX_SUFFIX)) {
-      const dotNotationParentId = childRouteId.slice(
-        0,
-        -DOT_UNDERSCORE_INDEX_SUFFIX.length,
-      )
-      if (routeIdMap.has(dotNotationParentId)) {
-        parentRouteId = dotNotationParentId
-      }
-    }
-
-    parentRouteIdMap.set(childRouteId, parentRouteId)
-  }
-
-  return Object.fromEntries(parentRouteIdMap)
+  return children
 }
 
 function byLongestFirst(a: string, b: string): number {

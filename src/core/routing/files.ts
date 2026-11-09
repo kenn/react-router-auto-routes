@@ -1,89 +1,63 @@
 import * as path from 'path'
 import picomatch from 'picomatch'
-import { createRouteId } from '../../utils'
+import { createRouteId, toPosixPath } from '../../utils'
 import { NormalizedRoutesDir, ResolvedOptions, RouteInfo } from '../types'
-import { ROUTE_EXTENSIONS, SERVER_FILE_REGEX } from './constants'
 import { getRouteSegments } from './segments'
-import { memoizedRegex, resolveRouteRegex } from './utils'
 
-export const routeModuleExts = ROUTE_EXTENSIONS
-export const serverRegex = SERVER_FILE_REGEX
+export const ROUTE_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.md', '.mdx']
+
+const SERVER_FILE_REGEX = /\.server\.(ts|tsx|js|jsx|md|mdx)$/
+const INDEX_ROUTE_REGEX = /((^|[.])(index|_index))($|\/)|(\/(_?index))($|\/)/
 
 function checkColocationViolations(
   segments: string[],
   colocationChar: string,
   filename: string,
 ): void {
-  if (segments.length >= 1 && segments[0].startsWith(colocationChar)) {
+  if (segments[0].startsWith(colocationChar)) {
     throw new Error(
       `Colocation entries must live inside a route folder. ` +
         `Move '${filename}' under an actual route directory.`,
     )
   }
 
-  let anonymousFolderCount = 0
-  for (let i = 0; i < segments.length - 1; i++) {
-    if (segments[i] === colocationChar) {
-      anonymousFolderCount++
-      if (anonymousFolderCount > 1) {
-        throw new Error(
-          `Nested anonymous colocation folders (+/+/) are not allowed. ` +
-            `Use named folders like +/components/ instead. Found in: ${filename}`,
-        )
-      }
-    }
+  const anonymousFolders = segments
+    .slice(0, -1)
+    .filter((segment) => segment === colocationChar)
+  if (anonymousFolders.length > 1) {
+    throw new Error(
+      `Nested anonymous colocation folders (+/+/) are not allowed. ` +
+        `Use named folders like +/components/ instead. Found in: ${filename}`,
+    )
   }
 }
 
-function isColocated(segments: string[], colocationChar: string): boolean {
-  return segments.some((segment) => segment.startsWith(colocationChar))
-}
-
-function hasValidRouteExtension(
+function isRouteModuleFile(
   filename: string,
-  routeRegex?: RegExp,
+  colocationChar: string,
+  routeRegex: RegExp,
 ): boolean {
-  const isFlatFile = !filename.includes(path.sep) && !filename.includes('/')
-
-  if (serverRegex.test(filename)) {
-    return false
-  }
-
-  if (isFlatFile) {
-    return routeModuleExts.includes(path.extname(filename))
-  }
-
-  if (routeRegex) {
-    return routeRegex.test(filename)
-  }
-
-  return routeModuleExts.includes(path.extname(filename))
-}
-
-export function isRouteModuleFile(
-  filename: string,
-  colocationChar: string = '+',
-  routeRegex?: RegExp,
-): boolean {
-  const normalizedPath = filename.replace(/\\/g, '/')
-  const segments = normalizedPath.split('/')
+  const segments = toPosixPath(filename).split('/')
 
   checkColocationViolations(segments, colocationChar, filename)
 
-  if (isColocated(segments, colocationChar)) {
+  if (segments.some((segment) => segment.startsWith(colocationChar))) {
     return false
   }
 
-  return hasValidRouteExtension(filename, routeRegex)
-}
+  if (SERVER_FILE_REGEX.test(filename)) {
+    return false
+  }
 
-export const getRouteRegex = resolveRouteRegex
+  // Flat files skip routeRegex; it only constrains files inside folders.
+  if (segments.length === 1) {
+    return ROUTE_EXTENSIONS.includes(path.extname(filename))
+  }
 
-export function isIndexRoute(routeId: string): boolean {
-  const indexRouteRegex = memoizedRegex(
-    `((^|[.])(index|_index))($|\\/)|(\\/(_?index))($|\\/)`,
-  )
-  return indexRouteRegex.test(routeId)
+  // `g`/`y` regexes advance lastIndex; every file must be tested from the
+  // start (this also keeps `y` anchored to the beginning of the path).
+  routeRegex.lastIndex = 0
+  return routeRegex.test(filename)
 }
 
 function applyMountPath(
@@ -94,33 +68,21 @@ function applyMountPath(
     return routePath
   }
 
-  const normalizedMount = mountPath.endsWith('/')
-    ? mountPath.slice(0, -1)
-    : mountPath
-
   if (!routePath) {
-    return normalizedMount
+    return mountPath
   }
 
-  const normalizedPath = routePath.startsWith('/') ? routePath : `/${routePath}`
-
-  return `${normalizedMount}${normalizedPath}`
+  return routePath.startsWith('/')
+    ? `${mountPath}${routePath}`
+    : `${mountPath}/${routePath}`
 }
 
-export function getRouteInfo(
+function getRouteInfo(
   routeDir: NormalizedRoutesDir,
   file: string,
   options: ResolvedOptions,
 ): RouteInfo {
-  const idFilePath = path
-    .join(routeDir.idPrefix, file)
-    .split(path.win32.sep)
-    .join('/')
-  const importFilePath = path
-    .join(routeDir.importPrefix, file)
-    .split(path.win32.sep)
-    .join('/')
-  const routeId = createRouteId(idFilePath)
+  const routeId = createRouteId(toPosixPath(path.join(routeDir.idPrefix, file)))
   const routePrefix = `${routeDir.idPrefix}/`
   if (!routeId.startsWith(routePrefix)) {
     throw new Error(
@@ -128,18 +90,17 @@ export function getRouteInfo(
     )
   }
   const routeIdWithoutRoutes = routeId.slice(routePrefix.length)
-  const index = isIndexRoute(routeIdWithoutRoutes)
+  const index = INDEX_ROUTE_REGEX.test(routeIdWithoutRoutes)
   const { segments, path: routePath } = getRouteSegments(
     routeIdWithoutRoutes,
     index,
     options.paramChar,
   )
-  const pathWithMount = applyMountPath(routePath, routeDir.mountPath)
 
   return {
     id: routeId,
-    path: pathWithMount,
-    file: importFilePath,
+    path: applyMountPath(routePath, routeDir.mountPath),
+    file: toPosixPath(path.join(routeDir.importPrefix, file)),
     segments,
     mountPath: routeDir.mountPath,
     index,
@@ -155,7 +116,6 @@ export function collectRouteInfos(options: ResolvedOptions): RouteInfo[] {
   for (const currentRouteDir of routes) {
     visitFiles(currentRouteDir.fsDir, (file) => {
       if (
-        ignoredRouteFiles.length > 0 &&
         ignoredRouteFiles.some((pattern) =>
           picomatch.isMatch(file, pattern, { dot: true }),
         )

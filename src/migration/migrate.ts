@@ -1,11 +1,11 @@
 import * as path from 'path'
-import { MIGRATION_ROUTE_EXTENSIONS } from './constants'
-import { createRoutesFromFolders } from './create-routes-from-folders'
+import { ROUTE_EXTENSIONS } from '../core/routing/files'
+import { visitFiles } from '../utils'
 import {
-  isColocatedFile,
-  normalizeDirectoryPath,
-  visitFiles,
-} from './fs-helpers'
+  createRoutesFromFolders,
+  type RouteManifest,
+} from './create-routes-from-folders'
+import { isColocatedFile, normalizeDirectoryPath } from './fs-helpers'
 import {
   buildImportRewritePlan,
   executeImportRewritePlan,
@@ -15,22 +15,15 @@ import {
 } from './import-rewriter'
 import { logInfo } from './logger'
 import { convertColocatedPath, convertToRoute } from './normalizers'
-import { defineRoutes, type RouteManifest } from './route-definition'
-
-export { convertToRoute } from './normalizers'
 
 export type MigrateOptions = {
-  force: boolean
   ignoredRouteFiles?: string[]
 }
 
 export function migrate(
   sourceDir: string,
   targetDir: string,
-  options: MigrateOptions = {
-    force: false,
-    ignoredRouteFiles: undefined,
-  },
+  options: MigrateOptions = {},
 ) {
   sourceDir = normalizeDirectoryPath(sourceDir)
   targetDir = normalizeDirectoryPath(targetDir)
@@ -45,7 +38,7 @@ export function migrate(
   logInfo(`🙈ignored files: ${ignoredPatterns}`)
   logInfo('')
 
-  const routes = createRoutesFromFolders(defineRoutes, {
+  const routes = createRoutesFromFolders({
     appDirectory: './',
     routesDirectory: sourceDir,
     ignoredFilePatterns: ignoredPatterns,
@@ -87,15 +80,17 @@ function collectRouteMappings(
   targetDir: string,
 ): FileMapping[] {
   const mappings: FileMapping[] = []
+  const parentIds = new Set(
+    Object.values(routes).map((route) => route.parentId),
+  )
 
-  for (const [id, route] of Object.entries(routes)) {
-    const { path: routePath, file, parentId } = route
+  for (const [id, { file }] of Object.entries(routes)) {
     const extension = path.extname(file)
-    if (!MIGRATION_ROUTE_EXTENSIONS.includes(extension)) {
+    if (!ROUTE_EXTENSIONS.includes(extension)) {
       continue
     }
 
-    const flat = convertToRoute(routes, sourceDir, id, parentId!)
+    const flat = convertToRoute(sourceDir, id, parentIds.has(id))
 
     const sourcePath = path.resolve(file)
     const targetPath = path.resolve(targetDir, `${flat}${extension}`)
@@ -112,19 +107,23 @@ function collectColocatedMappings(
 ): FileMapping[] {
   const mappings: FileMapping[] = []
 
-  visitFiles(sourceDir, (file) => {
-    if (!isColocatedFile(file)) {
-      return
-    }
+  visitFiles(
+    sourceDir,
+    (file) => {
+      if (!isColocatedFile(file)) {
+        return
+      }
 
-    const sourcePath = path.resolve(sourceDir, file)
-    if (routeSourcePaths.has(normalizeAbsolutePath(sourcePath))) {
-      return
-    }
+      const sourcePath = path.resolve(sourceDir, file)
+      if (routeSourcePaths.has(normalizeAbsolutePath(sourcePath))) {
+        return
+      }
 
-    const targetPath = path.resolve(targetDir, convertColocatedPath(file))
-    mappings.push({ source: sourcePath, target: targetPath })
-  })
+      const targetPath = path.resolve(targetDir, convertColocatedPath(file))
+      mappings.push({ source: sourcePath, target: targetPath })
+    },
+    { followSymlinks: false },
+  )
 
   return mappings
 }

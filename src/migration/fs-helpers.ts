@@ -1,11 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { visitFiles as walkFiles } from '../fs/visit-files'
 import { logInfo } from './logger'
-
-export function visitFiles(dir: string, visitor: (file: string) => void): void {
-  walkFiles(dir, visitor, { followSymlinks: false })
-}
 
 const ROUTE_ENTRY_BASENAMES = new Set(['route', 'index', '_index', '_layout'])
 
@@ -96,7 +91,13 @@ export function swapRoutes(
 
   fs.renameSync(sourceDir, backupDir)
   logInfo(`📦 Backed up '${sourceRelative}' to '${backupRelative}'.`)
-  fs.renameSync(targetDir, sourceDir)
+  try {
+    fs.renameSync(targetDir, sourceDir)
+  } catch (error) {
+    // Put the original routes back so the caller sees an unswapped tree.
+    fs.renameSync(backupDir, sourceDir)
+    throw error
+  }
   logInfo(`🚀 Promoted '${targetRelative}' to '${sourceRelative}'.`)
 }
 

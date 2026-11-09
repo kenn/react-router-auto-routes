@@ -1,278 +1,104 @@
-import autoRoutes, { autoRoutesOptions, RouteConfig } from '../../src/index'
+import autoRoutes, { autoRoutesOptions, RouteConfig } from '../../src/core'
+import type { VisitFilesFunction } from '../../src/core/types'
 
-type RecordWithUnknownValues = Record<string, unknown>
-
-export type RouteSnapshot = RouteConfig[]
-
-type FlattenedRouteEntry = {
+type FlatRoute = {
   file: string
   parentId: string
   path?: string
-  index?: boolean
+  index?: true
 }
 
-export type ExpectedRouteSnapshot = Record<string, Partial<FlattenedRouteEntry>>
-
-export type RouteFixtureExpectation = {
-  id: string
-  parentId?: string
-  path?: string
-  index?: boolean
-  file?: string
-}
-
-export type RouteFixture = {
-  file: string
-  expectation?: RouteFixtureExpectation
-}
-
-export type ExpectedValues = {
-  id: string
-  path: string | undefined
-  parentId?: string
-}
-
-export function stripUndefined<T extends RecordWithUnknownValues>(value: T) {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
-  ) as Partial<T>
-}
-
-function flattenRoutes(
-  routes: RouteSnapshot,
-  parentId: string = 'root',
-  acc: Record<string, Partial<FlattenedRouteEntry>> = {},
-) {
-  for (const route of routes) {
-    acc[route.id] = stripUndefined({
-      file: route.file,
-      parentId,
-      path: route.path,
-      index: route.index,
-    })
-
-    if (route.children && route.children.length > 0) {
-      flattenRoutes(route.children, route.id, acc)
-    }
-  }
-
-  return acc
-}
-
-export function flattenRoutesById(
-  routes: RouteSnapshot,
-): Record<string, Partial<FlattenedRouteEntry>> {
-  const acc: Record<string, Partial<FlattenedRouteEntry>> = {}
-
-  const walk = (route: RouteConfig, parentId: string) => {
-    acc[route.id] = stripUndefined({
-      file: route.file,
-      parentId,
-      path: route.path,
-      index: route.index,
-    })
-
-    if (route.children && route.children.length > 0) {
-      route.children.forEach((child) => walk(child, route.id))
-    }
-  }
-
-  routes.forEach((route) => walk(route, 'root'))
-
-  return acc
-}
-
-export function normalizeRoutes(routes: RouteSnapshot): ExpectedRouteSnapshot {
-  return flattenRoutes(routes)
-}
-
-export function expectRoutesToMatch(
-  routes: RouteSnapshot,
-  expected: ExpectedRouteSnapshot,
-) {
-  expect(normalizeRoutes(routes)).toEqual(expected)
-}
-
-export function visitFilesFromArray(files: string[]) {
-  return (_dir: string, visitor: (file: string) => void) => {
-    files.forEach((file) => {
-      visitor(file)
-    })
-  }
-}
+/**
+ * One expected route: `[file, parent, path?, 'index'?]`.
+ *
+ * - `file` is the path handed to `visitFiles` (relative to `routes/`); the
+ *   expected id and import path are derived from it.
+ * - `parent` is `'root'` or a parent id without the `routes/` prefix.
+ *
+ * A bare string is a file that must not produce a route.
+ */
+export type RouteRow =
+  | [file: string, parent: string, path?: string, index?: 'index']
+  | string
 
 export function createRoutesFromFiles(
   files: string[],
   options: autoRoutesOptions = {},
-): RouteSnapshot {
+): RouteConfig[] {
   return autoRoutes({
     ...options,
-    visitFiles: options.visitFiles ?? visitFilesFromArray(files),
+    visitFiles:
+      options.visitFiles ?? ((_dir, visitor) => files.forEach(visitor)),
   })
 }
 
-export function expectFilesToMatchSnapshot(
-  files: string[],
-  expected: ExpectedRouteSnapshot,
+/** `visitFiles` that serves files by the routes directory suffix. */
+export function filesByRoutesDir(
+  filesByDir: Record<string, string[]>,
+): VisitFilesFunction {
+  const suffixes = Object.keys(filesByDir).sort((a, b) => b.length - a.length)
+  return (dir, visitor) => {
+    const normalized = dir.replace(/\\/g, '/')
+    const suffix = suffixes.find((key) => normalized.endsWith(key))
+    if (suffix) filesByDir[suffix].forEach(visitor)
+  }
+}
+
+export function flattenRoutesById(
+  routes: RouteConfig[],
+): Record<string, FlatRoute> {
+  const result: Record<string, FlatRoute> = {}
+
+  const walk = (route: RouteConfig, parentId: string) => {
+    result[route.id] = { file: route.file, parentId }
+    if (route.path !== undefined) result[route.id].path = route.path
+    if (route.index) result[route.id].index = true
+    route.children?.forEach((child) => walk(child, route.id))
+  }
+
+  routes.forEach((route) => walk(route, 'root'))
+  return result
+}
+
+/** Asserts the full id → { file, parentId, path, index } map for `rows`. */
+export function expectRoutes(
+  rows: RouteRow[],
   options: autoRoutesOptions = {},
-): RouteSnapshot {
+): RouteConfig[] {
+  const files = rows.map((row) => (typeof row === 'string' ? row : row[0]))
+  const expected: Record<string, FlatRoute> = {}
+
+  for (const row of rows) {
+    if (typeof row === 'string') continue
+
+    const [file, parent, path, index] = row
+    const posixFile = file.replace(/\\/g, '/')
+    const entry: FlatRoute = {
+      file: `routes/${posixFile}`,
+      parentId: parent === 'root' ? 'root' : `routes/${parent}`,
+    }
+    if (path !== undefined) entry.path = path
+    if (index) entry.index = true
+    expected[`routes/${posixFile.replace(/\.[a-z0-9]+$/i, '')}`] = entry
+  }
+
   const routes = createRoutesFromFiles(files, options)
-  expectRoutesToMatch(routes, expected)
+  expect(flattenRoutesById(routes)).toEqual(expected)
   return routes
 }
 
-export const route = (
-  file: string,
-  expectation: RouteFixtureExpectation,
-): RouteFixture => ({
-  file,
-  expectation,
-})
-
-export const fileOnly = (file: string): RouteFixture => ({ file })
-
-export function createRouteFixtures(fixtures: RouteFixture[]) {
-  const files = fixtures.map(({ file }) => file)
-  const expected: ExpectedRouteSnapshot = {}
-
-  const addDefaultPrefix = (value: string | undefined): string | undefined => {
-    if (!value || value === 'root') {
-      return value
-    }
-
-    const defaultPrefix = 'routes'
-    if (value.startsWith(`${defaultPrefix}/`) || value.startsWith('/')) {
-      return value
-    }
-
-    return `${defaultPrefix}/${value}`
-  }
-
-  for (const { file, expectation } of fixtures) {
-    if (!expectation) continue
-
-    const { id, file: overrideFile, parentId, ...rest } = expectation
-    const normalizedFile = overrideFile ?? `routes/${file.replace(/\\/g, '/')}`
-
-    const resolvedId = addDefaultPrefix(id)
-    const resolvedParentId = addDefaultPrefix(parentId)
-
-    if (!resolvedId) {
-      throw new Error('Expected route fixture id to be defined')
-    }
-
-    const snapshotEntry: Partial<FlattenedRouteEntry> = {
-      file: normalizedFile,
-      ...rest,
-    }
-
-    if (resolvedParentId) {
-      snapshotEntry.parentId = resolvedParentId
-    }
-
-    expected[resolvedId] = snapshotEntry
-  }
-
-  return { files, expected }
-}
-
-export function expectRouteFixturesToMatchSnapshot(
-  fixtures: RouteFixture[],
-  options: autoRoutesOptions = {},
-): RouteSnapshot {
-  const { files, expected } = createRouteFixtures(fixtures)
-  return expectFilesToMatchSnapshot(files, expected, options)
-}
-
-export function generateFlexRoutesAndVerifyResultWithExpected(
-  routesWithExpectedValues: Record<string, ExpectedValues>,
-) {
-  const routesArrayInput = Object.keys(routesWithExpectedValues) as Array<
-    keyof typeof routesWithExpectedValues
-  >
-
-  const routes = autoRoutes({
-    visitFiles: visitFilesFromArray(routesArrayInput),
-  })
-
-  const flattened = normalizeRoutes(routes)
-
-  routesArrayInput.forEach((key) => {
-    const route = routesWithExpectedValues[key]
-    const generated = flattened[route.id]
-
-    expect(generated).toBeDefined()
-    expect(generated?.path).toBe(route.path)
-    expect(generated?.parentId).toBe(route.parentId)
-  })
-}
-
-export const flatFileRouteFixtures = (): RouteFixture[] => [
-  route('$lang.$ref.tsx', {
-    id: '$lang.$ref',
-    parentId: 'root',
-    path: ':lang/:ref',
-  }),
-  route('$lang.$ref._index.tsx', {
-    id: '$lang.$ref._index',
-    index: true,
-    parentId: 'root',
-    path: ':lang/:ref',
-  }),
-  route('$lang.$ref.$.tsx', {
-    id: '$lang.$ref.$',
-    parentId: 'root',
-    path: ':lang/:ref/*',
-  }),
-  route('_index.tsx', {
-    id: '_index',
-    parentId: 'root',
-    index: true,
-  }),
-  route('healthcheck.tsx', {
-    id: 'healthcheck',
-    parentId: 'root',
-    path: 'healthcheck',
-  }),
+export const flatFileRoutes = (): RouteRow[] => [
+  ['$lang.$ref.tsx', 'root', ':lang/:ref'],
+  ['$lang.$ref._index.tsx', 'root', ':lang/:ref', 'index'],
+  ['$lang.$ref.$.tsx', 'root', ':lang/:ref/*'],
+  ['_index.tsx', 'root', undefined, 'index'],
+  ['healthcheck.tsx', 'root', 'healthcheck'],
 ]
 
-export const flatFolderRouteFixtures = (): RouteFixture[] => [
-  route('$lang.$ref/route.tsx', {
-    id: '$lang.$ref/route',
-    parentId: 'root',
-    path: ':lang/:ref',
-  }),
-  route('$lang.$ref._index/route.tsx', {
-    id: '$lang.$ref._index/route',
-    index: true,
-    parentId: 'root',
-    path: ':lang/:ref',
-  }),
-  route('$lang.$ref.$/route.tsx', {
-    id: '$lang.$ref.$/route',
-    parentId: 'root',
-    path: ':lang/:ref/*',
-  }),
-  route('_index/route.tsx', {
-    id: '_index/route',
-    parentId: 'root',
-    index: true,
-  }),
-  route('healthcheck/route.tsx', {
-    id: 'healthcheck/route',
-    parentId: 'root',
-    path: 'healthcheck',
-  }),
-]
-
-export const withDashboardIndex = (
-  ...fixtures: RouteFixture[]
-): RouteFixture[] => [
-  route('dashboard/index.tsx', {
-    id: 'dashboard/index',
-    parentId: 'root',
-    path: 'dashboard',
-    index: true,
-  }),
-  ...fixtures,
+export const flatFolderRoutes = (): RouteRow[] => [
+  ['$lang.$ref/route.tsx', 'root', ':lang/:ref'],
+  ['$lang.$ref._index/route.tsx', 'root', ':lang/:ref', 'index'],
+  ['$lang.$ref.$/route.tsx', 'root', ':lang/:ref/*'],
+  ['_index/route.tsx', 'root', undefined, 'index'],
+  ['healthcheck/route.tsx', 'root', 'healthcheck'],
 ]

@@ -104,19 +104,6 @@ export function executeImportRewritePlan(plan: ImportRewritePlan): void {
   fs.writeFileSync(plan.targetPath, plan.rewrittenContents)
 }
 
-export function rewriteAndCopy(
-  mapping: FileMapping,
-  normalizedMapping: Map<string, string>,
-  specifierReplacements: SpecifierReplacement[],
-): void {
-  const plan = buildImportRewritePlan(
-    mapping,
-    normalizedMapping,
-    specifierReplacements,
-  )
-  executeImportRewritePlan(plan)
-}
-
 export function normalizeAbsolutePath(filePath: string): string {
   return path.normalize(path.resolve(filePath))
 }

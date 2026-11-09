@@ -1,423 +1,166 @@
 import {
-  createRouteFixtures,
   createRoutesFromFiles,
-  expectRouteFixturesToMatchSnapshot,
-  expectRoutesToMatch,
-  fileOnly,
-  flatFileRouteFixtures,
-  flatFolderRouteFixtures,
-  flattenRoutesById,
-  route,
-  withDashboardIndex,
+  expectRoutes,
+  flatFileRoutes,
+  flatFolderRoutes,
+  type RouteRow,
 } from './utils/route-test-helpers'
 
+const toWindowsPaths = (rows: RouteRow[]): RouteRow[] =>
+  rows.map((row) =>
+    typeof row === 'string'
+      ? row.replace(/\//g, '\\')
+      : ([row[0].replace(/\//g, '\\'), ...row.slice(1)] as RouteRow),
+  )
+
 describe('flat file routes', () => {
-  it('should define routes for flat-files', () => {
-    expectRouteFixturesToMatchSnapshot(flatFileRouteFixtures())
+  it('defines routes for flat files, including markdown', () => {
+    expectRoutes([
+      ...flatFileRoutes(),
+      ['docs.tsx', 'root', 'docs'],
+      ['docs.readme.md', 'root', 'docs/readme'],
+    ])
   })
 
-  it('should support markdown routes as flat-files', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('docs.tsx', {
-        id: 'docs',
-        parentId: 'root',
-        path: 'docs',
-      }),
-      route('docs.readme.md', {
-        id: 'docs.readme',
-        parentId: 'root',
-        path: 'docs/readme',
-      }),
-    ])
+  it('skips files matched by ignoredRouteFiles', () => {
+    expectRoutes(
+      [
+        ...flatFileRoutes(),
+        'style.css',
+        '_index.test.tsx',
+        'styles/style.css',
+        '__tests__/route.test.tsx',
+      ],
+      {
+        ignoredRouteFiles: ['**/.*', '**/*.css', '**/*.test.{js,jsx,ts,tsx}'],
+      },
+    )
   })
 })
 
 describe('flat folder routes', () => {
-  it('should define routes for flat-folders', () => {
-    expectRouteFixturesToMatchSnapshot(flatFolderRouteFixtures())
+  it('defines routes for flat folders', () => {
+    expectRoutes(flatFolderRoutes())
   })
 
-  it('should define routes for flat-folders on Windows', () => {
-    const { files, expected } = createRouteFixtures([
-      route('$lang.$ref\\route.tsx', {
-        id: '$lang.$ref/route',
-        parentId: 'root',
-        path: ':lang/:ref',
-      }),
-      route('$lang.$ref._index\\route.tsx', {
-        id: '$lang.$ref._index/route',
-        index: true,
-        parentId: 'root',
-        path: ':lang/:ref',
-      }),
-      route('$lang.$ref.$\\route.tsx', {
-        id: '$lang.$ref.$/route',
-        parentId: 'root',
-        path: ':lang/:ref/*',
-      }),
-      route('_index\\route.tsx', {
-        id: '_index/route',
-        parentId: 'root',
-        index: true,
-      }),
-      route('healthcheck\\route.tsx', {
-        id: 'healthcheck/route',
-        parentId: 'root',
-        path: 'healthcheck',
-      }),
-    ])
-
-    const routes = createRoutesFromFiles(files)
-    const lookup = flattenRoutesById(routes)
-    expect(lookup['routes/$lang.$ref._index/route']).toBeDefined()
-    expect(lookup['routes/$lang.$ref._index/route']?.parentId).toBe('root')
-    expect(lookup['routes/$lang.$ref._index/route']?.file).toBe(
-      'routes/$lang.$ref._index/route.tsx',
-    )
-    expectRoutesToMatch(routes, expected)
+  it('defines routes for flat folders on Windows', () => {
+    expectRoutes(toWindowsPaths(flatFolderRoutes()))
   })
 
-  it('should ignore non-route files in flat-folders', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('$lang.$ref/_layout.tsx', {
-        id: '$lang.$ref/_layout',
-        parentId: 'root',
-        path: ':lang/:ref',
-      }),
-      route('$lang.$ref/component.tsx', {
-        id: '$lang.$ref/component',
-        parentId: 'routes/$lang.$ref/_layout',
-        path: 'component',
-      }),
-      route('$lang.$ref._index/route.tsx', {
-        id: '$lang.$ref._index/route',
-        parentId: 'routes/$lang.$ref/_layout',
-        index: true,
-      }),
-      fileOnly('$lang.$ref._index/style.css'),
-      fileOnly('$lang.$ref.$/model.server.ts'),
-      route('_index/route.tsx', {
-        id: '_index/route',
-        parentId: 'root',
-        index: true,
-      }),
-      route('healthcheck/route.tsx', {
-        id: 'healthcheck/route',
-        parentId: 'root',
-        path: 'healthcheck',
-      }),
-    ])
-  })
-
-  it('should support markdown routes as flat-folders', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('docs/_layout.tsx', {
-        id: 'docs/_layout',
-        parentId: 'root',
-        path: 'docs',
-      }),
-      route('docs/readme.route.mdx', {
-        id: 'docs/readme.route',
-        parentId: 'routes/docs/_layout',
-        path: 'readme',
-      }),
-    ])
-  })
-
-  it('should treat nested files without special suffixes as routes', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('oauth.tsx', {
-        id: 'oauth',
-        parentId: 'root',
-        path: 'oauth',
-      }),
-      route('oauth/google.tsx', {
-        id: 'oauth/google',
-        parentId: 'root',
-        path: 'oauth/google',
-      }),
+  it('ignores non-route files in flat folders', () => {
+    expectRoutes([
+      ['$lang.$ref/_layout.tsx', 'root', ':lang/:ref'],
+      ['$lang.$ref/component.tsx', '$lang.$ref/_layout', 'component'],
+      ['$lang.$ref._index/route.tsx', '$lang.$ref/_layout', undefined, 'index'],
+      '$lang.$ref._index/style.css',
+      '$lang.$ref.$/model.server.ts',
+      ['docs/_layout.tsx', 'root', 'docs'],
+      ['docs/readme.route.mdx', 'docs/_layout', 'readme'],
     ])
   })
 })
 
-describe('folder normalization', () => {
-  it('should treat nested folders without parents as dot notation', () => {
-    const files = ['oauth/google.ts', 'oauth/logout.ts']
-    const routes = createRoutesFromFiles(files)
-
-    expect(routes).toHaveLength(2)
-
-    const googleRoute = routes.find((r) => r.id === 'routes/oauth/google')
-    expect(googleRoute).toBeDefined()
-    expect(googleRoute?.file).toBe('routes/oauth/google.ts')
-    expect(googleRoute?.path).toBe('oauth/google')
-    expect(googleRoute?.children).toBeUndefined()
-
-    const logoutRoute = routes.find((r) => r.id === 'routes/oauth/logout')
-    expect(logoutRoute).toBeDefined()
-    expect(logoutRoute?.file).toBe('routes/oauth/logout.ts')
-    expect(logoutRoute?.path).toBe('oauth/logout')
+describe('folders without a layout', () => {
+  it('keeps nested files as root routes with their full path', () => {
+    expectRoutes([
+      ['oauth/google.ts', 'root', 'oauth/google'],
+      ['oauth/logout.ts', 'root', 'oauth/logout'],
+      ['api/v1/users.ts', 'root', 'api/v1/users'],
+      ['api.users.ts', 'root', 'api/users'],
+    ])
   })
 
-  it('should not nest under non-layout parents', () => {
-    const files = ['oauth.tsx', 'oauth/google.ts']
-    const routes = createRoutesFromFiles(files)
-
-    expect(routes).toHaveLength(2)
-
-    const oauthRoute = routes.find((r) => r.id === 'routes/oauth')
-    expect(oauthRoute).toBeDefined()
-    expect(oauthRoute?.file).toBe('routes/oauth.tsx')
-
-    const googleRoute = routes.find((r) => r.id === 'routes/oauth/google')
-    expect(googleRoute).toBeDefined()
-    expect(googleRoute?.path).toBe('oauth/google')
-    expect(googleRoute?.children).toBeUndefined()
+  it('does not nest under a sibling non-layout route', () => {
+    expectRoutes([
+      ['oauth.tsx', 'root', 'oauth'],
+      ['oauth/google.tsx', 'root', 'oauth/google'],
+    ])
   })
 
-  it('should handle deeply nested folders without parents', () => {
-    const files = ['api/v1/users.ts', 'api/v1/posts.ts']
-    const routes = createRoutesFromFiles(files)
-
-    expect(routes).toHaveLength(2)
-
-    const usersRoute = routes.find((r) => r.id === 'routes/api/v1/users')
-    expect(usersRoute).toBeDefined()
-    expect(usersRoute?.path).toBe('api/v1/users')
-
-    const postsRoute = routes.find((r) => r.id === 'routes/api/v1/posts')
-    expect(postsRoute).toBeDefined()
-    expect(postsRoute?.path).toBe('api/v1/posts')
-  })
-
-  it('should not flatten routes that already use dot notation', () => {
-    const files = ['api.users.ts']
-    const routes = createRoutesFromFiles(files)
-
-    expect(routes).toHaveLength(1)
-    expect(routes[0].path).toBe('api/users')
-  })
-
-  it('should not flatten index routes', () => {
-    const files = ['dashboard/_layout.tsx', 'dashboard/projects/$id/index.tsx']
-    const routes = createRoutesFromFiles(files)
-
-    expect(routes).toHaveLength(1)
-    expect(routes[0].id).toBe('routes/dashboard/_layout')
-    expect(routes[0].children).toHaveLength(1)
-    expect(routes[0].children?.[0].index).toBe(true)
-  })
-})
-
-describe('ignored routes', () => {
-  const ignoredRouteFiles = ['**/.*', '**/*.css', '**/*.test.{js,jsx,ts,tsx}']
-
-  it('should ignore routes for flat-files', () => {
-    expectRouteFixturesToMatchSnapshot(
+  it('nests index routes under the nearest layout across folders', () => {
+    expectRoutes([
+      ['dashboard/_layout.tsx', 'root', 'dashboard'],
       [
-        ...flatFileRouteFixtures(),
-        fileOnly('style.css'),
-        fileOnly('_index.test.tsx'),
-        fileOnly('styles/style.css'),
-        fileOnly('__tests__/route.test.tsx'),
+        'dashboard/projects/$id/index.tsx',
+        'dashboard/_layout',
+        'projects/:id',
+        'index',
       ],
-      { ignoredRouteFiles },
-    )
-  })
-})
-
-describe('prefix-based colocation with + folders', () => {
-  it('should ignore files in anonymous colocation folder +/', () => {
-    expectRouteFixturesToMatchSnapshot(
-      withDashboardIndex(
-        fileOnly('dashboard/+/utils.ts'),
-        fileOnly('dashboard/+/helpers.ts'),
-      ),
-    )
-  })
-
-  it('should ignore files in named colocation folders +components/, +lib/', () => {
-    expectRouteFixturesToMatchSnapshot(
-      withDashboardIndex(
-        fileOnly('dashboard/+components/avatar.tsx'),
-        fileOnly('dashboard/+lib/api.ts'),
-      ),
-    )
-  })
-
-  it('should ignore nested folders in colocation folders', () => {
-    expectRouteFixturesToMatchSnapshot(
-      withDashboardIndex(
-        fileOnly('dashboard/+/utils/format.ts'),
-        fileOnly('dashboard/+components/buttons/button.tsx'),
-      ),
-    )
-  })
-})
-
-describe('prefix-based colocation with + files', () => {
-  it('should ignore files starting with +', () => {
-    expectRouteFixturesToMatchSnapshot(
-      withDashboardIndex(
-        fileOnly('dashboard/+utils.ts'),
-        fileOnly('dashboard/+types.ts'),
-      ),
-    )
-  })
-
-  it('should ignore a file named +.ts inside a route folder', () => {
-    expectRouteFixturesToMatchSnapshot(
-      withDashboardIndex(fileOnly('dashboard/+.ts')),
-    )
-  })
-
-  it('should treat + in middle of filename as normal route', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('users+admins.tsx', {
-        id: 'users+admins',
-        parentId: 'root',
-        path: 'users+admins',
-      }),
     ])
   })
 })
 
-describe('prefix colocation error cases', () => {
-  it('should throw error for root-level + folder', () => {
-    const files = ['+/utils.ts']
-    expect(() => createRoutesFromFiles(files)).toThrowError(
-      "Colocation entries must live inside a route folder. Move '+/utils.ts' under an actual route directory.",
-    )
+describe('prefix-based colocation', () => {
+  const dashboardIndex: RouteRow = [
+    'dashboard/index.tsx',
+    'root',
+    'dashboard',
+    'index',
+  ]
+  const colocatedFiles = [
+    'dashboard/+/utils.ts',
+    'dashboard/+components/avatar.tsx',
+    'dashboard/+/utils/format.ts',
+    'dashboard/+components/buttons/button.tsx',
+    'dashboard/+utils.ts',
+    'dashboard/+.ts',
+  ]
+
+  it('ignores + folders and + files inside route folders', () => {
+    expectRoutes([
+      dashboardIndex,
+      ...colocatedFiles,
+      ['users.$userId.tsx', 'root', 'users/:userId'],
+      'users.$userId/+avatar.tsx',
+      'users.$userId/+components/form.tsx',
+    ])
   })
 
-  it('should throw error for root-level + file', () => {
-    const files = ['+utils.ts']
-    expect(() => createRoutesFromFiles(files)).toThrowError(
-      "Colocation entries must live inside a route folder. Move '+utils.ts' under an actual route directory.",
-    )
+  it('ignores colocated files with Windows path separators', () => {
+    expectRoutes(toWindowsPaths([dashboardIndex, ...colocatedFiles]))
   })
 
-  it('should throw error for nested anonymous folders +/+/', () => {
-    const files = ['dashboard/+/+/utils.ts']
-    expect(() => createRoutesFromFiles(files)).toThrowError(
-      'Nested anonymous colocation folders (+/+/) are not allowed. Use named folders like +/components/ instead. Found in: dashboard/+/+/utils.ts',
-    )
+  it('treats + in the middle of a filename as a normal route', () => {
+    expectRoutes([['users+admins.tsx', 'root', 'users+admins']])
   })
 
-  it('should throw error for root-level named + folder', () => {
-    const files = ['+lib/utils.ts']
-    expect(() => createRoutesFromFiles(files)).toThrowError(
-      "Colocation entries must live inside a route folder. Move '+lib/utils.ts' under an actual route directory.",
+  it.each([
+    ['+/utils.ts', 'root-level'],
+    ['+utils.ts', 'root-level'],
+    ['+lib/utils.ts', 'root-level'],
+    ['dashboard/+/+/utils.ts', 'nested-anonymous'],
+  ] as const)('rejects %s', (file, kind) => {
+    expect(() => createRoutesFromFiles([file])).toThrowError(
+      kind === 'root-level'
+        ? `Colocation entries must live inside a route folder. Move '${file}' under an actual route directory.`
+        : `Nested anonymous colocation folders (+/+/) are not allowed. Use named folders like +/components/ instead. Found in: ${file}`,
     )
   })
 })
 
-describe('prefix colocation integration tests', () => {
-  it('should handle both folder and file prefix patterns', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('dashboard/index.tsx', {
-        id: 'dashboard/index',
-        parentId: 'root',
-        path: 'dashboard',
-        index: true,
-      }),
-      fileOnly('dashboard/+utils.ts'),
-      fileOnly('dashboard/+/helpers.ts'),
-      fileOnly('dashboard/+lib/api.ts'),
-    ])
-  })
-
-  it('should handle complex route structure', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('_index.tsx', {
-        id: '_index',
-        parentId: 'root',
-        index: true,
-      }),
-      route('users.$userId.tsx', {
-        id: 'users.$userId',
-        parentId: 'root',
-        path: 'users/:userId',
-      }),
-      fileOnly('users.$userId/+avatar.tsx'),
-      fileOnly('users.$userId/+/utils.ts'),
-      fileOnly('users.$userId/+components/form.tsx'),
-      route('users.$userId.edit.tsx', {
-        id: 'users.$userId.edit',
-        parentId: 'root',
-        path: 'users/:userId/edit',
-      }),
-    ])
-  })
-
-  it('should work with Windows path separators (backslashes)', () => {
-    expectRouteFixturesToMatchSnapshot([
-      route('dashboard\\index.tsx', {
-        id: 'dashboard/index',
-        parentId: 'root',
-        path: 'dashboard',
-        index: true,
-      }),
-      fileOnly('dashboard\\+utils.ts'),
-      fileOnly('dashboard\\+\\helpers.ts'),
-      fileOnly('dashboard\\+components\\chart.tsx'),
-    ])
-  })
-})
-
-describe('custom prefix character', () => {
-  it('should respect colocationChar overrides', () => {
-    expectRouteFixturesToMatchSnapshot(
+describe('custom colocation character', () => {
+  it('uses the override and treats + files as routes', () => {
+    expectRoutes(
       [
-        route('dashboard/index.tsx', {
-          id: 'dashboard/index',
-          parentId: 'root',
-          path: 'dashboard',
-          index: true,
-        }),
-        fileOnly('dashboard/_utils.ts'),
-        fileOnly('dashboard/_/helpers.ts'),
+        ['dashboard/index.tsx', 'root', 'dashboard', 'index'],
+        'dashboard/_utils.ts',
+        'dashboard/_/helpers.ts',
+        ['+utils.ts', 'root', '+utils'],
       ],
       { colocationChar: '_' },
     )
   })
-})
 
-describe('custom prefix character edge cases', () => {
-  it('should throw root-level error when colocationChar overrides to _', () => {
-    const files = ['_utils.ts']
-    expect(() =>
-      createRoutesFromFiles(files, { colocationChar: '_' }),
-    ).toThrowError(
-      "Colocation entries must live inside a route folder. Move '_utils.ts' under an actual route directory.",
-    )
-  })
-
-  it('should throw nested anonymous error when colocationChar overrides to _', () => {
-    const files = ['dashboard/_/_/helpers.ts']
-    expect(() =>
-      createRoutesFromFiles(files, { colocationChar: '_' }),
-    ).toThrowError(
-      'Nested anonymous colocation folders (+/+/) are not allowed. Use named folders like +/components/ instead. Found in: dashboard/_/_/helpers.ts',
-    )
-  })
-
-  it('should treat + files as routes when colocationChar is _', () => {
-    expectRouteFixturesToMatchSnapshot(
-      [
-        route('dashboard/index.tsx', {
-          id: 'dashboard/index',
-          parentId: 'root',
-          path: 'dashboard',
-          index: true,
-        }),
-        route('+utils.ts', {
-          id: '+utils',
-          parentId: 'root',
-          path: '+utils',
-        }),
-      ],
-      { colocationChar: '_' },
-    )
-  })
+  it.each(['_utils.ts', 'dashboard/_/_/helpers.ts'])(
+    'rejects %s with the override',
+    (file) => {
+      expect(() =>
+        createRoutesFromFiles([file], { colocationChar: '_' }),
+      ).toThrowError(
+        file === '_utils.ts'
+          ? "Colocation entries must live inside a route folder. Move '_utils.ts' under an actual route directory."
+          : 'Nested anonymous colocation folders (+/+/) are not allowed. Use named folders like +/components/ instead. Found in: dashboard/_/_/helpers.ts',
+      )
+    },
+  )
 })

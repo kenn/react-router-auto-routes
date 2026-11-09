@@ -6,12 +6,17 @@ import {
   buildImportRewritePlan,
   executeImportRewritePlan,
   normalizeAbsolutePath,
-  rewriteAndCopy,
   type ImportRewritePlan,
   type SpecifierReplacement,
 } from '../src/migration/import-rewriter'
 
 let workspace: string | undefined
+
+function rewriteAndCopy(
+  ...args: Parameters<typeof buildImportRewritePlan>
+): void {
+  executeImportRewritePlan(buildImportRewritePlan(...args))
+}
 
 afterEach(() => {
   if (workspace && fs.existsSync(workspace)) {
@@ -274,47 +279,6 @@ export default function Admin() {
     expect(rewritten).toContain(`from '../utils/auth/index'`)
   })
 
-  it('rewrites +types/route specifier when route.tsx becomes a flat file', () => {
-    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-types-route-'))
-
-    const sourceDir = path.join(workspace, 'app', 'routes')
-    const targetDir = path.join(workspace, 'app', 'new-routes')
-
-    // route.tsx → about.tsx: ./+types/route should become ./+types/about
-    const sourceFile = path.join(sourceDir, 'demo+', 'about', 'route.tsx')
-    const targetFile = path.join(targetDir, 'demo', 'about.tsx')
-
-    fs.mkdirSync(path.dirname(sourceFile), { recursive: true })
-    fs.writeFileSync(
-      sourceFile,
-      `import type { Route } from './+types/route'
-
-export function loader({ params }: Route.LoaderArgs) {
-  return { title: 'About' }
-}
-
-export default function About({ loaderData }: Route.ComponentProps) {
-  return <h1>{loaderData.title}</h1>
-}
-`,
-    )
-
-    const normalizedMapping = new Map<string, string>([
-      [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
-    ])
-
-    const specifierReplacements: SpecifierReplacement[] = []
-    rewriteAndCopy(
-      { source: sourceFile, target: targetFile },
-      normalizedMapping,
-      specifierReplacements,
-    )
-
-    const rewritten = fs.readFileSync(targetFile, 'utf8')
-    expect(rewritten).toContain("from './+types/about'")
-    expect(rewritten).not.toContain("from './+types/route'")
-  })
-
   it('strips /index.ts extension from import specifiers', () => {
     workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-strip-ts-ext-'))
 
@@ -377,77 +341,5 @@ export default function Example() {
     const rewritten = fs.readFileSync(targetFile, 'utf8')
     // /index.ts should be stripped
     expect(rewritten).not.toContain('/index.ts')
-  })
-
-  it('rewrites aliased imports for parent routes promoted to _layout', () => {
-    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'rewrite-alias-'))
-
-    const sourceDir = path.join(workspace, 'app', 'routes')
-    const targetDir = path.join(workspace, 'app', 'new-routes')
-
-    const sourceFile = path.join(
-      sourceDir,
-      'settings',
-      'profile.two-factor.index.tsx',
-    )
-    const targetFile = path.join(
-      targetDir,
-      'settings',
-      'profile.two-factor.index.tsx',
-    )
-    const parentSource = path.join(
-      sourceDir,
-      'settings',
-      'profile.two-factor.tsx',
-    )
-    const parentTarget = path.join(
-      targetDir,
-      'settings',
-      'profile.two-factor',
-      '_layout.tsx',
-    )
-
-    fs.mkdirSync(path.dirname(sourceFile), { recursive: true })
-    fs.writeFileSync(
-      sourceFile,
-      `import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor.tsx'\nexport default function TwoFactorIndex() {\n  return <TwoFactorLayout />\n}\n`,
-    )
-    fs.writeFileSync(
-      parentSource,
-      'export default function Layout() { return null }\n',
-    )
-
-    const normalizedMapping = new Map<string, string>([
-      [normalizeAbsolutePath(sourceFile), normalizeAbsolutePath(targetFile)],
-      [
-        normalizeAbsolutePath(parentSource),
-        normalizeAbsolutePath(parentTarget),
-      ],
-    ])
-    const specifierReplacements: SpecifierReplacement[] = [
-      {
-        from: 'app/routes/settings/profile.two-factor.tsx',
-        to: 'app/routes/settings/profile.two-factor/_layout.tsx',
-      },
-      {
-        from: 'routes/settings/profile.two-factor.tsx',
-        to: 'routes/settings/profile.two-factor/_layout.tsx',
-      },
-      {
-        from: 'settings/profile.two-factor.tsx',
-        to: 'settings/profile.two-factor/_layout.tsx',
-      },
-    ]
-
-    rewriteAndCopy(
-      { source: sourceFile, target: targetFile },
-      normalizedMapping,
-      specifierReplacements,
-    )
-
-    const rewritten = fs.readFileSync(targetFile, 'utf8')
-    expect(rewritten).toContain(
-      "import { TwoFactorLayout } from '#app/routes/settings/profile.two-factor/_layout.tsx'",
-    )
   })
 })

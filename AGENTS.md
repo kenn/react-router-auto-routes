@@ -5,13 +5,13 @@
 - Library: `react-router-auto-routes` generates React Router v7 route configs from file-system structure.
 - Core entry: `src/core/index.ts` exports `autoRoutes(options)`; default export is same.
 - Legacy migration helpers live under `src/migration` for backwards compatibility with `remix-flat-routes`.
-- Codebase is ESM-only and targets Node 22+.
+- The library is published as ESM and the migration CLI as CommonJS. Supported Node versions are declared in `package.json` `engines`.
 
 ## Important Modules
 
-- `src/core/routing/*`: detection, metadata collection, path building, normalization, and tree assembly.
-- `src/utils.ts`: shared helpers (`defaultVisitFiles`, memoized regex, route id normalization).
-- `src/migration/route-scanner.ts`: filesystem crawl + ignore handling for legacy migrations.
+- `src/core/routing/files.ts`: file detection and route metadata collection; `segments.ts`: path building; `structure.ts`: tree assembly.
+- `src/utils.ts`: shared helpers (`visitFiles`, `toPosixPath`, route id creation, `routesDir` normalization).
+- `src/migration/route-scanner.ts` + `create-routes-from-folders.ts`: filesystem crawl and legacy route manifest for migrations.
 - `src/migration/normalizers.ts`: legacy route ID and colocated path normalization.
 - `src/migration/*`: migration workflow and CLI compatibility for older Remix setups.
 
@@ -19,20 +19,20 @@
 
 - Route conventions: param char defaults to `$`, colocation prefix `+`, optional segments `(...)`, and pathless layouts prefixed `_`.
 - Favor pure functions; avoid side effects beyond filesystem scanning in utilities.
-- When extending detection logic ensure colocation errors remain descriptive (see `scanRouteModules` and `isColocatedFile`).
+- When extending detection logic ensure colocation errors remain descriptive (see `checkColocationViolations` in core and `isColocatedFile` in migration).
 - Maintain TypeScript types in `src/core/types.ts` and keep `autoRoutes` API backwards compatible.
-- The migration CLI now funnels orchestration through `runMigrationWorkflow`; dry-run support is exposed via `RunOptions` for tests/tooling.
+- The migration CLI uses `runMigrationWorkflow`. For tests and tooling, `RunOptions.dryRun` generates the target tree (replacing an existing target directory) and stops before swapping it into place.
 - Use `buildImportRewritePlan` when you need to inspect import rewrites without performing disk writes (supports dry-run reporting).
 
 ## Behavior That Matters
 
 - Index routes with matching segments: `home/index.tsx` nests under `home/_layout.tsx` when both resolve to `['home']`.
-- `findParentRouteId()` handles that by checking the full segment path for index routes rather than `slice(0, -1)`.
-- Index routes nested under non-root parents omit `path`; direct root-level index routes keep it, such as `dashboard/index.tsx` -> `path: "dashboard"`.
+- `resolveParentId()` in `buildRouteTree()` handles that by checking the full segment path for index routes rather than `slice(0, -1)`.
+- Index routes omit `path` when no relative URL segments remain. Under `dashboard/_layout.tsx`, `dashboard/index.tsx` omits `path`, while `dashboard/projects/$id/index.tsx` keeps `path: "projects/:id"` if there is no closer layout.
 
-- Automatic folder-to-dot normalization: `api/users.ts` without `api.tsx` behaves like `api.users.ts` and becomes a root route with path `/api/users`.
-- That normalization happens in `autoRoutes()` after route collection and only applies to simple folder nesting. It skips dot notation, special syntax, and index routes.
-- When an explicit parent exists, such as `api.tsx` or `api/_layout.tsx`, normal nesting still applies.
+- With no ancestor layout, `api/users.ts` and `api.users.ts` both produce a root route with `path: "api/users"` (URL `/api/users`).
+- There is no separate normalization pass: only `_layout` files become parents in `buildRouteTree()`, so a folder route without a layout falls back to the root with its full path.
+- `api/_layout.tsx` can parent `api/users.ts`. A sibling `api.tsx` cannot parent it; both are root routes if there is no ancestor layout.
 
 ## Tests And Docs
 
