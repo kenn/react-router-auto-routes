@@ -216,6 +216,56 @@ describe('migrate', () => {
     )
   })
 
+  it('rewrites own +types imports for promoted and escaped routes', () => {
+    const typed = (name: string) =>
+      `import type { Route } from './+types/${name}'\nexport default function R(_: Route.ComponentProps) { return null }\n`
+    const result = migrateFixture({
+      'app/routes/profile.tsx': typed('profile'),
+      'app/routes/profile.index.tsx': typed('profile.index'),
+      'app/routes/profile.edit.tsx': typed('profile.edit'),
+    })
+
+    expect(result.files()).toEqual([
+      'profile.index.tsx',
+      'profile/_layout.tsx',
+      'profile_.edit.tsx',
+    ])
+    expect(result.read('profile/_layout.tsx')).toContain(
+      "from './+types/_layout'",
+    )
+    expect(result.read('profile_.edit.tsx')).toContain(
+      "from './+types/profile_.edit'",
+    )
+    expect(result.read('profile.index.tsx')).toContain(
+      "from './+types/profile.index'",
+    )
+  })
+
+  it('keeps explicit .js/.ts suffixes on rewritten +types imports', () => {
+    const imports = (...specifiers: string[]) =>
+      specifiers.map((s, i) => `import type { R${i} } from '${s}'\n`).join('') +
+      'export default function R() { return null }\n'
+    const result = migrateFixture({
+      'app/routes/profile.tsx': imports('./+types/profile.js'),
+      'app/routes/profile.index.tsx': STUB,
+      'app/routes/profile.edit.tsx': imports(
+        './+types/profile.edit.js',
+        './+types/profile.edit.ts',
+        './+types/profile.editor',
+        './+types/profile.editor.js',
+      ),
+    })
+
+    expect(result.read('profile/_layout.tsx')).toContain(
+      "from './+types/_layout.js'",
+    )
+    const edit = result.read('profile_.edit.tsx')
+    expect(edit).toContain("from './+types/profile_.edit.js'")
+    expect(edit).toContain("from './+types/profile_.edit.ts'")
+    expect(edit).toContain("from './+types/profile.editor'")
+    expect(edit).toContain("from './+types/profile.editor.js'")
+  })
+
   it('writes nothing when planning fails for any source file', () => {
     const fixture = createRoutesFixture({
       'app/routes/a.tsx': STUB,
@@ -857,6 +907,18 @@ describe('normalizeSnapshot', () => {
         '<Route path="settings/profile" file="routes/settings/profile/_layout.tsx">',
         '  <Route file="routes/settings/profile/index.tsx" index />',
         '</Route>',
+      ),
+    ],
+    [
+      // The migration escapes `profile_` so two-factor keeps its legacy parent.
+      'a dot-named sibling escaped out of a promoted layout',
+      routes(
+        '<Route path="settings/profile" file="routes/settings/profile.tsx" />',
+        '<Route path="settings/profile/two-factor" file="routes/settings/profile.two-factor.tsx" />',
+      ),
+      routes(
+        '<Route path="settings/profile" file="routes/settings/profile/_layout.tsx" />',
+        '<Route path="settings/profile/two-factor" file="routes/settings/profile_.two-factor/_layout.tsx" />',
       ),
     ],
     [

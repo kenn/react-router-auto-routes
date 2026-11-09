@@ -272,35 +272,33 @@ function computeSpecifierReplacement(
 }
 
 /**
- * When a folder route (`about/route.tsx`) is converted to a flat file
- * (`about.tsx`), the virtual `+types/route` import must be updated to
- * reference the new filename (e.g. `+types/about`).
+ * React Router generates a route module's types at `./+types/<basename>`
+ * next to the module. When migration renames the module (folder route
+ * `about/route.tsx` -> `about.tsx`, promoted `profile.tsx` ->
+ * `profile/_layout.tsx`, escaped `profile.edit.tsx` -> `profile_.edit.tsx`),
+ * its own `./+types/<oldBasename>` import must follow the new basename.
  */
 function rewriteTypesRouteSpecifier(
   specifier: string,
   context: ImportRewriteContext,
 ): string | null {
   const normalized = specifier.replace(/\\/g, '/')
-  const typesRoutePattern = /\/\+types\/route$/
-  if (!typesRoutePattern.test(normalized)) {
+  const sourceName = path.basename(context.sourcePath).replace(/\.[^.]+$/, '')
+  const targetName = path.basename(context.targetPath).replace(/\.[^.]+$/, '')
+
+  const prefix = `./+types/${sourceName}`
+  if (sourceName === targetName || !normalized.startsWith(prefix)) {
     return null
   }
 
-  const sourceBasename = path.basename(context.sourcePath)
-  const targetBasename = path.basename(context.targetPath)
-  const sourceNameWithoutExt = sourceBasename.replace(/\.[^.]+$/, '')
-  const targetNameWithoutExt = targetBasename.replace(/\.[^.]+$/, '')
-
-  // Only rewrite if the source file is `route.{ext}` and the target is
-  // different (i.e. the file was converted from a folder route to a flat file).
-  if (sourceNameWithoutExt !== 'route' || targetNameWithoutExt === 'route') {
+  // Route names contain dots, so match the old name exactly and allow only a
+  // known `.js`/`.ts` suffix after it (`./+types/profile.editor` is unrelated).
+  const suffix = normalized.slice(prefix.length)
+  if (suffix !== '' && suffix !== '.js' && suffix !== '.ts') {
     return null
   }
 
-  return normalized.replace(
-    typesRoutePattern,
-    `/+types/${targetNameWithoutExt}`,
-  )
+  return `./+types/${targetName}${suffix}`
 }
 
 /**

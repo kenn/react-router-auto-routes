@@ -1,5 +1,8 @@
 import * as path from 'path'
+import autoRoutes from '../core/index'
 import { ROUTE_EXTENSIONS } from '../core/routing/files'
+import { getRouteSegments } from '../core/routing/segments'
+import type { RouteConfig } from '../core/types'
 import { visitFiles } from '../utils'
 import {
   createRoutesFromFolders,
@@ -14,7 +17,11 @@ import {
   type SpecifierReplacement,
 } from './import-rewriter'
 import { logInfo } from './logger'
-import { convertColocatedPath, convertToRoute } from './normalizers'
+import {
+  convertColocatedPath,
+  convertToRoute,
+  escapeRouteSegment,
+} from './normalizers'
 
 export type MigrateOptions = {
   ignoredRouteFiles?: string[]
@@ -79,25 +86,135 @@ function collectRouteMappings(
   sourceDir: string,
   targetDir: string,
 ): FileMapping[] {
-  const mappings: FileMapping[] = []
   const parentIds = new Set(
     Object.values(routes).map((route) => route.parentId),
   )
 
+  const targets = new Map<string, RouteTarget>()
   for (const [id, { file }] of Object.entries(routes)) {
     const extension = path.extname(file)
-    if (!ROUTE_EXTENSIONS.includes(extension)) {
-      continue
+    if (ROUTE_EXTENSIONS.includes(extension)) {
+      targets.set(id, {
+        name: convertToRoute(sourceDir, id, parentIds.has(id)),
+        extension,
+      })
     }
-
-    const flat = convertToRoute(sourceDir, id, parentIds.has(id))
-
-    const sourcePath = path.resolve(file)
-    const targetPath = path.resolve(targetDir, `${flat}${extension}`)
-    mappings.push({ source: sourcePath, target: targetPath })
   }
 
-  return mappings
+  const names = preserveLegacyParents(routes, targets, parentIds)
+
+  return Array.from(targets, ([id, { extension }]) => ({
+    source: path.resolve(routes[id].file),
+    target: path.resolve(targetDir, `${names.get(id)}${extension}`),
+  }))
+}
+
+type RouteTarget = { name: string; extension: string }
+
+/**
+ * In the legacy folder convention a `.` never nests, but `autoRoutes` nests a
+ * route under any `_layout` whose segments prefix its own. A dot-named
+ * sibling such as `settings/profile.two-factor` would therefore move under the
+ * promoted `settings/profile/_layout` (promoted from a legacy route with
+ * children). This runs `autoRoutes` on the planned
+ * names and, wherever a route lands under a deeper layout than its legacy
+ * parent, escapes the matching segment (`profile_.two-factor`), which keeps
+ * the URL but breaks the match. Escapes also apply to the route's legacy
+ * descendants so they keep nesting under it. Returns names keyed by legacy id.
+ */
+function preserveLegacyParents(
+  routes: RouteManifest,
+  targets: Map<string, RouteTarget>,
+  promotedLayouts: Set<string>,
+): Map<string, string> {
+  const escapes = new Map<string, Set<number>>()
+
+  const nameOf = (id: string): string => {
+    let name = targets.get(id)!.name
+    for (
+      let current = id;
+      routes[current];
+      current = routes[current].parentId
+    ) {
+      for (const segmentIndex of escapes.get(current) ?? []) {
+        name = escapeRouteSegment(name, segmentIndex) ?? name
+      }
+    }
+    return name
+  }
+
+  // Each pass adds at least one escape; bound the loop defensively anyway.
+  for (let pass = 0; pass <= targets.size; pass++) {
+    const names = new Map(Array.from(targets.keys(), (id) => [id, nameOf(id)]))
+    const legacyIdByRouteId = new Map(
+      Array.from(names, ([id, name]) => [`routes/${name}`, id]),
+    )
+
+    let tree: RouteConfig[]
+    try {
+      tree = autoRoutes({
+        visitFiles: (_dir, visit) => {
+          for (const [id, name] of names) {
+            visit(`${name}${targets.get(id)!.extension}`)
+          }
+        },
+      })
+    } catch {
+      // Conflicts are reported when the CLI verifies the migrated routes.
+      return names
+    }
+
+    let changed = false
+    const visit = (configs: RouteConfig[], parentId: string) => {
+      for (const config of configs) {
+        const id = legacyIdByRouteId.get(config.id)
+        const actualParent =
+          parentId === ROOT_ID ? ROOT_ID : legacyIdByRouteId.get(parentId)
+        if (id && actualParent && actualParent !== routes[id].parentId) {
+          changed = escapeFrom(id, actualParent) || changed
+        }
+        visit(config.children ?? [], config.id)
+      }
+    }
+
+    // `id` landed under the layout `stealer`; escape the segment that
+    // matches the stealer's last segment so the prefix no longer matches.
+    const escapeFrom = (id: string, stealer: string): boolean => {
+      // Only layouts this migration promoted change nesting; legacy
+      // `_layout` files already nest their folder in `autoRoutes`.
+      if (stealer === ROOT_ID || !promotedLayouts.has(stealer)) return false
+      const expected = routes[id].parentId
+      const depth = segmentCount(names.get(stealer)!)
+      if (expected !== ROOT_ID && segmentCount(names.get(expected)!) >= depth) {
+        return false
+      }
+
+      const segmentIndex = depth - 1
+      const own = escapes.get(id) ?? new Set<number>()
+      if (
+        own.has(segmentIndex) ||
+        !escapeRouteSegment(names.get(id)!, segmentIndex)
+      ) {
+        return false
+      }
+      own.add(segmentIndex)
+      escapes.set(id, own)
+      return true
+    }
+
+    visit(tree, ROOT_ID)
+    if (!changed) {
+      return names
+    }
+  }
+
+  return new Map(Array.from(targets.keys(), (id) => [id, nameOf(id)]))
+}
+
+const ROOT_ID = 'root'
+
+function segmentCount(name: string): number {
+  return getRouteSegments(name, false).segments.length
 }
 
 function collectColocatedMappings(
