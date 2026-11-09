@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   convertToRoute,
+  escapeRouteSegment,
   normalizeSnapshotRouteFilePath,
 } from '../src/migration/normalizers'
 
@@ -54,7 +55,42 @@ describe('normalizeSnapshotRouteFilePath', () => {
 
   it('merges pathless underscore segments', () => {
     expect(normalizeSnapshotRouteFilePath('routes/root_/__public.tsx')).toBe(
-      'routes/root_.public.tsx',
+      'routes/root.public.tsx',
     )
+  })
+})
+
+describe('escapeRouteSegment', () => {
+  it('adds a trailing underscore to the requested segment', () => {
+    expect(escapeRouteSegment('settings/profile.two-factor', 1)).toBe(
+      'settings/profile_.two-factor',
+    )
+    expect(escapeRouteSegment('settings/profile.two-factor/_layout', 1)).toBe(
+      'settings/profile_.two-factor/_layout',
+    )
+    expect(escapeRouteSegment('users/$id.edit', 1)).toBe('users/$id_.edit')
+    expect(escapeRouteSegment('_auth.logout', 0)).toBe('_auth_.logout')
+  })
+
+  it('counts [escaped] dots as part of one segment', () => {
+    expect(escapeRouteSegment('[sitemap.xml].extra', 0)).toBe(
+      '[sitemap.xml]_.extra',
+    )
+  })
+
+  it('counts (optional.dots) as part of one segment', () => {
+    expect(escapeRouteSegment('(a.b.c).team.edit', 1)).toBe(
+      '(a.b.c).team_.edit',
+    )
+    expect(escapeRouteSegment('(a.[b.c]).team.edit', 0)).toBe(
+      '(a.[b.c])_.team.edit',
+    )
+  })
+
+  it('refuses segments that are last, already escaped, or special', () => {
+    expect(escapeRouteSegment('settings/profile', 1)).toBeUndefined()
+    expect(escapeRouteSegment('users/$username_.edit', 1)).toBeUndefined()
+    expect(escapeRouteSegment('files/$', 1)).toBeUndefined()
+    expect(escapeRouteSegment('settings/profile.index', 2)).toBeUndefined()
   })
 })

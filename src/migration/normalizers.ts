@@ -22,6 +22,75 @@ export function convertToRoute(
   return hasChildren ? `${flat}/_layout` : flat
 }
 
+const UNESCAPABLE_SEGMENTS = new Set([
+  '$',
+  'index',
+  '_index',
+  '_layout',
+  'route',
+  '_route',
+])
+
+/**
+ * Adds the trailing-underscore escape to the route segment at `segmentIndex`
+ * of a migrated route name, e.g. `settings/profile.two-factor` with index 1
+ * becomes `settings/profile_.two-factor`. The escaped segment keeps its URL
+ * but no longer matches a layout with the plain segment, so `autoRoutes`
+ * stops nesting the route under that layout. Segments are counted the way
+ * `getRouteSegments` splits them (`/` and `.`, outside `[...]` and `(...)`).
+ * Returns `undefined` when the segment is missing, last, or cannot be escaped.
+ */
+export function escapeRouteSegment(
+  name: string,
+  segmentIndex: number,
+): string | undefined {
+  let count = 0
+  let start = 0
+  // Mirrors the states in `getRouteSegments`: separators split only outside
+  // `[...]` escapes and `(...)` optional segments.
+  let inEscape = false
+  let inOptional = false
+
+  for (let index = 0; index <= name.length; index++) {
+    const char = name[index]
+    const atEnd = index === name.length
+    if (!atEnd) {
+      if (inEscape) {
+        if (char === ']') inEscape = false
+        continue
+      }
+      if (char === '[') {
+        inEscape = true
+        continue
+      }
+      if (inOptional) {
+        if (char === ')') inOptional = false
+        continue
+      }
+      if (char === '(') {
+        inOptional = true
+        continue
+      }
+      if (char !== '/' && char !== '.') {
+        continue
+      }
+    }
+
+    const segment = name.slice(start, index)
+    start = index + 1
+    if (!segment || count++ !== segmentIndex) {
+      continue
+    }
+
+    if (atEnd || segment.endsWith('_') || UNESCAPABLE_SEGMENTS.has(segment)) {
+      return undefined
+    }
+    return `${name.slice(0, index)}_${name.slice(index)}`
+  }
+
+  return undefined
+}
+
 export function convertColocatedPath(file: string): string {
   const normalized = file.replace(/\\/g, '/')
   const segments = normalized.split('/')
@@ -104,5 +173,7 @@ export function normalizeSnapshotRouteFilePath(filePath: string): string {
     result.push(segment)
   }
 
-  return result.join('/') + ext
+  // A trailing `_` before `.` or `/` only escapes nesting (see
+  // `escapeRouteSegment`); `profile_.two-factor` names `profile.two-factor`.
+  return result.join('/').replace(/([^/._])_(?=[/.])/g, '$1') + ext
 }
