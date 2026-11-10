@@ -4,7 +4,7 @@
 
 - Library: `react-router-auto-routes` generates React Router v7 route configs from file-system structure.
 - Core entry: `src/core/index.ts` exports `autoRoutes(options)`; default export is same.
-- Legacy migration helpers live under `packages/migrate` (pnpm workspace package `react-router-auto-routes-migrate`, versioned and published separately) for backwards compatibility with `remix-flat-routes`.
+- Legacy migration helpers live under `packages/migrate` (pnpm workspace package `migrate-auto-routes`, versioned and published separately; the package and its bin share the name so `npx migrate-auto-routes` works with or without core's bundled bin) for backwards compatibility with `remix-flat-routes`.
 - The library is published as ESM and the migration CLI as CommonJS. Supported Node versions are declared in `package.json` `engines`.
 
 ## Important Modules
@@ -13,7 +13,7 @@
 - `src/utils.ts`: shared helpers (`visitFiles`, `toPosixPath`, route id creation, `routesDir` normalization).
 - `packages/migrate/src/route-scanner.ts` + `create-routes-from-folders.ts`: filesystem crawl and legacy route manifest for migrations.
 - `packages/migrate/src/normalizers.ts`: legacy route ID and colocated path normalization.
-- `packages/migrate/src/*`: migration workflow and CLI compatibility for older Remix setups. It imports core internals by relative path (`../../../src/...`) and bundles them; do not add core exports for it. `src/cli.ts` is the package's bin (`pnpm build` inside `packages/migrate`); `src/legacy-cli.ts` is the same CLI plus a move notice, built by the root `tsup` config as the `migrate-auto-routes` bin kept in core 1.x (to be removed in v2 along with core's `oxc-parser` dependency).
+- `packages/migrate/src/*`: migration workflow and CLI compatibility for older Remix setups. It imports core internals by relative path (`../../../src/...`) and bundles them; do not add core exports for it. `src/cli.ts` is the package's bin (`pnpm build` inside `packages/migrate`); the root `tsup` config builds the same entry as the `migrate-auto-routes` bin still shipped in core 1.x (to be removed in v2 along with core's `oxc-parser` dependency).
 
 ## Route Conventions
 
@@ -44,9 +44,9 @@
 
 ## Releasing
 
-- The two packages are versioned and released independently. Publish `react-router-auto-routes-migrate` before a core release whose legacy bin notice or README points to it.
+- The two packages are versioned and released independently. Publish `migrate-auto-routes` before core v2: once core stops shipping the bin, `npx migrate-auto-routes` fetches that package from npm, so the name must already be ours.
 - Core (`react-router-auto-routes`): `pnpm np` from the repo root. Tags are `v<version>`.
-- Migrate CLI (`react-router-auto-routes-migrate`): do not use `np`. It does not support monorepos, and its `v<version>` tags would collide with core's (e.g. `v1.0.0` already exists). Instead: bump `packages/migrate/package.json`, commit as `release(migrate): <version>`, then run `pnpm publish` inside `packages/migrate` (`prepublishOnly` runs typecheck, build, and tests; pnpm checks for a clean tree and the publish branch).
+- Migrate CLI (`migrate-auto-routes`): do not use `np`. It does not support monorepos, and its `v<version>` tags would collide with core's (e.g. `v1.0.0` already exists). Instead: bump `packages/migrate/package.json`, commit as `release(migrate): <version>`, then run `pnpm publish` inside `packages/migrate` (`prepublishOnly` runs typecheck, build, and tests; pnpm checks for a clean tree and the publish branch).
 - Do not create git tags for migrate releases (no `migrate-v<version>`). `np` finds core's previous release with `git describe --abbrev=0 --tags`, which is not filtered by prefix, so any other tag on `main` makes it compute the wrong commit range, release notes, and rollback target for core. The `release(migrate): <version>` commit is the record of what was published.
 
 ## Agent Notes

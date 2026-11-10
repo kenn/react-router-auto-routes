@@ -49,7 +49,7 @@ jobs:
         run: pnpm build
 
       - name: Build migrate CLI
-        run: pnpm --filter react-router-auto-routes-migrate build
+        run: pnpm --filter migrate-auto-routes build
 
       - name: Test
         run: pnpm test --run

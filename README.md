@@ -263,16 +263,14 @@ The migration tool continues to follow legacy `remix-flat-routes` semantics and 
 
 ### CLI Migration
 
-Install `react-router-auto-routes` in your project, then run the migration CLI. It ships as a separate package, [`react-router-auto-routes-migrate`](https://www.npmjs.com/package/react-router-auto-routes-migrate), so `npx` can run it without adding it to your dependencies:
+Install `react-router-auto-routes` in your project, then run the migration CLI. It is published as its own package, [`migrate-auto-routes`](https://www.npmjs.com/package/migrate-auto-routes), so `npx` can run it without adding it to your dependencies:
 
 ```bash
-npx react-router-auto-routes-migrate
+npx migrate-auto-routes
 
 # or provide an explicit [source] [destination]
-npx react-router-auto-routes-migrate app/routes app/new-routes
+npx migrate-auto-routes app/routes app/new-routes
 ```
-
-> **Note:** The `migrate-auto-routes` command bundled with `react-router-auto-routes` 1.x still works but prints a notice, and will be removed in v2.
 
 The CLI overwrites the target folder if it already exists. With no arguments it reads from `app/routes` and writes to `app/new-routes`. When you pass both arguments, the CLI uses the exact `sourceDir` and `targetDir` paths you provide.
 

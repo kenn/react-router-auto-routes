@@ -1,4 +1,4 @@
-# react-router-auto-routes-migrate
+# migrate-auto-routes
 
 Migration CLI that converts a [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) 0.8.\* route tree to the folder + colocation convention of [react-router-auto-routes](https://github.com/kenn/react-router-auto-routes).
 
@@ -7,10 +7,10 @@ Migration CLI that converts a [remix-flat-routes](https://github.com/kiliman/rem
 Install `react-router-auto-routes` in your project, commit your work, then run:
 
 ```bash
-npx react-router-auto-routes-migrate
+npx migrate-auto-routes
 
 # or provide an explicit [source] [destination]
-npx react-router-auto-routes-migrate app/routes app/new-routes
+npx migrate-auto-routes app/routes app/new-routes
 ```
 
 With no arguments the CLI reads from `app/routes` and stages the result in `app/new-routes`. It compares the output of `npx react-router routes` before and after the rewrite, swaps the new tree into place only when the routes are unchanged, and restores the original folder otherwise.

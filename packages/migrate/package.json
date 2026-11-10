@@ -1,7 +1,7 @@
 {
-  "name": "react-router-auto-routes-migrate",
+  "name": "migrate-auto-routes",
   "version": "1.0.0",
-  "description": "Migration CLI from remix-flat-routes to react-router-auto-routes",
+  "description": "Migration CLI for react-router-auto-routes: converts remix-flat-routes route trees",
   "keywords": [
     "codemod",
     "migration",
@@ -9,6 +9,7 @@
     "react-router-auto-routes",
     "remix-flat-routes"
   ],
+  "homepage": "https://github.com/kenn/react-router-auto-routes#migration-guide",
   "license": "MIT",
   "author": {
     "name": "Kenn Ejima",
