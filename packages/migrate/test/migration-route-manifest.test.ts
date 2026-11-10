@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { createRoutesFromFolders } from '../src/migration/create-routes-from-folders'
 import {
   cleanupTmpWorkspaces,
   createRoutesFixture,
-} from './utils/tmp-workspace'
+} from '../../../test/utils/tmp-workspace'
+import { createRoutesFromFolders } from '../src/create-routes-from-folders'
 
 afterEach(() => {
   cleanupTmpWorkspaces()

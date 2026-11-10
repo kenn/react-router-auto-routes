@@ -1,9 +1,9 @@
 import * as path from 'path'
-import autoRoutes from '../core/index'
-import { ROUTE_EXTENSIONS } from '../core/routing/files'
-import { getRouteSegments } from '../core/routing/segments'
-import type { RouteConfig } from '../core/types'
-import { visitFiles } from '../utils'
+import autoRoutes from '../../../src/core/index'
+import { ROUTE_EXTENSIONS } from '../../../src/core/routing/files'
+import { getRouteSegments } from '../../../src/core/routing/segments'
+import type { RouteConfig } from '../../../src/core/types'
+import { visitFiles } from '../../../src/utils'
 import {
   createRoutesFromFolders,
   type RouteManifest,

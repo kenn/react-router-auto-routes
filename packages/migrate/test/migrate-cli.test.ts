@@ -5,10 +5,10 @@ import {
   diffSnapshots,
   findAmbiguousParents,
   normalizeSnapshot,
-} from '../src/migration/cli/diff'
-import { rewriteLegacyRouteEntry } from '../src/migration/cli/route-entry'
-import { runCli, type CommandRunner } from '../src/migration/cli/run-cli'
-import { migrate } from '../src/migration/migrate'
+} from '../src/cli/diff'
+import { rewriteLegacyRouteEntry } from '../src/cli/route-entry'
+import { runCli, type CommandRunner } from '../src/cli/run-cli'
+import { migrate } from '../src/migrate'
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>
@@ -31,7 +31,7 @@ import {
   createRoutesFixture,
   type RoutesFixture,
   writeFiles,
-} from './utils/tmp-workspace'
+} from '../../../test/utils/tmp-workspace'
 
 afterEach(() => {
   vi.restoreAllMocks()

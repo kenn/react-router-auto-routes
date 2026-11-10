@@ -1,0 +1,41 @@
+{
+  "name": "react-router-auto-routes-migrate",
+  "version": "1.0.0",
+  "description": "Migration CLI from remix-flat-routes to react-router-auto-routes",
+  "keywords": [
+    "codemod",
+    "migration",
+    "react-router",
+    "react-router-auto-routes",
+    "remix-flat-routes"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Kenn Ejima",
+    "email": "kenn@users.noreply.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kenn/react-router-auto-routes.git",
+    "directory": "packages/migrate"
+  },
+  "bin": {
+    "migrate-auto-routes": "dist/cli.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "pnpm -w run typecheck && pnpm run build && pnpm -w run test --run"
+  },
+  "dependencies": {
+    "oxc-parser": "^0.146.0",
+    "picomatch": "^4.0.5"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}

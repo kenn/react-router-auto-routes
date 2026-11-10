@@ -1,4 +1,4 @@
-import { getRouteSegments } from '../core/routing/segments'
+import { getRouteSegments } from '../../../src/core/routing/segments'
 import { scanRouteModules } from './route-scanner'
 
 const DOT_INDEX_SUFFIX = '.index'

@@ -8,7 +8,7 @@ import {
   normalizeAbsolutePath,
   type ImportRewritePlan,
   type SpecifierReplacement,
-} from '../src/migration/import-rewriter'
+} from '../src/import-rewriter'
 
 let workspace: string | undefined
 
