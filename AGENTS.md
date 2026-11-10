@@ -40,6 +40,7 @@
 - Add or update Vitest coverage when changing route parsing or detection behavior.
 - Keep `README.md` examples aligned with any user-facing convention or option changes.
 - Useful local checks: `pnpm typecheck`, `pnpm build`, `pnpm test`.
+- CI (`.github/workflows/ci.yml`) runs format check, typecheck, both builds, and tests on the latest patch of Node 22, 24, and 26 (`check-latest`).
 
 ## Releasing
 

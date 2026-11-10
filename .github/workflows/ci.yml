@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24, 26]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Reads the pnpm version from `packageManager` in package.json.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          # Without this, a cached older patch of the same major may be used.
+          check-latest: true
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm exec oxfmt --check .
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build core
+        run: pnpm build
+
+      - name: Build migrate CLI
+        run: pnpm --filter react-router-auto-routes-migrate build
+
+      - name: Test
+        run: pnpm test --run
+
+      - name: Smoke-test built CLIs
+        run: |
+          node dist/cli.cjs --help
+          node packages/migrate/dist/cli.cjs --help
