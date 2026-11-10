@@ -40,7 +40,7 @@
 - Add or update Vitest coverage when changing route parsing or detection behavior.
 - Keep `README.md` examples aligned with any user-facing convention or option changes.
 - Useful local checks: `pnpm typecheck`, `pnpm build`, `pnpm test`.
-- CI (`.github/workflows/ci.yml`) runs format check, typecheck, both builds, and tests on the latest patch of Node 22, 24, and 26 (`check-latest`).
+- CI (`.github/workflows/ci.yml`) runs format check, typecheck, both builds, and tests on the latest patch of Node 22, 24, and 26 (`check-latest`). Node 20 is EOL and not tested. The migrate package already requires Node 22.12 or later; core `engines` still lists Node 20 and drops it in v2, because raising the minimum Node version is a breaking change (`np` refuses it in a non-major release).
 
 ## Releasing
 
