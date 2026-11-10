@@ -20,9 +20,6 @@
     "type": "git",
     "url": "https://github.com/kenn/react-router-auto-routes.git"
   },
-  "bin": {
-    "migrate-auto-routes": "dist/cli.cjs"
-  },
   "files": [
     "dist",
     "README.md"
@@ -43,7 +40,6 @@
     "np": "np"
   },
   "dependencies": {
-    "oxc-parser": "^0.146.0",
     "picomatch": "^4.0.5"
   },
   "devDependencies": {
@@ -56,7 +52,7 @@
     "vitest": "^4.1.11"
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": ">=22.12.0"
   },
   "packageManager": "pnpm@11.23.0+sha512.f00082e5b283a199b74e079da28d155c008fe232f44c8a06ea7ddfa014ecf719fc362f790ecc67b28106ddac2afb24c49a9a079159da560b2ce7d1e98efd11af"
 }
