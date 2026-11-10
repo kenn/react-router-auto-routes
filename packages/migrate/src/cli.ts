@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 
-import { runCli } from './cli/run-cli'
+import { main } from './cli/main'
 
-const exitCode = runCli(process.argv.slice(2))
-if (exitCode !== 0) {
-  process.exit(exitCode)
-}
+main(process.argv.slice(2))
