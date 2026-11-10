@@ -54,7 +54,5 @@ jobs:
       - name: Test
         run: pnpm test --run
 
-      - name: Smoke-test built CLIs
-        run: |
-          node dist/cli.cjs --help
-          node packages/migrate/dist/cli.cjs --help
+      - name: Smoke-test built CLI
+        run: node packages/migrate/dist/cli.cjs --help

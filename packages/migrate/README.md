@@ -19,4 +19,4 @@ See the [Migration Guide](https://github.com/kenn/react-router-auto-routes#migra
 
 ## Compatibility
 
-The CLI bundles the route logic of `react-router-auto-routes` 1.x. The verification step runs against the copy installed in your project, so the CLI warns when that copy is a different major version.
+The CLI bundles the route logic of the `react-router-auto-routes` major it was built against. The verification step runs against the copy installed in your project, so the CLI warns when that copy is a different major version.

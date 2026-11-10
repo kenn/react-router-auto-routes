@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      oxc-parser:
-        specifier: ^0.146.0
-        version: 0.146.0
       picomatch:
         specifier: ^4.0.5
         version: 4.0.5
