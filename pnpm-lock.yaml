@@ -37,6 +37,15 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@20.0.3(supports-color@10.2.2))(vite@7.2.4(@types/node@20.19.43))
 
+  packages/migrate:
+    dependencies:
+      oxc-parser:
+        specifier: ^0.146.0
+        version: 0.146.0
+      picomatch:
+        specifier: ^4.0.5
+        version: 4.0.5
+
 packages:
 
   '@babel/code-frame@7.29.7':

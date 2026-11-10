@@ -4,10 +4,25 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['test/**/*.test.ts'],
     coverage: {
       reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules', 'dist', 'test'],
+      exclude: ['node_modules', 'dist', 'test', 'packages/*/test'],
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'core',
+          include: ['test/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'migrate',
+          include: ['packages/migrate/test/**/*.test.ts'],
+        },
+      },
+    ],
   },
 })

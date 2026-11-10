@@ -3,7 +3,7 @@ import {
   convertToRoute,
   escapeRouteSegment,
   normalizeSnapshotRouteFilePath,
-} from '../src/migration/normalizers'
+} from '../src/normalizers'
 
 describe('convertToRoute', () => {
   it('turns parent routes into layout files', () => {

@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
-import { ROUTE_EXTENSIONS } from '../core/routing/files'
-import { createRouteId, toPosixPath, visitFiles } from '../utils'
+import { ROUTE_EXTENSIONS } from '../../../src/core/routing/files'
+import { createRouteId, toPosixPath, visitFiles } from '../../../src/utils'
 import { isColocatedFile } from './fs-helpers'
 
 export type ScanRouteModulesOptions = {

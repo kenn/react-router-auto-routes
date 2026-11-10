@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import autoRoutes from '../src/core/index'
-import type { RouteConfig } from '../src/core/types'
-import { normalizeSnapshot } from '../src/migration/cli/diff'
-import {
-  createRoutesFromFolders,
-  type RouteManifest,
-} from '../src/migration/create-routes-from-folders'
-import { migrate } from '../src/migration/migrate'
+import autoRoutes from '../../../src/core/index'
+import type { RouteConfig } from '../../../src/core/types'
 import {
   cleanupTmpWorkspaces,
   createRoutesFixture,
-} from './utils/tmp-workspace'
+} from '../../../test/utils/tmp-workspace'
+import { normalizeSnapshot } from '../src/cli/diff'
+import {
+  createRoutesFromFolders,
+  type RouteManifest,
+} from '../src/create-routes-from-folders'
+import { migrate } from '../src/migrate'
 
 afterEach(() => {
   vi.restoreAllMocks()

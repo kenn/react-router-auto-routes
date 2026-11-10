@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createRoutePath } from '../src/migration/create-routes-from-folders'
+import { createRoutePath } from '../src/create-routes-from-folders'
 
 describe('createRoutePath', () => {
   const scenarios: Array<{

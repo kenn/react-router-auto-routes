@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { toPosixPath } from '../../utils'
+import { toPosixPath } from '../../../../src/utils'
 import {
   defaultTargetDir,
   pathRelative,

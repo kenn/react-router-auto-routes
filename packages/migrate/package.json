@@ -1,0 +1,12 @@
+{
+  "name": "react-router-auto-routes-migrate",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Migration CLI from remix-flat-routes to react-router-auto-routes",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "oxc-parser": "^0.146.0",
+    "picomatch": "^4.0.5"
+  }
+}

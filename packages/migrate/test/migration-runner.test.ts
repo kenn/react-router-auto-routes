@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const spawnSync = vi.hoisted(() => vi.fn())
 vi.mock('node:child_process', () => ({ spawnSync }))
 
-import { defaultRunner } from '../src/migration/cli/runner'
+import { defaultRunner } from '../src/cli/runner'
 
 const createdTempDirs: string[] = []
 

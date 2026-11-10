@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isColocatedFile } from '../src/migration/fs-helpers'
+import { isColocatedFile } from '../src/fs-helpers'
 
 describe('isColocatedFile', () => {
   it('returns false for primary route modules inside + folders', () => {
